@@ -9,9 +9,8 @@
 
 #include "GDInputDebounced.hpp"
 #include "GTime.hpp"
-#include "G602.hpp"
-
 #include <util/atomic.h>
+#include "Ctrl.hpp"
 
 DEBUG_INIT_GLOBAL();
 
@@ -134,12 +133,12 @@ static GDInputDebounced di_btn_autostop(false, P_event_autostopEnable,  P_event_
 static GDInputDebounced di_btn_start(false, P_event_start,  nullptr, DI_DEBOUNCE_TIME);
 static GDInputDebounced di_btn_stop(false, P_event_stop,  nullptr, DI_DEBOUNCE_TIME);
 
-static void g602_event(app::G602::Event event, const app::G602::EventData& data);
+static void P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& data);
 
-app::G602 g602(
+app::Ctrl ctrl(
         G602_SPEED_BASELINE_LOW,
         G602_SPEED_BASELINE_HIGH,
-        g602_event
+        P_ctrl_event
 );
 
 static void P_motor_update()
@@ -160,51 +159,51 @@ static void P_motor_update()
     }
 }
 
-static void g602_event(app::G602::Event event, const app::G602::EventData& data)
+static void P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& data)
 {
     switch(event)
     {
-        case app::G602::Event::ERRORS_UPDATE:
+        case app::Ctrl::Event::ERRORS_UPDATE:
         {
             break;
         }
 
-        case app::G602::Event::WARNINGS_UPDATE:
+        case app::Ctrl::Event::WARNINGS_UPDATE:
         {
 #define TO_BOOL(x) ((x) != 0)
-            blink_speed_to_low = TO_BOOL(data.WARNINGS_UPDATE.warnings | WARNING_SPEED_TOO_LOW);
-            blink_speed_to_high = TO_BOOL(data.WARNINGS_UPDATE.warnings | WARNING_SPEED_TOO_HIGH);
+            blink_speed_to_low = TO_BOOL(data.WARNINGS_UPDATE.warnings | CTRL_WARNING_SPEED_TOO_LOW);
+            blink_speed_to_high = TO_BOOL(data.WARNINGS_UPDATE.warnings | CTRL_WARNING_SPEED_TOO_HIGH);
             break;
         }
 
-        case app::G602::Event::MOTOR_ON:
+        case app::Ctrl::Event::MOTOR_ON:
         {
             global.motor_on = true;
             P_motor_update();
             break;
         }
 
-        case app::G602::Event::MOTOR_OFF:
+        case app::Ctrl::Event::MOTOR_OFF:
         {
             global.motor_on = false;
             P_motor_update();
             break;
         }
 
-        case app::G602::Event::MOTOR_SETPOINT_UPDATE:
+        case app::Ctrl::Event::MOTOR_SETPOINT_UPDATE:
         {
             global.motor_setpoint = data.DRIVE_SETPOINT_UPDATE.setpoint;
             P_motor_update();
             break;
         }
 
-        case app::G602::Event::LIFT_UP:
+        case app::Ctrl::Event::LIFT_UP:
         {
             digitalWrite(PIN_DO_LIFT, LOW);
             break;
         }
 
-        case app::G602::Event::LIFT_DOWN:
+        case app::Ctrl::Event::LIFT_DOWN:
         {
             digitalWrite(PIN_DO_LIFT, HIGH);
             break;
@@ -258,64 +257,52 @@ void P_pulses_get(
 
 static void P_event_stopSet()
 {
-    DEBUG_PRINTLN("event_stopSet()");
-    g602.stopTriggeredSet(true);
+//    DEBUG_PRINTLN("event_stopSet()");
+    ctrl.stopTriggeredSet(true);
 }
 
 static void P_event_stopUnset()
 {
-    DEBUG_PRINTLN("event_stopUnset()");
-    g602.stopTriggeredSet(false);
+//    DEBUG_PRINTLN("event_stopUnset()");
+    ctrl.stopTriggeredSet(false);
 }
 
 static void P_event_speedMode45()
 {
-    DEBUG_PRINTLN("event_speedMode45()");
-    g602.baselineSpeedModeSet(app::G602::BaselineSpeedMode::MODE_HIGH);
+//    DEBUG_PRINTLN("event_speedMode45()");
+    ctrl.baselineSpeedModeSet(app::Ctrl::BaselineSpeedMode::MODE_HIGH);
 }
 
 static void P_event_speedMode33()
 {
-    DEBUG_PRINTLN("event_speedMode33()");
-    g602.baselineSpeedModeSet(app::G602::BaselineSpeedMode::MODE_LOW);
+//    DEBUG_PRINTLN("event_speedMode33()");
+    ctrl.baselineSpeedModeSet(app::Ctrl::BaselineSpeedMode::MODE_LOW);
 }
 
 static void P_event_autostopEnable()
 {
-    DEBUG_PRINTLN("event_autostopEnable()");
-    g602.autostopAllowSet(true);
+//    DEBUG_PRINTLN("event_autostopEnable()");
+    ctrl.autostopAllowSet(true);
 }
 
 static void P_event_autostopDisable()
 {
-    DEBUG_PRINTLN("event_autostopDisable()");
-    g602.autostopAllowSet(false);
+//    DEBUG_PRINTLN("event_autostopDisable()");
+    ctrl.autostopAllowSet(false);
 }
 
 void P_event_start()
 {
-    g602.start();
+//    DEBUG_PRINTLN("event_start()");
+    ctrl.start();
     digitalWrite(PIN_DO_AUDIO_DENY, HIGH);
-    DEBUG_PRINTLN("event_start()");
 }
 
 void P_event_stop()
 {
-    DEBUG_PRINTLN("event_stop()");
-    g602.stop();
+//    DEBUG_PRINTLN("event_stop()");
+    ctrl.stop();
 }
-
-/*
-void event_tmp_pd()
-{
-    DEBUG_PRINTLN("event_tmp_pd()");
-}
-
-void event_tmp_pt()
-{
-    DEBUG_PRINTLN("event_tmp_pt()");
-}
-*/
 
 AverageTinyMemory potentiometer_avg(FACTOR);
 
@@ -345,16 +332,16 @@ static void read_inputs()
 
 #define POTENTIOMETER_TO_MANUAL_SPEED(xval) (xval)
     int speed_manual = POTENTIOMETER_TO_MANUAL_SPEED(avg - G602_SPEED_HALF);
-    g602.manualSpeedDeltaSet(speed_manual);
+    ctrl.manualSpeedDeltaSet(speed_manual);
 
 /*
     DEBUG_PRINT("speed_manual = "); DEBUG_PRINT(speed_manual);
     DEBUG_PRINTLN();
 */
 
-#ifdef G602_DEBUG
-    app::G602::internal_state_t state;
-    g602.debug_get(&state);
+#ifdef CTRL_DEBUG
+    app::Ctrl::internal_state_t state;
+    ctrl.debug_get(&state);
     DEBUG_PRINT("m_state = "); DEBUG_PRINT((int)state.m_state);
     DEBUG_PRINT("; m_speed_manual_delta = "); DEBUG_PRINT((int)state.m_speed_manual_delta);
     DEBUG_PRINTLN();
@@ -389,7 +376,7 @@ static int P_rotator_id_get(size_t sheduler_id)
     return -1;
 }
 
-static void P_rotator_handler(size_t id, GTime_t time, GTime_t now, Scheduler & rtc)
+static void P_rotator_handler(size_t id, GTime_t time, GTime_t now, Scheduler & sched)
 {
 
     int rid = P_rotator_id_get(id);
@@ -468,7 +455,7 @@ static void P_rotator_handler(size_t id, GTime_t time, GTime_t now, Scheduler & 
 #define PULSES_TO_SPEED(xpulses) (xpulses)
     int speed_actual = PULSES_TO_SPEED(motor_pulses_diff);
 
-    g602.actualSpeedUpdate(speed_actual);
+    ctrl.actualSpeedUpdate(speed_actual);
 
 
 /*
@@ -508,7 +495,7 @@ void real_time_calls()
         return;
     }
 
-    long late = (long)time - (long)time_next;
+/*    long late = (long)time - (long)time_next; */
     sched.handle(time);
     time_next = sched.nearestTime();
 }

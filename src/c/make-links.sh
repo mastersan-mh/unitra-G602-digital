@@ -3,8 +3,8 @@ defs.hpp
 exception.hpp
 exception.ino
 unitra-g602.ino
-G602.hpp
-G602.ino
+Ctrl.hpp
+Ctrl.ino
 GTime.hpp
 GObject.hpp
 GObject.ino

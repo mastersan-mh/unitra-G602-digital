@@ -1,17 +1,17 @@
 
-#include "G602.hpp"
+#include "Ctrl.hpp"
 
 #define ARRAY_INDEX(x) static_cast<unsigned int>(x)
 
 namespace app
 {
 
-G602::speed_t G602::P_speed_baseline_get() const
+Ctrl::speed_t Ctrl::P_speed_baseline_get() const
 {
     return m_speed_baselines[ARRAY_INDEX(m_speed_baseline_mode)];
 }
 
-void G602::P_event(Event event, const EventData& data) const
+void Ctrl::P_event(Event event, const EventData& data) const
 {
     if(m_eventFunc)
     {
@@ -19,7 +19,7 @@ void G602::P_event(Event event, const EventData& data) const
     }
 }
 
-void G602::P_event_errors_set(unsigned err)
+void Ctrl::P_event_errors_set(unsigned err)
 {
     unsigned old = m_state_errors;
     m_state_errors |= err;
@@ -30,7 +30,7 @@ void G602::P_event_errors_set(unsigned err)
     }
 }
 
-void G602::P_event_errors_clear(unsigned err)
+void Ctrl::P_event_errors_clear(unsigned err)
 {
     unsigned old = m_state_errors;
     m_state_errors &= ~err;
@@ -41,7 +41,7 @@ void G602::P_event_errors_clear(unsigned err)
     }
 }
 
-void G602::P_event_warnings_set(unsigned warn)
+void Ctrl::P_event_warnings_set(unsigned warn)
 {
     unsigned old = m_state_warnings;
     m_state_warnings |= warn;
@@ -52,7 +52,7 @@ void G602::P_event_warnings_set(unsigned warn)
     }
 }
 
-void G602::P_event_warnings_clean(unsigned warn)
+void Ctrl::P_event_warnings_clean(unsigned warn)
 {
     unsigned old = m_state_warnings;
     m_state_warnings &= ~warn;
@@ -63,33 +63,33 @@ void G602::P_event_warnings_clean(unsigned warn)
     }
 }
 
-void G602::P_event_motor_on()
+void Ctrl::P_event_motor_on()
 {
     P_event(Event::MOTOR_ON, m_eventData);
 }
 
-void G602::P_event_motor_off()
+void Ctrl::P_event_motor_off()
 {
     P_event(Event::MOTOR_OFF, m_eventData);
 }
 
-void G602::P_event_motor_setpoint_update(G602::speed_t setpoint)
+void Ctrl::P_event_motor_setpoint_update(Ctrl::speed_t setpoint)
 {
     m_eventData.DRIVE_SETPOINT_UPDATE.setpoint = setpoint;
     P_event(Event::MOTOR_SETPOINT_UPDATE, m_eventData);
 }
 
-void G602::P_event_lift_up()
+void Ctrl::P_event_lift_up()
 {
     P_event(Event::LIFT_UP, m_eventData);
 }
 
-void G602::P_event_lift_down()
+void Ctrl::P_event_lift_down()
 {
     P_event(Event::LIFT_DOWN, m_eventData);
 }
 
-void G602::P_fsm(Command cmd, const CommandData & data)
+void Ctrl::P_fsm(Command cmd, const CommandData & data)
 {
     State next_state = m_state;
     switch(m_state)
@@ -104,7 +104,7 @@ void G602::P_fsm(Command cmd, const CommandData & data)
              m_speed_baseline_mode = BaselineSpeedMode::MODE_LOW;
              P_event_motor_off();
              P_event_lift_up();
-             G602::speed_t speed = P_speed_baseline_get();
+             Ctrl::speed_t speed = P_speed_baseline_get();
              P_event_motor_setpoint_update(speed);
              next_state = State::STOPPED;
             break;
@@ -147,7 +147,7 @@ void G602::P_fsm(Command cmd, const CommandData & data)
                 {
                     if(!(m_state_allowed_autostop && m_state_autostop_triggered))
                     {
-                        G602::speed_t speed = P_speed_baseline_get();
+                        Ctrl::speed_t speed = P_speed_baseline_get();
                         P_event_motor_setpoint_update(speed);
                         P_event_motor_on();
                         P_event_lift_down();
@@ -184,14 +184,14 @@ void G602::P_fsm(Command cmd, const CommandData & data)
                 case Command::SPEED_BASELINE_LOW:
                 {
                     m_speed_baseline_mode = BaselineSpeedMode::MODE_LOW;
-                    G602::speed_t speed = P_speed_baseline_get();
+                    Ctrl::speed_t speed = P_speed_baseline_get();
                     P_event_motor_setpoint_update(speed);
                     break;
                 }
                 case Command::SPEED_BASELINE_HIGH:
                 {
                     m_speed_baseline_mode = BaselineSpeedMode::MODE_HIGH;
-                    G602::speed_t speed = P_speed_baseline_get();
+                    Ctrl::speed_t speed = P_speed_baseline_get();
                     P_event_motor_setpoint_update(speed);
                     break;
                 }
@@ -217,7 +217,7 @@ void G602::P_fsm(Command cmd, const CommandData & data)
                 }
                 case Command::START:
                 {
-                    G602::speed_t speed = P_speed_baseline_get() + m_speed_manual_delta;
+                    Ctrl::speed_t speed = P_speed_baseline_get() + m_speed_manual_delta;
                     P_event_motor_setpoint_update(speed);
                     next_state = State::STARTED_MANUAL;
                     break;
@@ -266,14 +266,14 @@ void G602::P_fsm(Command cmd, const CommandData & data)
                 case Command::SPEED_BASELINE_LOW:
                 {
                     m_speed_baseline_mode = BaselineSpeedMode::MODE_LOW;
-                    G602::speed_t speed = P_speed_baseline_get() + m_speed_manual_delta;
+                    Ctrl::speed_t speed = P_speed_baseline_get() + m_speed_manual_delta;
                     P_event_motor_setpoint_update(speed);
                     break;
                 }
                 case Command::SPEED_BASELINE_HIGH:
                 {
                     m_speed_baseline_mode = BaselineSpeedMode::MODE_HIGH;
-                    G602::speed_t speed = P_speed_baseline_get() + m_speed_manual_delta;
+                    Ctrl::speed_t speed = P_speed_baseline_get() + m_speed_manual_delta;
                     P_event_motor_setpoint_update(speed);
                     break;
                 }
@@ -282,7 +282,7 @@ void G602::P_fsm(Command cmd, const CommandData & data)
                     if(m_speed_manual_delta != data.SPEED_MANUAL_UPDATE.speed)
                     {
                         m_speed_manual_delta = data.SPEED_MANUAL_UPDATE.speed;
-                        G602::speed_t speed = P_speed_baseline_get() + m_speed_manual_delta;
+                        Ctrl::speed_t speed = P_speed_baseline_get() + m_speed_manual_delta;
                         P_event_motor_setpoint_update(speed);
                     }
                     break;
@@ -304,7 +304,7 @@ void G602::P_fsm(Command cmd, const CommandData & data)
                 }
                 case Command::START:
                 {
-                    G602::speed_t speed = P_speed_baseline_get();
+                    Ctrl::speed_t speed = P_speed_baseline_get();
                     P_event_motor_setpoint_update(speed);
                     next_state = State::STARTED;
                     break;
@@ -346,7 +346,7 @@ void G602::P_fsm(Command cmd, const CommandData & data)
     m_state = next_state;
 }
 
-G602::G602(
+Ctrl::Ctrl(
         speed_t baseSpeedLow,
         speed_t baseSpeedHigh,
         void (*eventFunc)(Event event, const EventData& data)
@@ -361,12 +361,12 @@ G602::G602(
     P_fsm(Command::INIT, m_cmdData);
 }
 
-G602::~G602()
+Ctrl::~Ctrl()
 {
     /* nothing to do*/
 }
 
-void G602::baselineSpeedModeSet(BaselineSpeedMode baselineSpeedMode)
+void Ctrl::baselineSpeedModeSet(BaselineSpeedMode baselineSpeedMode)
 {
     Command cmd;
     switch(baselineSpeedMode)
@@ -378,28 +378,28 @@ void G602::baselineSpeedModeSet(BaselineSpeedMode baselineSpeedMode)
     P_fsm(cmd, m_cmdData);
 }
 
-void G602::manualSpeedDeltaSet(speed_t speed)
+void Ctrl::manualSpeedDeltaSet(speed_t speed)
 {
     m_cmdData.SPEED_MANUAL_UPDATE.speed = speed;
     P_fsm(Command::SPEED_MANUAL_UPDATE, m_cmdData);
 }
 
-void G602::autostopAllowSet(bool allow_autostop)
+void Ctrl::autostopAllowSet(bool allow_autostop)
 {
     P_fsm(allow_autostop ? Command::AUTOSTOP_ALLOW : Command::AUTOSTOP_DENY, m_cmdData);
 }
 
-void G602::start()
+void Ctrl::start()
 {
     P_fsm(Command::START, m_cmdData);
 }
 
-void G602::stop()
+void Ctrl::stop()
 {
     P_fsm(Command::STOP, m_cmdData);
 }
 
-void G602::actualSpeedUpdate(speed_t speed)
+void Ctrl::actualSpeedUpdate(speed_t speed)
 {
     bool check = false;
     speed_t setpoint = 0;
@@ -430,11 +430,11 @@ void G602::actualSpeedUpdate(speed_t speed)
     {
         if(speed < setpoint)
         {
-            P_event_warnings_set(WARNING_SPEED_TOO_LOW);
+            P_event_warnings_set(CTRL_WARNING_SPEED_TOO_LOW);
         }
         else if(speed > setpoint)
         {
-            P_event_warnings_set(WARNING_SPEED_TOO_HIGH);
+            P_event_warnings_set(CTRL_WARNING_SPEED_TOO_HIGH);
         }
         else
         {
@@ -444,29 +444,29 @@ void G602::actualSpeedUpdate(speed_t speed)
 
     if(clear)
     {
-        P_event_warnings_clean(WARNING_SPEED_TOO_LOW | WARNING_SPEED_TOO_HIGH);
+        P_event_warnings_clean(CTRL_WARNING_SPEED_TOO_LOW | CTRL_WARNING_SPEED_TOO_HIGH);
     }
 
 }
 
-void G602::stopTriggeredSet(bool triggered)
+void Ctrl::stopTriggeredSet(bool triggered)
 {
     P_fsm(triggered ? Command::GAUGE_STOP_ON : Command::GAUGE_STOP_OFF, m_cmdData);
 }
 
-int G602::errorsGet() const
+int Ctrl::errorsGet() const
 {
     return m_state_errors;
 }
 
-int G602::warningsGet() const
+int Ctrl::warningsGet() const
 {
     return m_state_warnings;
 }
 
-#ifdef G602_DEBUG
+#ifdef CTRL_DEBUG
 
-void G602::debug_get(internal_state_t * state) const
+void Ctrl::debug_get(internal_state_t * state) const
 {
     state->m_state = m_state;
     state->m_speed_manual_delta = m_speed_manual_delta;

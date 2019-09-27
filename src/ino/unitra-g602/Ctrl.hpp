@@ -1,20 +1,18 @@
-#ifndef G602_H_
-#define G602_H_
+#ifndef CTRL_H_INCLUDED_
+#define CTRL_H_INCLUDED_
 
 namespace app
 {
 
-//#define G602_DEBUG
+//#define CTRL_DEBUG
 
-/*
- Для уменьшения шага регулирования но при этом использовать целые числа,
- используются об/час вместо об/мин
-*/
+#define CTRL_WARNING_SPEED_TOO_LOW   (1 << 0)
+#define CTRL_WARNING_SPEED_TOO_HIGH  (1 << 1)
 
-#define WARNING_SPEED_TOO_LOW   (1 << 0)
-#define WARNING_SPEED_TOO_HIGH  (1 << 1)
-
-class G602
+/**
+ * @brief Class-controller
+ */
+class Ctrl
 {
 public:
     typedef int speed_t;
@@ -53,20 +51,20 @@ public:
     };
 #define G602_BASESPEEDMODE__NUM (static_cast<int>(BaselineSpeedMode::MODE_HIGH) + 1)
 
-    G602() = delete;
+    Ctrl() = delete;
     /**
      * @param baseSpeedLow      Базовая скорость: низкая
      * Gparam baseSpeedHigh     Базовая скорость: высокая
      */
-    G602(
+    Ctrl(
             speed_t baseSpeedLow,
             speed_t baseSpeedHigh,
             void (*eventFunc)(Event event, const EventData& data)
     );
-    G602(const G602&) = delete;
-    G602& operator=(const G602&) = delete;
+    Ctrl(const Ctrl&) = delete;
+    Ctrl& operator=(const Ctrl&) = delete;
 
-    ~G602();
+    ~Ctrl();
     /**
      * @brief Выбор базовой скорости
      */
@@ -134,7 +132,7 @@ private:
     void P_event_warnings_clean(unsigned warn);
     void P_event_motor_on();
     void P_event_motor_off();
-    void P_event_motor_setpoint_update(G602::speed_t setpoint);
+    void P_event_motor_setpoint_update(Ctrl::speed_t setpoint);
     void P_event_lift_up();
     void P_event_lift_down();
 
@@ -158,7 +156,7 @@ private:
     CommandData m_cmdData;
     EventData m_eventData;
 
-#ifdef G602_DEBUG
+#ifdef CTRL_DEBUG
 public:
     typedef struct
     {
@@ -171,4 +169,4 @@ public:
 };
 
 } /* namespace app */
-#endif /* G602_H_ */
+#endif /* CTRL_H_INCLUDED_ */
