@@ -1,0 +1,6 @@
+/**
+ * @file fixedpoint
+ * @brief Export template to manipulate fixedpoint numbers with arbitrary width
+ */
+ 
+#include <nostd/fixed/fixedpoint.hpp>
