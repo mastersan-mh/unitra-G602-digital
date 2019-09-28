@@ -126,20 +126,40 @@ static void P_event_autostopEnable();
 static void P_event_autostopDisable();
 static void P_event_start();
 static void P_event_stop();
-
-static GDInputDebounced di_gauge_stop(false, P_event_stopUnset,  P_event_stopSet, DI_DEBOUNCE_TIME);
-static GDInputDebounced di_btn_speed_mode(false, P_event_speedMode33,  P_event_speedMode45, DI_DEBOUNCE_TIME);
-static GDInputDebounced di_btn_autostop(false, P_event_autostopEnable,  P_event_autostopDisable, DI_DEBOUNCE_TIME);
-static GDInputDebounced di_btn_start(false, P_event_start,  nullptr, DI_DEBOUNCE_TIME);
-static GDInputDebounced di_btn_stop(false, P_event_stop,  nullptr, DI_DEBOUNCE_TIME);
-
 static void P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& data);
 
-app::Ctrl ctrl(
-        G602_SPEED_BASELINE_LOW,
-        G602_SPEED_BASELINE_HIGH,
-        P_ctrl_event
-);
+class G602
+{
+public:
+    G602();
+    ~G602();
+    G602(const G602 &) = delete;
+    app::Ctrl ctrl;
+    GDInputDebounced di_gauge_stop;
+    GDInputDebounced di_btn_speed_mode;
+    GDInputDebounced di_btn_autostop;
+    GDInputDebounced di_btn_start;
+    GDInputDebounced di_btn_stop;
+private:
+};
+
+G602::G602()
+: ctrl(G602_SPEED_BASELINE_LOW, G602_SPEED_BASELINE_HIGH, P_ctrl_event)
+, di_gauge_stop(false, P_event_stopUnset,  P_event_stopSet, DI_DEBOUNCE_TIME)
+, di_btn_speed_mode(false, P_event_speedMode33,  P_event_speedMode45, DI_DEBOUNCE_TIME)
+, di_btn_autostop(false, P_event_autostopEnable,  P_event_autostopDisable, DI_DEBOUNCE_TIME)
+, di_btn_start(false, P_event_start,  nullptr, DI_DEBOUNCE_TIME)
+, di_btn_stop(false, P_event_stop,  nullptr, DI_DEBOUNCE_TIME)
+{
+}
+
+G602::~G602()
+{
+
+}
+
+static G602 g602;
+
 
 static void P_motor_update()
 {
@@ -258,50 +278,50 @@ void P_pulses_get(
 static void P_event_stopSet()
 {
 //    DEBUG_PRINTLN("event_stopSet()");
-    ctrl.stopTriggeredSet(true);
+    g602.ctrl.stopTriggeredSet(true);
 }
 
 static void P_event_stopUnset()
 {
 //    DEBUG_PRINTLN("event_stopUnset()");
-    ctrl.stopTriggeredSet(false);
+    g602.ctrl.stopTriggeredSet(false);
 }
 
 static void P_event_speedMode45()
 {
 //    DEBUG_PRINTLN("event_speedMode45()");
-    ctrl.baselineSpeedModeSet(app::Ctrl::BaselineSpeedMode::MODE_HIGH);
+    g602.ctrl.baselineSpeedModeSet(app::Ctrl::BaselineSpeedMode::MODE_HIGH);
 }
 
 static void P_event_speedMode33()
 {
 //    DEBUG_PRINTLN("event_speedMode33()");
-    ctrl.baselineSpeedModeSet(app::Ctrl::BaselineSpeedMode::MODE_LOW);
+    g602.ctrl.baselineSpeedModeSet(app::Ctrl::BaselineSpeedMode::MODE_LOW);
 }
 
 static void P_event_autostopEnable()
 {
 //    DEBUG_PRINTLN("event_autostopEnable()");
-    ctrl.autostopAllowSet(true);
+    g602.ctrl.autostopAllowSet(true);
 }
 
 static void P_event_autostopDisable()
 {
 //    DEBUG_PRINTLN("event_autostopDisable()");
-    ctrl.autostopAllowSet(false);
+    g602.ctrl.autostopAllowSet(false);
 }
 
 void P_event_start()
 {
 //    DEBUG_PRINTLN("event_start()");
-    ctrl.start();
+    g602.ctrl.start();
     digitalWrite(PIN_DO_AUDIO_DENY, HIGH);
 }
 
 void P_event_stop()
 {
 //    DEBUG_PRINTLN("event_stop()");
-    ctrl.stop();
+    g602.ctrl.stop();
 }
 
 AverageTinyMemory potentiometer_avg(FACTOR);
@@ -309,13 +329,13 @@ AverageTinyMemory potentiometer_avg(FACTOR);
 static void read_inputs()
 {
     /* sensors */
-    di_gauge_stop.stateSet(digitalRead(PIN_DI_GAUGE_STOP) == LOW, time);
+    g602.di_gauge_stop.stateSet(digitalRead(PIN_DI_GAUGE_STOP) == LOW, time);
 
     /* buttons */
-    di_btn_speed_mode.stateSet(digitalRead(PIN_DI_BTN_45_33) == LOW, time);
-    di_btn_autostop.stateSet(digitalRead(PIN_DI_BTN_AUTOSTOP) == LOW, time);
-    di_btn_start.stateSet(digitalRead(PIN_DI_BTN_START) == LOW, time);
-    di_btn_stop.stateSet(digitalRead(PIN_DI_BTN_STOP) == LOW, time);
+    g602.di_btn_speed_mode.stateSet(digitalRead(PIN_DI_BTN_45_33) == LOW, time);
+    g602.di_btn_autostop.stateSet(digitalRead(PIN_DI_BTN_AUTOSTOP) == LOW, time);
+    g602.di_btn_start.stateSet(digitalRead(PIN_DI_BTN_START) == LOW, time);
+    g602.di_btn_stop.stateSet(digitalRead(PIN_DI_BTN_STOP) == LOW, time);
 
     /* 10 bits */
     /* 0000.0011.1111.1111 */
@@ -332,16 +352,14 @@ static void read_inputs()
 
 #define POTENTIOMETER_TO_MANUAL_SPEED(xval) (xval)
     int speed_manual = POTENTIOMETER_TO_MANUAL_SPEED(avg - G602_SPEED_HALF);
-    ctrl.manualSpeedDeltaSet(speed_manual);
+    g602.ctrl.manualSpeedDeltaSet(speed_manual);
 
-/*
-    DEBUG_PRINT("speed_manual = "); DEBUG_PRINT(speed_manual);
-    DEBUG_PRINTLN();
-*/
+    //DEBUG_PRINT("speed_manual = "); DEBUG_PRINT(speed_manual);
+    //DEBUG_PRINTLN();
 
 #ifdef CTRL_DEBUG
     app::Ctrl::internal_state_t state;
-    ctrl.debug_get(&state);
+    g602.ctrl.debug_get(&state);
     DEBUG_PRINT("m_state = "); DEBUG_PRINT((int)state.m_state);
     DEBUG_PRINT("; m_speed_manual_delta = "); DEBUG_PRINT((int)state.m_speed_manual_delta);
     DEBUG_PRINTLN();
@@ -376,6 +394,15 @@ static int P_rotator_id_get(size_t sheduler_id)
     return -1;
 }
 
+typedef struct
+{
+    unsigned long m_pulses;
+    unsigned long t_pulses;
+    unsigned long rpm;
+} tmp_measure_t;
+
+static tmp_measure_t measures[G602_ROTATE_MEASURES__NUM] = {};
+
 static void P_rotator_handler(size_t id, GTime_t time, GTime_t now, Scheduler & sched)
 {
 
@@ -397,9 +424,9 @@ static void P_rotator_handler(size_t id, GTime_t time, GTime_t now, Scheduler & 
 
     unsigned long time_delta = rotate_measurer_handler_times[rid];
 
-    DEBUG_PRINT("SPEED MEASURE: ");
-    DEBUG_PRINT("T = ");
-    DEBUG_PRINT((unsigned long)time_delta);
+//    DEBUG_PRINT("SPEED MEASURE: ");
+//    DEBUG_PRINT("T = ");
+//    DEBUG_PRINT((unsigned long)time_delta);
 
     bool speed_valid;
 
@@ -420,7 +447,6 @@ static void P_rotator_handler(size_t id, GTime_t time, GTime_t now, Scheduler & 
         rotate_measures_t * rotate_measure = &global.rotate_measures[rid];
         if(rotate_measure->resetted)
         {
-            DEBUG_PRINT("[RESET]");
             rotate_measure->resetted = false;
             rotate_measure->motor_prev = 0;
             rotate_measure->table_prev = 0;
@@ -438,15 +464,53 @@ static void P_rotator_handler(size_t id, GTime_t time, GTime_t now, Scheduler & 
         }
     }
 
+    tmp_measure_t *meas = &measures[rid];
+
     if(speed_valid)
     {
+        /* speed, rpm */
         unsigned long speed =
                 ((unsigned long)table_pulses_diff * 1000 * 60) /
                 ((unsigned long)time_delta * G602_TABLE_PULSES_PER_ROTATE);
 
-        DEBUG_PRINT("; m_pulses_d = " ); DEBUG_PRINT((int)motor_pulses_diff);
-        DEBUG_PRINT("; t_pulses_d = " ); DEBUG_PRINT((int)table_pulses_diff);
-        DEBUG_PRINT("; t_speed(rpm) = "); DEBUG_PRINT(speed);
+        meas->m_pulses = motor_pulses_diff;
+        meas->t_pulses = table_pulses_diff;
+        meas->rpm = speed;
+
+//        DEBUG_PRINT("; m_pulses_d = " ); DEBUG_PRINT((int)motor_pulses_diff);
+//        DEBUG_PRINT("; t_pulses_d = " ); DEBUG_PRINT((int)table_pulses_diff);
+//        DEBUG_PRINT("; t_speed(rpm) = "); DEBUG_PRINT(speed);
+    }
+
+    DEBUG_PRINT(time);
+
+    unsigned i;
+    for(i = 0; i < G602_ROTATE_MEASURES__NUM; ++i)
+    {
+        tmp_measure_t *meas = &measures[i];
+        DEBUG_PRINT("    ");
+
+        unsigned long time_delta = rotate_measurer_handler_times[i];
+
+
+        if(i == rid)
+        {
+            DEBUG_PRINT("[");
+            DEBUG_PRINT(time_delta);
+            DEBUG_PRINT("] ");
+        }
+        else
+        {
+            DEBUG_PRINT(" ");
+            DEBUG_PRINT(time_delta);
+            DEBUG_PRINT("  ");
+        }
+
+        DEBUG_PRINT(meas->m_pulses);
+        DEBUG_PRINT(" ");
+        DEBUG_PRINT(meas->t_pulses);
+        DEBUG_PRINT(" ");
+        DEBUG_PRINT(meas->rpm);
     }
 
     DEBUG_PRINTLN();
@@ -455,7 +519,7 @@ static void P_rotator_handler(size_t id, GTime_t time, GTime_t now, Scheduler & 
 #define PULSES_TO_SPEED(xpulses) (xpulses)
     int speed_actual = PULSES_TO_SPEED(motor_pulses_diff);
 
-    ctrl.actualSpeedUpdate(speed_actual);
+    g602.ctrl.actualSpeedUpdate(speed_actual);
 
 
 /*
