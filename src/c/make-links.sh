@@ -1,7 +1,5 @@
 list="config.hpp
 defs.hpp
-exception.hpp
-exception.ino
 unitra-g602.ino
 Ctrl.hpp
 Ctrl.ino

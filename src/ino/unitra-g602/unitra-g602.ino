@@ -1,3 +1,5 @@
+#include <util/atomic.h>
+
 #include <nostd-main.h>
 #include <nostd.h>
 
@@ -9,8 +11,8 @@
 
 #include "GDInputDebounced.hpp"
 #include "GTime.hpp"
-#include <util/atomic.h>
 #include "Ctrl.hpp"
+
 
 DEBUG_INIT_GLOBAL();
 
@@ -56,9 +58,8 @@ DEBUG_INIT_GLOBAL();
 
 typedef nostd::Fixed32 Fixed;
 typedef nostd::PidRecurrent<Fixed> PID;
-typedef nostd::SchedulerSoft< 5, GTime_t > Scheduler;
+typedef nostd::SchedulerSoft< 5, GTime_t > G602Scheduler;
 
-Scheduler sched;
 PID pid;
 
 typedef struct
@@ -77,19 +78,25 @@ typedef struct
 
 static global_t global = {};
 
+//#define rotate_pulse_counter_t unsigned int
+typedef unsigned int rotate_pulse_counter_t;
+
 static void terminate_handler(const char * file, unsigned int line, int error)
 {
 #define BLINK_PERIOD_MS 250
     static long time_prev = 0;
     static long time;
     static bool on = true;
+
+    unsigned long x = (unsigned long)file + line + error; /* to suppress warnings */
+
     while(1)
     {
         time = millis();
         if(time - time_prev >= BLINK_PERIOD_MS)
         {
             time_prev = time;
-            if(file == NULL)
+            if(x == 0)
             {
                 digitalWrite(PIN_DO_STROBE_ERROR, on ? HIGH : LOW);
             }
@@ -128,12 +135,17 @@ static void P_event_start();
 static void P_event_stop();
 static void P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& data);
 
+static void P_measures_start();
+static void P_measures_stop();
+
 class G602
 {
 public:
     G602();
     ~G602();
     G602(const G602 &) = delete;
+
+    G602Scheduler sched;
     app::Ctrl ctrl;
     GDInputDebounced di_gauge_stop;
     GDInputDebounced di_btn_speed_mode;
@@ -144,7 +156,8 @@ private:
 };
 
 G602::G602()
-: ctrl(G602_SPEED_BASELINE_LOW, G602_SPEED_BASELINE_HIGH, P_ctrl_event)
+: sched()
+, ctrl(G602_SPEED_BASELINE_LOW, G602_SPEED_BASELINE_HIGH, P_ctrl_event)
 , di_gauge_stop(false, P_event_stopUnset,  P_event_stopSet, DI_DEBOUNCE_TIME)
 , di_btn_speed_mode(false, P_event_speedMode33,  P_event_speedMode45, DI_DEBOUNCE_TIME)
 , di_btn_autostop(false, P_event_autostopEnable,  P_event_autostopDisable, DI_DEBOUNCE_TIME)
@@ -200,6 +213,7 @@ static void P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& dat
         {
             global.motor_on = true;
             P_motor_update();
+            P_measures_start();
             break;
         }
 
@@ -207,6 +221,7 @@ static void P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& dat
         {
             global.motor_on = false;
             P_motor_update();
+            P_measures_stop();
             break;
         }
 
@@ -233,45 +248,76 @@ static void P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& dat
 
 }
 
-#define rotate_pulse_counter_t unsigned int
-/* typedef unsigned int rotate_pulse_counter_t; */
+struct pulse
+{
+    unsigned long change_time; /**< Time of change */
+    rotate_pulse_counter_t pulses; /**< Amount of clean pulses */
+    rotate_pulse_counter_t bounces; /**< Amount of bounces (dirty pulses) */
+};
 
-static volatile rotate_pulse_counter_t motor_rotate_pulse_counter = 0;
-static volatile rotate_pulse_counter_t table_rotate_pulse_counter = 0;
+static volatile struct pulse P_motor_rotate;
+static volatile struct pulse P_table_rotate;
+
+#define G602_MOTOR_BOUNCE_TIME 2U
+#define G602_TABLE_BOUNCE_TIME 10U
+
+void P_pulses_init(volatile struct pulse * pulse)
+{
+    pulse->change_time = time;
+    pulse->pulses = 0;
+    pulse->bounces = 0;
+}
+
+static void P_pulse_update(volatile struct pulse * pulse, unsigned long bounce_time)
+{
+    if(time - pulse->change_time >= bounce_time)
+    {
+        ++(pulse->pulses);
+    }
+    else
+    {
+        ++(pulse->bounces);
+    }
+    pulse->change_time = time;
+}
+
+static void P_pulse_get(
+        volatile struct pulse * pulse_in,
+        bool reset,
+        struct pulse * pulse_out
+)
+{
+    pulse_out->change_time = pulse_in->change_time;
+    pulse_out->pulses = pulse_in->pulses;
+    pulse_out->bounces = pulse_in->bounces;
+    if(reset)
+    {
+        pulse_in->pulses = 0;
+        pulse_in->bounces = 0;
+    }
+}
+
 
 void drive_rotate_pulse_update(void)
 {
-    ++motor_rotate_pulse_counter;
+    P_pulse_update(&P_motor_rotate, G602_MOTOR_BOUNCE_TIME);
 }
 
 void table_rotate_pulse_update(void)
 {
-    ++table_rotate_pulse_counter;
+    P_pulse_update(&P_table_rotate, G602_TABLE_BOUNCE_TIME);
 }
 
-void P_pulses_get(
-        rotate_pulse_counter_t * pulses_motor,
-        rotate_pulse_counter_t * pulses_table,
+void P_pulses_all_get(
+        struct pulse * pulses_motor,
+        struct pulse * pulses_table,
         bool reset
 )
 {
-    if(reset)
+    ATOMIC_BLOCK(ATOMIC_FORCEON)
     {
-        ATOMIC_BLOCK(ATOMIC_FORCEON)
-        {
-            (*pulses_motor) = motor_rotate_pulse_counter;
-            (*pulses_table) = table_rotate_pulse_counter;
-            motor_rotate_pulse_counter = 0;
-            table_rotate_pulse_counter = 0;
-        }
-    }
-    else
-    {
-        ATOMIC_BLOCK(ATOMIC_FORCEON)
-        {
-            (*pulses_motor) = motor_rotate_pulse_counter;
-            (*pulses_table) = table_rotate_pulse_counter;
-        }
+        P_pulse_get(&P_motor_rotate, reset, pulses_motor);
+        P_pulse_get(&P_table_rotate, reset, pulses_table);
     }
 }
 
@@ -403,7 +449,7 @@ typedef struct
 
 static tmp_measure_t measures[G602_ROTATE_MEASURES__NUM] = {};
 
-static void P_rotator_handler(size_t id, GTime_t time, GTime_t now, Scheduler & sched)
+static void P_rotator_handler(size_t id, GTime_t time, GTime_t now, G602Scheduler & sched)
 {
 
     int rid = P_rotator_id_get(id);
@@ -415,9 +461,8 @@ static void P_rotator_handler(size_t id, GTime_t time, GTime_t now, Scheduler & 
         last = true;
     }
 
-
-    rotate_pulse_counter_t motor_pulses;
-    rotate_pulse_counter_t table_pulses;
+    struct pulse motor_pulses;
+    struct pulse table_pulses;
 
     rotate_pulse_counter_t motor_pulses_diff;
     rotate_pulse_counter_t table_pulses_diff;
@@ -430,7 +475,7 @@ static void P_rotator_handler(size_t id, GTime_t time, GTime_t now, Scheduler & 
 
     bool speed_valid;
 
-    P_pulses_get(&motor_pulses, &table_pulses, last);
+    P_pulses_all_get(&motor_pulses, &table_pulses, last);
     if(last)
     {
         unsigned i;
@@ -438,8 +483,8 @@ static void P_rotator_handler(size_t id, GTime_t time, GTime_t now, Scheduler & 
         {
             global.rotate_measures[i].resetted = true;
         }
-        motor_pulses_diff = motor_pulses;
-        table_pulses_diff = table_pulses;
+        motor_pulses_diff = motor_pulses.pulses;
+        table_pulses_diff = table_pulses.pulses;
         speed_valid = true;
     }
     else
@@ -456,10 +501,10 @@ static void P_rotator_handler(size_t id, GTime_t time, GTime_t now, Scheduler & 
         }
         else
         {
-            motor_pulses_diff = motor_pulses - rotate_measure->motor_prev;
-            table_pulses_diff = table_pulses - rotate_measure->table_prev;
-            rotate_measure->motor_prev = motor_pulses;
-            rotate_measure->table_prev = table_pulses;
+            motor_pulses_diff = motor_pulses.pulses - rotate_measure->motor_prev;
+            table_pulses_diff = table_pulses.pulses - rotate_measure->table_prev;
+            rotate_measure->motor_prev = motor_pulses.pulses;
+            rotate_measure->table_prev = table_pulses.pulses;
             speed_valid = true;
         }
     }
@@ -482,36 +527,42 @@ static void P_rotator_handler(size_t id, GTime_t time, GTime_t now, Scheduler & 
 //        DEBUG_PRINT("; t_speed(rpm) = "); DEBUG_PRINT(speed);
     }
 
-    DEBUG_PRINT(time);
+    DEBUG_PRINT((unsigned long)time);
 
     unsigned i;
     for(i = 0; i < G602_ROTATE_MEASURES__NUM; ++i)
     {
-        tmp_measure_t *meas = &measures[i];
-        DEBUG_PRINT("    ");
+        tmp_measure_t * meas = &measures[i];
+        DEBUG_PRINT("\t");
 
         unsigned long time_delta = rotate_measurer_handler_times[i];
 
 
-        if(i == rid)
+        if(i == (unsigned)rid)
         {
             DEBUG_PRINT("[");
             DEBUG_PRINT(time_delta);
-            DEBUG_PRINT("] ");
+            DEBUG_PRINT("]");
         }
         else
         {
-            DEBUG_PRINT(" ");
             DEBUG_PRINT(time_delta);
-            DEBUG_PRINT("  ");
         }
+        DEBUG_PRINT("\t");
 
         DEBUG_PRINT(meas->m_pulses);
-        DEBUG_PRINT(" ");
+        DEBUG_PRINT("\t");
         DEBUG_PRINT(meas->t_pulses);
-        DEBUG_PRINT(" ");
+        DEBUG_PRINT("\t");
         DEBUG_PRINT(meas->rpm);
     }
+
+    DEBUG_PRINT("\tBC =\t");
+    DEBUG_PRINT(motor_pulses.bounces);
+    DEBUG_PRINT("\t");
+    DEBUG_PRINT(table_pulses.bounces);
+
+
 
     DEBUG_PRINTLN();
 
@@ -538,21 +589,42 @@ static void P_rotator_handler(size_t id, GTime_t time, GTime_t now, Scheduler & 
     );
 }
 
-void real_time_init()
+void P_measures_start()
 {
+    struct pulse m_pulse;
+    struct pulse t_pulse;
+    P_pulses_all_get(&m_pulse, &t_pulse, true); /* reset */
+
     unsigned i;
     for(i = 0; i < G602_ROTATE_MEASURES__NUM; ++i)
     {
-        sched.shedule(
+        g602.sched.shedule(
                 rotate_measurer_sheduler_id[i],
                 rotate_measurer_handler_times[i],
                 P_rotator_handler
         );
     }
-    time_next = sched.nearestTime();
+    time_next = g602.sched.nearestTime();
 }
 
-void real_time_calls()
+void P_measures_stop()
+{
+    unsigned i;
+    for(i = 0; i < G602_ROTATE_MEASURES__NUM; ++i)
+    {
+        g602.sched.unshedule(
+                rotate_measurer_sheduler_id[i]
+        );
+    }
+    time_next = g602.sched.nearestTime();
+}
+
+static void P_real_time_calls_init()
+{
+    time_next = 0;
+}
+
+static void P_real_time_calls()
 {
     if(time < time_next)
     {
@@ -560,8 +632,9 @@ void real_time_calls()
     }
 
 /*    long late = (long)time - (long)time_next; */
-    sched.handle(time);
-    time_next = sched.nearestTime();
+    g602.sched.handle(time);
+    time_next = g602.sched.nearestTime();
+    if(time_next == 0) time_next = 100;
 }
 
 void setup()
@@ -597,7 +670,10 @@ void setup()
 
     analogReference(DEFAULT);
 
-    real_time_init();
+    P_real_time_calls_init();
+
+    P_pulses_init(&P_motor_rotate);
+    P_pulses_init(&P_table_rotate);
 
 #ifdef DEBUG
     pinMode(LED_BUILTIN, OUTPUT);
@@ -614,5 +690,5 @@ void loop()
 
     read_inputs();
 
-    real_time_calls();
+    P_real_time_calls();
 }

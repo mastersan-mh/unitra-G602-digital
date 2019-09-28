@@ -44,16 +44,17 @@ pins_arduino.h:
 #define FACTOR 10
 
 #define DEBUG
-
+/* #define DEBUG_NOPRINT */
 #define GDInputDebounced_DEBUG
 
-#ifndef DEBUG
+#if (! defined(DEBUG)) || (defined (DEBUG_NOPRINT))
+#   define DEBUG_INIT_GLOBAL()
 #   define DEBUG_PRINT_INIT()
 #   define DEBUG_PRINT(x)
 #   define DEBUG_PRINTLN(x)
 #else
 extern bool debug_inited;
-#define DEBUG_INIT_GLOBAL() bool debug_inited = false;
+#   define DEBUG_INIT_GLOBAL() bool debug_inited = false
 #   define DEBUG_PRINT_INIT() do{ Serial.begin(9600); debug_inited = true; }while(0)
 #   define DEBUG_PRINT(x) do{ if(debug_inited) Serial.print(x); }while(0)
 #   define DEBUG_PRINTLN(x) do{ if(debug_inited) Serial.println(x); }while(0)

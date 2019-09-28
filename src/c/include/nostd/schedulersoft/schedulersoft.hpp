@@ -94,14 +94,14 @@ public:
         {
             return Error::INVALID_HANDLER;
         }
-        struct task_s * timer = timer_alloc();
-        if(timer == nullptr)
+        struct task_s * task = task_alloc();
+        if(task == nullptr)
         {
             return Error::OUT_OF_RESOURCES;
         }
-        timer->id = id;
-        timer->time = time;
-        timer->handler = handler;
+        task->id = id;
+        task->time = time;
+        task->handler = handler;
 
         struct task_s * tmp;
 
@@ -114,12 +114,42 @@ public:
         {
             if(time >= tmp->time)
             {
-                NOSTD_LIST2_INSERT_AFTER(field, tmp, timer);
+                NOSTD_LIST2_INSERT_AFTER(field, tmp, task);
                 return Error::OK;
             }
         }
 
-        NOSTD_LIST2_INSERT_HEAD(task_s, field, scheduled, timer);
+        NOSTD_LIST2_INSERT_HEAD(task_s, field, scheduled, task);
+
+        return Error::OK;
+    }
+
+    /**
+     * @brief remove the scheduled task
+     * @param id            The task identification.
+     */
+    Error unshedule(
+            nostd::size_t id
+    )
+    {
+
+        bool removed;
+        do
+        {
+            removed = false;
+            struct task_s * tmp;
+            NOSTD_LIST2_FOREACH(task_s, field, scheduled, tmp)
+            {
+                if(id == tmp->id)
+                {
+                    NOSTD_LIST2_REMOVE(field, tmp);
+                    tmp->handler = nullptr;
+                    removed = true;
+                    break;
+                }
+            }
+        } while(removed);
+
 
         return Error::OK;
     }
@@ -178,7 +208,7 @@ public:
 
 private:
 
-    struct task_s * timer_alloc()
+    struct task_s * task_alloc()
     {
         struct task_s * task;
         nostd::size_t i;
