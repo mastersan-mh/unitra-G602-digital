@@ -1,8 +1,5 @@
-/*
- * Blinker.hpp
- *
- *  Created on: 12 нояб. 2018 г.
- *      Author: mastersan
+/**
+ * @file Blinker.hpp
  */
 
 #ifndef BLINKER_HPP_
@@ -16,11 +13,12 @@ public:
     void start(const unsigned long * pattern, unsigned size, bool infinite);
     void stop();
     /**
+     * @brief Get the part of pattern
      * @param end           if true, do nothing, just stop
      * @param light         true = light on, false = light off
-     * @param next_time     if 0, stop the task, otherwise call it in next time again
+     * @param wait_time     if 0, stop the task, otherwise call it in next time again
      */
-    void task(bool * end, bool * light, unsigned long * wait_time);
+    void partGet(bool * end, bool * light, unsigned long * wait_time);
     bool isStarted();
 private:
     const unsigned long * m_pattern;

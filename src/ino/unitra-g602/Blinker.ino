@@ -31,7 +31,7 @@ void Blinker::stop()
     m_pattern = nullptr;
 }
 
-void Blinker::task(bool * end, bool * light, unsigned long * wait_time)
+void Blinker::partGet(bool * end, bool * light, unsigned long * wait_time)
 {
     if(m_pattern == nullptr)
     {

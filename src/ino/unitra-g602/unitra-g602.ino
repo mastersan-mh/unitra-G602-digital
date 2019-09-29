@@ -297,7 +297,7 @@ void G602::P_blinker_task(nostd::size_t id, unsigned long time, unsigned long no
     bool end;
     bool light;
     unsigned long wait_time;
-    g602.blinker.task(&end, &light, &wait_time);
+    g602.blinker.partGet(&end, &light, &wait_time);
     if(end)
     {
         digitalWrite(PIN_DO_STROBE_ERROR, HIGH);
