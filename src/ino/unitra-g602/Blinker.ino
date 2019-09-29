@@ -17,7 +17,7 @@ Blinker::~Blinker()
 {
 }
 
-void Blinker::start(unsigned long * pattern, unsigned size, bool infinite)
+void Blinker::start(const unsigned long * pattern, unsigned size, bool infinite)
 {
     m_pattern = pattern;
     m_size = size;

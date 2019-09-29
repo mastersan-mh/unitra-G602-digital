@@ -224,6 +224,7 @@ void Ctrl::P_fsm(Command cmd, const CommandData & data)
                 }
                 case Command::STOP:
                 {
+                    P_event_warnings_clean(CTRL_WARNING_SPEED_TOO_LOW | CTRL_WARNING_SPEED_TOO_HIGH);
                     P_event_motor_off();
                     P_event_lift_up();
                     next_state = State::STOPPED;
@@ -311,6 +312,7 @@ void Ctrl::P_fsm(Command cmd, const CommandData & data)
                 }
                 case Command::STOP:
                 {
+                    P_event_warnings_clean(CTRL_WARNING_SPEED_TOO_LOW | CTRL_WARNING_SPEED_TOO_HIGH);
                     P_event_motor_off();
                     P_event_lift_up();
                     next_state = State::STOPPED;
@@ -421,12 +423,7 @@ void Ctrl::actualSpeedUpdate(speed_t speed)
         }
     }
 
-    bool clear = false;
-    if(!check)
-    {
-        clear = true;
-    }
-    else
+    if(check)
     {
         if(speed < setpoint)
         {
@@ -438,13 +435,8 @@ void Ctrl::actualSpeedUpdate(speed_t speed)
         }
         else
         {
-            clear = true;
+            P_event_warnings_clean(CTRL_WARNING_SPEED_TOO_LOW | CTRL_WARNING_SPEED_TOO_HIGH);
         }
-    }
-
-    if(clear)
-    {
-        P_event_warnings_clean(CTRL_WARNING_SPEED_TOO_LOW | CTRL_WARNING_SPEED_TOO_HIGH);
     }
 
 }

@@ -13,7 +13,7 @@ class Blinker
 public:
     Blinker();
     virtual ~Blinker();
-    void start(unsigned long * pattern, unsigned size, bool infinite);
+    void start(const unsigned long * pattern, unsigned size, bool infinite);
     void stop();
     /**
      * @param end           if true, do nothing, just stop
@@ -23,7 +23,7 @@ public:
     void task(bool * end, bool * light, unsigned long * wait_time);
     bool isStarted();
 private:
-    unsigned long * m_pattern;
+    const unsigned long * m_pattern;
     unsigned m_size;
     bool m_infinite;
     unsigned m_index;
