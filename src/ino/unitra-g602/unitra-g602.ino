@@ -11,6 +11,7 @@
 
 #include "GDInputDebounced.hpp"
 #include "GTime.hpp"
+#include "Blinker.hpp"
 #include "Ctrl.hpp"
 
 
@@ -56,9 +57,11 @@ DEBUG_INIT_GLOBAL();
 
 #define BOOL_TO_STR(xval) (xval ? "true" : "false")
 
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
+
 typedef nostd::Fixed32 Fixed;
 typedef nostd::PidRecurrent<Fixed> PID;
-typedef nostd::SchedulerSoft< 5, GTime_t > G602Scheduler;
+typedef nostd::SchedulerSoft< G602_SHEDULER_TASKS__NUM, GTime_t > G602Scheduler;
 
 PID pid;
 
@@ -80,6 +83,16 @@ static global_t global = {};
 
 //#define rotate_pulse_counter_t unsigned int
 typedef unsigned int rotate_pulse_counter_t;
+
+/* @brief Blinking pattern for 5x250ms */
+static unsigned long G602_pattern_5_250[] =
+{
+        250,
+        250,
+        250,
+        250,
+        250,
+};
 
 static void terminate_handler(const char * file, unsigned int line, int error)
 {
@@ -141,11 +154,22 @@ static void P_measures_stop();
 class G602
 {
 public:
+    static const nostd::size_t shed_task_id = 0;
     G602();
     ~G602();
     G602(const G602 &) = delete;
+    G602& operator= (const G602 &) = delete;
+
+    unsigned long rtcNextTimeGet() const;
+    /** @brief Call it on each loop */
+    void loop();
 
     G602Scheduler sched;
+private:
+    Blinker blinker;
+public:
+    void blinkerStart(unsigned long * pattern, unsigned size, bool infinite);
+    void blinkerStop();
     app::Ctrl ctrl;
     GDInputDebounced di_gauge_stop;
     GDInputDebounced di_btn_speed_mode;
@@ -153,10 +177,14 @@ public:
     GDInputDebounced di_btn_start;
     GDInputDebounced di_btn_stop;
 private:
+    static void P_blinker_task(nostd::size_t id, unsigned long time, unsigned long now, G602Scheduler & sched);
 };
+
+static G602 g602;
 
 G602::G602()
 : sched()
+, blinker()
 , ctrl(G602_SPEED_BASELINE_LOW, G602_SPEED_BASELINE_HIGH, P_ctrl_event)
 , di_gauge_stop(false, P_event_stopUnset,  P_event_stopSet, DI_DEBOUNCE_TIME)
 , di_btn_speed_mode(false, P_event_speedMode33,  P_event_speedMode45, DI_DEBOUNCE_TIME)
@@ -171,7 +199,56 @@ G602::~G602()
 
 }
 
-static G602 g602;
+unsigned long G602::rtcNextTimeGet() const
+{
+    unsigned long time_next;
+    time_next = sched.nearestTime();
+    if(time_next == 0) time_next = time + 10;
+    return time_next;
+}
+
+void G602::loop()
+{
+    if(time < time_next)
+    {
+        return;
+    }
+
+/*    long late = (long)time - (long)time_next; */
+    sched.handle(time);
+    time_next = rtcNextTimeGet();
+}
+
+void G602::blinkerStart(unsigned long * pattern, unsigned size, bool infinite)
+{
+    blinker.stop();
+    blinker.start(pattern, size, infinite);
+    sched.unshedule(shed_task_id);
+    sched.shedule(shed_task_id, time, this->P_blinker_task);
+    time_next = rtcNextTimeGet();
+}
+
+void G602::blinkerStop()
+{
+    blinker.stop();
+}
+
+void G602::P_blinker_task(nostd::size_t id, unsigned long time, unsigned long now, G602Scheduler & sched)
+{
+    bool end;
+    bool light;
+    unsigned long wait_time;
+    g602.blinker.task(&end, &light, &wait_time);
+    if(end)
+    {
+        digitalWrite(PIN_DO_STROBE_ERROR, HIGH);
+    }
+    else
+    {
+        digitalWrite(PIN_DO_STROBE_ERROR, light ? LOW : HIGH);
+        sched.shedule(id, time + wait_time, G602::P_blinker_task);
+    }
+}
 
 
 static void P_motor_update()
@@ -235,12 +312,14 @@ static void P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& dat
         case app::Ctrl::Event::LIFT_UP:
         {
             digitalWrite(PIN_DO_LIFT, LOW);
+            digitalWrite(PIN_DO_AUDIO_DENY, LOW);
             break;
         }
 
         case app::Ctrl::Event::LIFT_DOWN:
         {
             digitalWrite(PIN_DO_LIFT, HIGH);
+            digitalWrite(PIN_DO_AUDIO_DENY, HIGH);
             break;
         }
 
@@ -357,17 +436,36 @@ static void P_event_autostopDisable()
     g602.ctrl.autostopAllowSet(false);
 }
 
+void P_ctrl_run_blink(app::Ctrl::RunMode mode)
+{
+    switch(mode)
+    {
+        case app::Ctrl::RunMode::STOPPED       : g602.blinkerStart(G602_pattern_5_250, 1, false); break;
+        case app::Ctrl::RunMode::STARTED_AUTO  : g602.blinkerStart(G602_pattern_5_250, 3, false); break;
+        case app::Ctrl::RunMode::STARTED_MANUAL: g602.blinkerStart(G602_pattern_5_250, 5, false); break;
+    }
+}
+
 void P_event_start()
 {
-//    DEBUG_PRINTLN("event_start()");
+    app::Ctrl::RunMode mode_prev = g602.ctrl.runModeGet();
     g602.ctrl.start();
-    digitalWrite(PIN_DO_AUDIO_DENY, HIGH);
+    app::Ctrl::RunMode mode = g602.ctrl.runModeGet();
+    if(mode != mode_prev)
+    {
+        P_ctrl_run_blink(mode);
+    }
 }
 
 void P_event_stop()
 {
-//    DEBUG_PRINTLN("event_stop()");
+    app::Ctrl::RunMode mode_prev = g602.ctrl.runModeGet();
     g602.ctrl.stop();
+    app::Ctrl::RunMode mode = g602.ctrl.runModeGet();
+    if(mode != mode_prev)
+    {
+        P_ctrl_run_blink(mode);
+    }
 }
 
 AverageTinyMemory potentiometer_avg(FACTOR);
@@ -527,12 +625,12 @@ static void P_rotator_handler(size_t id, GTime_t time, GTime_t now, G602Schedule
 //        DEBUG_PRINT("; t_speed(rpm) = "); DEBUG_PRINT(speed);
     }
 
-    DEBUG_PRINT((unsigned long)time);
+    DEBUG_PRINT((unsigned long)now);
 
     unsigned i;
     for(i = 0; i < G602_ROTATE_MEASURES__NUM; ++i)
     {
-        tmp_measure_t * meas = &measures[i];
+        meas = &measures[i];
         DEBUG_PRINT("\t");
 
         unsigned long time_delta = rotate_measurer_handler_times[i];
@@ -561,8 +659,6 @@ static void P_rotator_handler(size_t id, GTime_t time, GTime_t now, G602Schedule
     DEBUG_PRINT(motor_pulses.bounces);
     DEBUG_PRINT("\t");
     DEBUG_PRINT(table_pulses.bounces);
-
-
 
     DEBUG_PRINTLN();
 
@@ -600,11 +696,11 @@ void P_measures_start()
     {
         g602.sched.shedule(
                 rotate_measurer_sheduler_id[i],
-                rotate_measurer_handler_times[i],
+                time + rotate_measurer_handler_times[i],
                 P_rotator_handler
         );
     }
-    time_next = g602.sched.nearestTime();
+    time_next = g602.rtcNextTimeGet();
 }
 
 void P_measures_stop()
@@ -616,25 +712,12 @@ void P_measures_stop()
                 rotate_measurer_sheduler_id[i]
         );
     }
-    time_next = g602.sched.nearestTime();
+    time_next = g602.rtcNextTimeGet();
 }
 
 static void P_real_time_calls_init()
 {
     time_next = 0;
-}
-
-static void P_real_time_calls()
-{
-    if(time < time_next)
-    {
-        return;
-    }
-
-/*    long late = (long)time - (long)time_next; */
-    g602.sched.handle(time);
-    time_next = g602.sched.nearestTime();
-    if(time_next == 0) time_next = 100;
 }
 
 void setup()
@@ -690,5 +773,5 @@ void loop()
 
     read_inputs();
 
-    P_real_time_calls();
+    g602.loop();
 }

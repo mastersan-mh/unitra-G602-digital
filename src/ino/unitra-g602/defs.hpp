@@ -82,4 +82,6 @@
 
 #define G602_ROTATE_MEASURES__NUM 5
 
+#define G602_SHEDULER_TASKS__NUM 10
+
 #endif

@@ -44,6 +44,13 @@ public:
         } DRIVE_SETPOINT_UPDATE;
     }  EventData;
 
+    enum class RunMode
+    {
+        STOPPED,
+        STARTED_AUTO,
+        STARTED_MANUAL,
+    };
+
     enum class BaselineSpeedMode
     {
         MODE_LOW,
@@ -87,6 +94,8 @@ public:
      * @brief сработал датчик автостопа?
      */
     void stopTriggeredSet(bool triggered);
+
+    RunMode runModeGet();
 
     int errorsGet() const;
     int warningsGet() const;

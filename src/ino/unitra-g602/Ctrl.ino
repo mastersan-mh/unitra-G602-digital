@@ -454,6 +454,18 @@ void Ctrl::stopTriggeredSet(bool triggered)
     P_fsm(triggered ? Command::GAUGE_STOP_ON : Command::GAUGE_STOP_OFF, m_cmdData);
 }
 
+Ctrl::RunMode Ctrl::runModeGet()
+{
+    switch(m_state)
+    {
+        case State::INIT   : return RunMode::STOPPED;
+        case State::STOPPED: return RunMode::STOPPED;
+        case State::STARTED: return RunMode::STARTED_AUTO;
+        case State::STARTED_MANUAL: return RunMode::STARTED_MANUAL;
+    }
+    return RunMode::STOPPED;
+}
+
 int Ctrl::errorsGet() const
 {
     return m_state_errors;
