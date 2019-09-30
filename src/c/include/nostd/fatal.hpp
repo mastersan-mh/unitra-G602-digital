@@ -15,9 +15,6 @@
 #   error Not the GNU C++ compiler
 #endif
 
-#ifdef NOSTD_ALLOW_EXCEPTIONS
-#else
-
 namespace nostd
 {
 
@@ -31,11 +28,10 @@ void fatal(const char * file, unsigned int line, int error);
 
 }
 
-#   define FATAL(error) nostd::fatal(__FILE__, __LINE__, error)
+#define FATAL(error) nostd::fatal(__FILE__, __LINE__, error)
 
-#   define NOSTD_ERR_OUT_OF_RANGE 1
-
-#endif
+#define NOSTD_ERR_OK 0
+#define NOSTD_ERR_OUT_OF_RANGE 1
 
 #endif /* __cplusplus */
 

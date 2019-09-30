@@ -125,14 +125,11 @@ static unsigned long time_prev = 0;
 static unsigned long cycletime = 0;
 static unsigned long time_next;
 
-static void P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& data);
-
-static void P_measures_start();
-static void P_measures_stop();
-
-
 class G602
 {
+#define G602_DEFINE_SELF() \
+    G602 * self = static_cast<G602*>(args)
+
 #define ARRAY_INDEX(x) static_cast<unsigned int>(x)
 
 public:
@@ -184,17 +181,20 @@ public:
     GDInputDebounced di_btn_start;
     GDInputDebounced di_btn_stop;
 private:
-    static void P_ctrl_run_blink(app::Ctrl::RunMode mode);
+    static void P_ctrl_run_blink(G602 * self, app::Ctrl::RunMode mode);
+    void P_measures_start();
+    void P_measures_stop();
 
-    static void P_blinker_task(nostd::size_t id, unsigned long time, unsigned long now, G602Scheduler & sched);
-    static void P_event_stopSet();
-    static void P_event_stopUnset();
-    static void P_event_speedMode45();
-    static void P_event_speedMode33();
-    static void P_event_autostopEnable();
-    static void P_event_autostopDisable();
-    static void P_event_start();
-    static void P_event_stop();
+    static void P_blinker_task(nostd::size_t id, unsigned long time, unsigned long now, G602Scheduler & sched, void * args);
+    static void P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& data, void * args);
+    static void P_event_stopSet(void * args);
+    static void P_event_stopUnset(void * args);
+    static void P_event_speedMode45(void * args);
+    static void P_event_speedMode33(void * args);
+    static void P_event_autostopEnable(void * args);
+    static void P_event_autostopDisable(void * args);
+    static void P_event_start(void * args);
+    static void P_event_stop(void * args);
 
     BlinkMode m_blinkMode;
 
@@ -223,12 +223,12 @@ static G602 g602;
 G602::G602()
 : sched()
 , blinker()
-, ctrl(G602_SPEED_BASELINE_LOW, G602_SPEED_BASELINE_HIGH, P_ctrl_event)
-, di_gauge_stop(false, P_event_stopUnset, P_event_stopSet, DI_DEBOUNCE_TIME)
-, di_btn_speed_mode(false, P_event_speedMode33,  P_event_speedMode45, DI_DEBOUNCE_TIME)
-, di_btn_autostop(false, P_event_autostopEnable,  P_event_autostopDisable, DI_DEBOUNCE_TIME)
-, di_btn_start(false, P_event_start,  nullptr, DI_DEBOUNCE_TIME)
-, di_btn_stop(false, P_event_stop,  nullptr, DI_DEBOUNCE_TIME)
+, ctrl(G602_SPEED_BASELINE_LOW, G602_SPEED_BASELINE_HIGH, P_ctrl_event, this)
+, di_gauge_stop(false, P_event_stopUnset, P_event_stopSet, this, DI_DEBOUNCE_TIME)
+, di_btn_speed_mode(false, P_event_speedMode33,  P_event_speedMode45, this, DI_DEBOUNCE_TIME)
+, di_btn_autostop(false, P_event_autostopEnable,  P_event_autostopDisable, this, DI_DEBOUNCE_TIME)
+, di_btn_start(false, P_event_start,  nullptr, this, DI_DEBOUNCE_TIME)
+, di_btn_stop(false, P_event_stop,  nullptr, this, DI_DEBOUNCE_TIME)
 , m_blinkMode(BlinkMode::BLINK__NO)
 {
 }
@@ -265,7 +265,7 @@ void G602::blinkerStart(BlinkMode mode)
 
     const struct blink_descr * blink_descr = &blink_descrs[ARRAY_INDEX(mode)];
     blinker.start(blink_descr->pattern, blink_descr->size, blink_descr->infinite);
-    sched.shedule(shed_task_id, time, this->P_blinker_task);
+    sched.shedule(shed_task_id, time, this->P_blinker_task, this);
 
     time_next = rtcNextTimeGet();
 }
@@ -281,23 +281,24 @@ G602::BlinkMode G602::blinkerModeGet()
     return m_blinkMode;
 }
 
-void G602::P_ctrl_run_blink(app::Ctrl::RunMode mode)
+void G602::P_ctrl_run_blink(G602 * self, app::Ctrl::RunMode mode)
 {
     switch(mode)
     {
-        case app::Ctrl::RunMode::STOPPED       : g602.blinkerStart(BlinkMode::ON_STOP); break;
-        case app::Ctrl::RunMode::STARTED_AUTO  : g602.blinkerStart(BlinkMode::ON_START_AUTO); break;
-        case app::Ctrl::RunMode::STARTED_MANUAL: g602.blinkerStart(BlinkMode::ON_START_MANUAL); break;
+        case app::Ctrl::RunMode::STOPPED       : self->blinkerStart(BlinkMode::ON_STOP); break;
+        case app::Ctrl::RunMode::STARTED_AUTO  : self->blinkerStart(BlinkMode::ON_START_AUTO); break;
+        case app::Ctrl::RunMode::STARTED_MANUAL: self->blinkerStart(BlinkMode::ON_START_MANUAL); break;
     }
 }
 
 
-void G602::P_blinker_task(nostd::size_t id, unsigned long time, unsigned long now, G602Scheduler & sched)
+void G602::P_blinker_task(nostd::size_t id, unsigned long time, unsigned long now, G602Scheduler & sched, void * args)
 {
+    G602_DEFINE_SELF();
     bool end;
     bool light;
     unsigned long wait_time;
-    g602.blinker.partGet(&end, &light, &wait_time);
+    self->blinker.partGet(&end, &light, &wait_time);
     if(end)
     {
         digitalWrite(PIN_DO_STROBE_ERROR, HIGH);
@@ -305,59 +306,67 @@ void G602::P_blinker_task(nostd::size_t id, unsigned long time, unsigned long no
     else
     {
         digitalWrite(PIN_DO_STROBE_ERROR, light ? LOW : HIGH);
-        sched.shedule(id, time + wait_time, G602::P_blinker_task);
+        sched.shedule(id, time + wait_time, G602::P_blinker_task, args);
     }
 }
 
-void G602::P_event_stopSet()
+void G602::P_event_stopSet(void * args)
 {
-    g602.ctrl.stopTriggeredSet(true);
+    G602_DEFINE_SELF();
+    self->ctrl.stopTriggeredSet(true, self);
 }
 
-void G602::P_event_stopUnset()
+void G602::P_event_stopUnset(void * args)
 {
-    g602.ctrl.stopTriggeredSet(false);
+    G602_DEFINE_SELF();
+    self->ctrl.stopTriggeredSet(false, self);
 }
 
-void G602::P_event_speedMode45()
+void G602::P_event_speedMode45(void * args)
 {
-    g602.ctrl.baselineSpeedModeSet(app::Ctrl::BaselineSpeedMode::MODE_HIGH);
+    G602_DEFINE_SELF();
+    self->ctrl.baselineSpeedModeSet(app::Ctrl::BaselineSpeedMode::MODE_HIGH, self);
 }
 
-void G602::P_event_speedMode33()
+void G602::P_event_speedMode33(void * args)
 {
-    g602.ctrl.baselineSpeedModeSet(app::Ctrl::BaselineSpeedMode::MODE_LOW);
+    G602_DEFINE_SELF();
+    self->ctrl.baselineSpeedModeSet(app::Ctrl::BaselineSpeedMode::MODE_LOW, self);
 }
 
-void G602::P_event_autostopEnable()
+void G602::P_event_autostopEnable(void * args)
 {
-    g602.ctrl.autostopAllowSet(true);
+    G602_DEFINE_SELF();
+    self->ctrl.autostopAllowSet(true, self);
 }
 
-void G602::P_event_autostopDisable()
+void G602::P_event_autostopDisable(void * args)
 {
-    g602.ctrl.autostopAllowSet(false);
+    G602_DEFINE_SELF();
+    self->ctrl.autostopAllowSet(false, self);
 }
 
-void G602::P_event_start()
+void G602::P_event_start(void * args)
 {
-    app::Ctrl::RunMode mode_prev = g602.ctrl.runModeGet();
-    g602.ctrl.start();
-    app::Ctrl::RunMode mode = g602.ctrl.runModeGet();
+    G602_DEFINE_SELF();
+    app::Ctrl::RunMode mode_prev = self->ctrl.runModeGet();
+    self->ctrl.start(self);
+    app::Ctrl::RunMode mode = self->ctrl.runModeGet();
     if(mode != mode_prev)
     {
-        P_ctrl_run_blink(mode);
+        P_ctrl_run_blink(self, mode);
     }
 }
 
-void G602::P_event_stop()
+void G602::P_event_stop(void * args)
 {
-    app::Ctrl::RunMode mode_prev = g602.ctrl.runModeGet();
-    g602.ctrl.stop();
-    app::Ctrl::RunMode mode = g602.ctrl.runModeGet();
+    G602_DEFINE_SELF();
+    app::Ctrl::RunMode mode_prev = self->ctrl.runModeGet();
+    self->ctrl.stop(self);
+    app::Ctrl::RunMode mode = self->ctrl.runModeGet();
     if(mode != mode_prev)
     {
-        P_ctrl_run_blink(mode);
+        P_ctrl_run_blink(self, mode);
     }
 }
 
@@ -379,8 +388,9 @@ static void P_motor_update()
     }
 }
 
-static void P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& data)
+void G602::P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& data, void * args)
 {
+    G602_DEFINE_SELF();
     switch(event)
     {
         case app::Ctrl::Event::ERRORS_UPDATE:
@@ -393,29 +403,29 @@ static void P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& dat
             bool blink_speed_to_low  = TO_BOOL(data.WARNINGS_UPDATE.warnings | CTRL_WARNING_SPEED_TOO_LOW);
             bool blink_speed_to_high = TO_BOOL(data.WARNINGS_UPDATE.warnings | CTRL_WARNING_SPEED_TOO_HIGH);
 
-            G602::BlinkMode mode = g602.blinkerModeGet();
+            G602::BlinkMode mode = self->blinkerModeGet();
 
             if(blink_speed_to_low)
             {
-                g602.blinkerStart(G602::BlinkMode::ON_TOO_LOW_SPEED);
+                self->blinkerStart(G602::BlinkMode::ON_TOO_LOW_SPEED);
             }
             else
             {
                 if(mode == G602::BlinkMode::ON_TOO_LOW_SPEED)
                 {
-                    g602.blinkerStop();
+                    self->blinkerStop();
                 }
             }
 
             if(blink_speed_to_high)
             {
-                g602.blinkerStart(G602::BlinkMode::ON_TOO_HIGH_SPEED);
+                self->blinkerStart(G602::BlinkMode::ON_TOO_HIGH_SPEED);
             }
             else
             {
                 if(mode == G602::BlinkMode::ON_TOO_HIGH_SPEED)
                 {
-                    g602.blinkerStop();
+                    self->blinkerStop();
                 }
             }
 
@@ -426,7 +436,7 @@ static void P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& dat
         {
             global.motor_on = true;
             P_motor_update();
-            P_measures_start();
+            self->P_measures_start();
             break;
         }
 
@@ -434,7 +444,7 @@ static void P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& dat
         {
             global.motor_on = false;
             P_motor_update();
-            P_measures_stop();
+            self->P_measures_stop();
             break;
         }
 
@@ -541,13 +551,13 @@ AverageTinyMemory potentiometer_avg(FACTOR);
 static void read_inputs()
 {
     /* sensors */
-    g602.di_gauge_stop.stateSet(digitalRead(PIN_DI_GAUGE_STOP) == LOW, time);
+    g602.di_gauge_stop.stateSet(digitalRead(PIN_DI_GAUGE_STOP) == LOW, &g602, time);
 
     /* buttons */
-    g602.di_btn_speed_mode.stateSet(digitalRead(PIN_DI_BTN_45_33) == LOW, time);
-    g602.di_btn_autostop.stateSet(digitalRead(PIN_DI_BTN_AUTOSTOP) == LOW, time);
-    g602.di_btn_start.stateSet(digitalRead(PIN_DI_BTN_START) == LOW, time);
-    g602.di_btn_stop.stateSet(digitalRead(PIN_DI_BTN_STOP) == LOW, time);
+    g602.di_btn_speed_mode.stateSet(digitalRead(PIN_DI_BTN_45_33) == LOW, &g602, time);
+    g602.di_btn_autostop.stateSet(digitalRead(PIN_DI_BTN_AUTOSTOP) == LOW, &g602, time);
+    g602.di_btn_start.stateSet(digitalRead(PIN_DI_BTN_START) == LOW, &g602, time);
+    g602.di_btn_stop.stateSet(digitalRead(PIN_DI_BTN_STOP) == LOW, &g602, time);
 
     /* 10 bits */
     /* 0000.0011.1111.1111 */
@@ -564,7 +574,7 @@ static void read_inputs()
 
 #define POTENTIOMETER_TO_MANUAL_SPEED(xval) (xval)
     int speed_manual = POTENTIOMETER_TO_MANUAL_SPEED(avg - G602_SPEED_HALF);
-    g602.ctrl.manualSpeedDeltaSet(speed_manual);
+    g602.ctrl.manualSpeedDeltaSet(speed_manual, &g602);
 
     //DEBUG_PRINT("speed_manual = "); DEBUG_PRINT(speed_manual);
     //DEBUG_PRINTLN();
@@ -615,7 +625,7 @@ typedef struct
 
 static tmp_measure_t measures[G602_ROTATE_MEASURES__NUM] = {};
 
-static void P_rotator_handler(size_t id, GTime_t time, GTime_t now, G602Scheduler & sched)
+static void P_rotator_handler(size_t id, GTime_t time, GTime_t now, G602Scheduler & sched, void * args)
 {
 
     int rid = P_rotator_id_get(id);
@@ -734,7 +744,7 @@ static void P_rotator_handler(size_t id, GTime_t time, GTime_t now, G602Schedule
 #define PULSES_TO_SPEED(xpulses) (xpulses)
     int speed_actual = PULSES_TO_SPEED(motor_pulses_diff);
 
-    g602.ctrl.actualSpeedUpdate(speed_actual);
+    g602.ctrl.actualSpeedUpdate(speed_actual, &g602);
 
 
 /*
@@ -749,11 +759,12 @@ static void P_rotator_handler(size_t id, GTime_t time, GTime_t now, G602Schedule
     sched.shedule(
             id,
             time + time_delta,
-            P_rotator_handler
+            P_rotator_handler,
+            &g602
     );
 }
 
-void P_measures_start()
+void G602::P_measures_start()
 {
     struct pulse m_pulse;
     struct pulse t_pulse;
@@ -762,25 +773,26 @@ void P_measures_start()
     unsigned i;
     for(i = 0; i < G602_ROTATE_MEASURES__NUM; ++i)
     {
-        g602.sched.shedule(
+        sched.shedule(
                 rotate_measurer_sheduler_id[i],
                 time + rotate_measurer_handler_times[i],
-                P_rotator_handler
+                P_rotator_handler,
+                this
         );
     }
-    time_next = g602.rtcNextTimeGet();
+    time_next = rtcNextTimeGet();
 }
 
-void P_measures_stop()
+void G602::P_measures_stop()
 {
     unsigned i;
     for(i = 0; i < G602_ROTATE_MEASURES__NUM; ++i)
     {
-        g602.sched.unshedule(
+        sched.unshedule(
                 rotate_measurer_sheduler_id[i]
         );
     }
-    time_next = g602.rtcNextTimeGet();
+    time_next = rtcNextTimeGet();
 }
 
 static void P_real_time_calls_init()

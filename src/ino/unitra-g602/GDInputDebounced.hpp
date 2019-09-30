@@ -19,17 +19,18 @@ public:
      * @param initState     Input is ON(true) or OFF(false)
      */
     GDInputDebounced(
-            bool initState,
-            void (*onTriggeredOn)(),
-            void (*onTriggeredOff)(),
-            GTime_t debounceTime
+        bool initState,
+        void (*onTriggeredOn)(void * args),
+        void (*onTriggeredOff)(void * args),
+        void * args,
+        GTime_t debounceTime
     );
     virtual ~GDInputDebounced();
     /**
      * @param state         input is ON(true) or OFF(false)
      * @param time          time in msec, as returned by millis(). Should be monotonic.
      */
-    virtual void stateSet(bool state, GTime_t time_current);
+    virtual void stateSet(bool state, void * args, GTime_t time_current);
 
 #ifdef GDInputDebounced_DEBUG
     virtual unsigned int debug_bouncesAmountGet() const;

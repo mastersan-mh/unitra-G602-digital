@@ -3,11 +3,12 @@
 
 GDInputDebounced::GDInputDebounced(
         bool initState,
-        void (*onTriggeredOn)(),
-        void (*onTriggeredOff)(),
+        void (*onTriggeredOn)(void * args),
+        void (*onTriggeredOff)(void * args),
+        void * args,
         GTime_t debounceTime
 )
-: GDInput(initState, onTriggeredOn, onTriggeredOff)
+: GDInput(initState, onTriggeredOn, onTriggeredOff, args)
 {
     this->bouncedStatePrev = initState;
     this->debounceTime = debounceTime;
@@ -25,7 +26,7 @@ GDInputDebounced::~GDInputDebounced()
     /* nothing */
 }
 
-void GDInputDebounced::stateSet(bool state, GTime_t time_current)
+void GDInputDebounced::stateSet(bool state, void * args, GTime_t time_current)
 {
 
     if(state != bouncedStatePrev)
@@ -53,7 +54,7 @@ void GDInputDebounced::stateSet(bool state, GTime_t time_current)
 #ifdef GDInputDebounced_DEBUG
         debug_bouncesTime = time_current - debug_bouncesStartTime;
 #endif
-        GDInput::stateSet(state);
+        GDInput::stateSet(state, args);
 #ifdef GDInputDebounced_DEBUG
         debug_bounces = 0;
 #endif

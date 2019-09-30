@@ -66,7 +66,8 @@ public:
     Ctrl(
             speed_t baseSpeedLow,
             speed_t baseSpeedHigh,
-            void (*eventFunc)(Event event, const EventData& data)
+            void (*eventFunc)(Event event, const EventData& data, void * args),
+            void * args
     );
     Ctrl(const Ctrl&) = delete;
     Ctrl& operator=(const Ctrl&) = delete;
@@ -75,25 +76,25 @@ public:
     /**
      * @brief Выбор базовой скорости
      */
-    void baselineSpeedModeSet(BaselineSpeedMode baselineSpeedMode);
+    void baselineSpeedModeSet(BaselineSpeedMode baselineSpeedMode, void * args);
     /**
      * @brief Вручную задать отклонение скорости от выбраной базовой скорости
      */
-    void manualSpeedDeltaSet(speed_t speed);
-    void autostopAllowSet(bool allow_autostop);
+    void manualSpeedDeltaSet(speed_t speed, void * args);
+    void autostopAllowSet(bool allow_autostop, void * args);
 
-    void start();
-    void stop();
+    void start(void * args);
+    void stop(void * args);
 
     /**
      * @param speed     Current table speed
      */
-    void actualSpeedUpdate(speed_t speed);
+    void actualSpeedUpdate(speed_t speed, void * args);
 
     /**
      * @brief сработал датчик автостопа?
      */
-    void stopTriggeredSet(bool triggered);
+    void stopTriggeredSet(bool triggered, void * args);
 
     RunMode runModeGet();
 
@@ -134,21 +135,21 @@ private:
 
     speed_t P_speed_baseline_get() const;
 
-    void P_event(Event event, const EventData& data) const;
-    void P_event_errors_set(unsigned err);
-    void P_event_errors_clear(unsigned err);
-    void P_event_warnings_set(unsigned warn);
-    void P_event_warnings_clean(unsigned warn);
-    void P_event_motor_on();
-    void P_event_motor_off();
-    void P_event_motor_setpoint_update(Ctrl::speed_t setpoint);
-    void P_event_lift_up();
-    void P_event_lift_down();
+    void P_event(Event event, const EventData& data, void * args) const;
+    void P_event_errors_set(unsigned err, void * args);
+    void P_event_errors_clear(unsigned err, void * args);
+    void P_event_warnings_set(unsigned warn, void * args);
+    void P_event_warnings_clean(unsigned warn, void * args);
+    void P_event_motor_on(void * args);
+    void P_event_motor_off(void * args);
+    void P_event_motor_setpoint_update(Ctrl::speed_t setpoint, void * args);
+    void P_event_lift_up(void * args);
+    void P_event_lift_down(void * args);
 
-    void P_fsm(Command cmd, const CommandData & data);
+    void P_fsm(Command cmd, const CommandData & data, void * args);
 
     /* init vars */
-    void (*m_eventFunc)(Event event, const EventData& data);
+    void (*m_eventFunc)(Event event, const EventData& data, void * args);
     speed_t m_speed_baselines[G602_BASESPEEDMODE__NUM];
 
     State m_state;        /**< Finite State Machine state */

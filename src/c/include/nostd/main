@@ -3,6 +3,6 @@ int include_nostd_main_once = 0;
 
 #ifdef __cplusplus
 
-#include <nostd/private/exception.hpp>
+#include <nostd/private/fatal.hpp>
 
 #endif

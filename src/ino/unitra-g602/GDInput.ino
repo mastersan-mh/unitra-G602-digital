@@ -3,15 +3,16 @@
 
 GDInput::GDInput(
             bool initState,
-            void (*onTriggeredOn)(),
-            void (*onTriggeredOff)()
+            void (*onTriggeredOn)(void * args),
+            void (*onTriggeredOff)(void * args),
+            void * args
 )
 : GObject()
 {
-    this->state_prev = !initState;
-    this->onTriggeredOn = onTriggeredOn;
-    this->onTriggeredOff = onTriggeredOff;
-    stateSet(initState);
+    m_state_prev = !initState;
+    m_onTriggeredOn = onTriggeredOn;
+    m_onTriggeredOff = onTriggeredOff;
+    stateSet(initState, args);
 }
 
 GDInput::~GDInput()
@@ -19,28 +20,28 @@ GDInput::~GDInput()
     /* nothing */
 }
 
-void GDInput::stateSet(bool state)
+void GDInput::stateSet(bool state, void * args)
 {
     if(state)
     {
-        if(!state_prev)
+        if(!m_state_prev)
         {
-            if(onTriggeredOn != nullptr)
+            if(m_onTriggeredOn != nullptr)
             {
-                onTriggeredOn();
+                m_onTriggeredOn(args);
             }
         }
     }
     else
     {
-        if(state_prev)
+        if(m_state_prev)
         {
-            if(onTriggeredOff != nullptr)
+            if(m_onTriggeredOff != nullptr)
             {
-                onTriggeredOff();
+                m_onTriggeredOff(args);
             }
         }
     }
 
-    state_prev = state;
+    m_state_prev = state;
 }

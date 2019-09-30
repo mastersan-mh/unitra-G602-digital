@@ -45,7 +45,8 @@ private:
         nostd::size_t id;
         time_type time;
         /* if handler == nullptr, then free */
-        void (*handler)(nostd::size_t id, time_type time, time_type now, SchedulerSoft & sched);
+        void (*handler)(nostd::size_t id, time_type time, time_type now, SchedulerSoft & sched, void * args);
+        void * args;
     };
 
 public:
@@ -87,7 +88,8 @@ public:
     Error shedule(
             nostd::size_t id,
             time_type time,
-            void (*handler)(nostd::size_t id, time_type time, time_type now, SchedulerSoft & sched)
+            void (*handler)(nostd::size_t id, time_type time, time_type now, SchedulerSoft & sched, void * args),
+            void * args
     )
     {
         if(handler == nullptr)
@@ -102,6 +104,7 @@ public:
         task->id = id;
         task->time = time;
         task->handler = handler;
+        task->args = args;
 
         struct task_s * tmp;
 
@@ -160,7 +163,7 @@ public:
      */
     void handle(time_type now)
     {
-        void (*handler)(nostd::size_t id, time_type time, time_type now, SchedulerSoft & sched);
+        void (*handler)(nostd::size_t id, time_type time, time_type now, SchedulerSoft & sched, void * args);
         struct task_s * tmp;
 
         tmp = NOSTD_LIST2_HEAD(scheduled);
@@ -171,7 +174,7 @@ public:
             handler = tmp->handler;
             tmp->handler = nullptr;
 
-            handler(tmp->id, tmp->time, now, *this);
+            handler(tmp->id, tmp->time, now, *this, tmp->args);
 
             tmp = NOSTD_LIST2_HEAD(scheduled);
 
