@@ -1,15 +1,17 @@
 /**
- * @file Blinker.hpp
+ * @file GBlinkerPatterned.hpp
  */
 
-#ifndef BLINKER_HPP_
-#define BLINKER_HPP_
+#ifndef GBLINKERPATTERNED_HPP_INCLUDED_
+#define GBLINKERPATTERNED_HPP_INCLUDED_
 
-class Blinker
+class GBlinkerPatterned
 {
 public:
-    Blinker();
-    virtual ~Blinker();
+    GBlinkerPatterned();
+    GBlinkerPatterned(const GBlinkerPatterned& blinker);
+    virtual ~GBlinkerPatterned();
+    GBlinkerPatterned& operator=(const GBlinkerPatterned& blinker);
     void start(const unsigned long * pattern, unsigned size, bool infinite);
     void stop();
     /**
@@ -28,4 +30,4 @@ private:
     bool m_light;
 };
 
-#endif /* BLINKER_HPP_ */
+#endif /* GBLINKERPATTERNED_HPP_INCLUDED_ */

@@ -1,10 +1,12 @@
 /**
- * @file fatal.hpp
+ * @file exception.hpp
  *
+ *  Created on: 3 дек. 2018 г.
+ *      Author: mastersan
  */
 
-#ifndef NOSTD_PRIVATE_FATAL_HPP_INCLUDED_
-#define NOSTD_PRIVATE_FATAL_HPP_INCLUDED_
+#ifndef SRC_INCLUDE_NOSTD_EXCEPTION_MAIN_HPP_
+#define SRC_INCLUDE_NOSTD_EXCEPTION_MAIN_HPP_
 
 #include <nostd/fatal>
 
@@ -31,4 +33,4 @@ void nostd::fatal(const char * file, unsigned int line, int error)
     for(;;);
 }
 
-#endif /* NOSTD_PRIVATE_FATAL_HPP_INCLUDED_ */
+#endif /* SRC_INCLUDE_NOSTD_EXCEPTION_MAIN_HPP_ */

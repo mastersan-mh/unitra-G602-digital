@@ -11,8 +11,8 @@
 
 #include "GDInputDebounced.hpp"
 #include "GTime.hpp"
-#include "Blinker.hpp"
 #include "Ctrl.hpp"
+#include "GBlinker.hpp"
 
 
 DEBUG_INIT_GLOBAL();
@@ -110,15 +110,10 @@ static void terminate_handler(const char * file, unsigned int line, int error)
     }
 }
 
-enum class StrobeMode
+static void P_event_strober(bool on)
 {
-    STROBEMODE_OFF,
-    STROBEMODE_NORMAL,
-    STROBEMODE_SPEEDMODE_SWITCHED_TO_FREEMODE,
-    STROBEMODE_SPEEDMODE_SWITCHED_TO_AUTOMODE,
-    STROBEMODE_ERROR_SPEED_TOO_LOW,
-    STROBEMODE_ERROR_SPEED_TOO_HIGH,
-};
+    digitalWrite(PIN_DO_STROBE_ERROR, (on ? HIGH : LOW));
+}
 
 static unsigned long time;
 static unsigned long time_prev = 0;
@@ -133,55 +128,33 @@ class G602
 #define ARRAY_INDEX(x) static_cast<unsigned int>(x)
 
 public:
-    struct blink_descr
-    {
-        const unsigned long * const pattern;
-        unsigned size;
-        bool infinite;
-    };
-
-    /* @brief Blinking pattern for 5x250ms */
-
-    static const unsigned long blink_pattern_5_250[5];
-
-    enum class BlinkMode
-    {
-        ON_STOP,
-        ON_START_AUTO,
-        ON_START_MANUAL,
-        ON_TOO_LOW_SPEED,
-        ON_TOO_HIGH_SPEED,
-        BLINK__NO
-    };
-
-    static const struct blink_descr blink_descrs[ARRAY_INDEX(BlinkMode::BLINK__NO)];
-
-public:
-    static const nostd::size_t shed_task_id = 0;
-    G602();
+    static const nostd::size_t shed_task_id_blinker = 0;
+    G602(
+        void (*event_strober)(bool on)
+    );
     ~G602();
     G602(const G602 &) = delete;
     G602& operator= (const G602 &) = delete;
-
-    unsigned long rtcNextTimeGet() const;
     /** @brief Call it on each loop */
     void loop();
 
     G602Scheduler sched;
 private:
-    Blinker blinker;
+    GBlinker m_blinker;
 public:
-    void blinkerStart(BlinkMode mode);
-    void blinkerStop();
-    BlinkMode blinkerModeGet();
     app::Ctrl ctrl;
     GDInputDebounced di_gauge_stop;
     GDInputDebounced di_btn_speed_mode;
     GDInputDebounced di_btn_autostop;
     GDInputDebounced di_btn_start;
     GDInputDebounced di_btn_stop;
+
 private:
-    static void P_ctrl_run_blink(G602 * self, app::Ctrl::RunMode mode);
+    void (*m_event_strober)(bool on);
+
+    void P_blinkerStart(GBlinker::BlinkType type);
+    void P_blinkerStop(GBlinker::BlinkType type);
+    unsigned long P_rtcNextTimeGet() const;
     void P_measures_start();
     void P_measures_stop();
 
@@ -196,40 +169,22 @@ private:
     static void P_event_start(void * args);
     static void P_event_stop(void * args);
 
-    BlinkMode m_blinkMode;
-
 };
 
-const unsigned long G602::blink_pattern_5_250[5] =
-{
-        250,
-        250,
-        250,
-        250,
-        250,
-};
+static G602 g602(P_event_strober);
 
-const struct G602::blink_descr G602::blink_descrs[ARRAY_INDEX(G602::BlinkMode::BLINK__NO)] =
-{
-        [ARRAY_INDEX(BlinkMode::ON_STOP          )] = { blink_pattern_5_250, 1, false },
-        [ARRAY_INDEX(BlinkMode::ON_START_AUTO    )] = { blink_pattern_5_250, 3, false },
-        [ARRAY_INDEX(BlinkMode::ON_START_MANUAL  )] = { blink_pattern_5_250, 5, false },
-        [ARRAY_INDEX(BlinkMode::ON_TOO_LOW_SPEED )] = { blink_pattern_5_250, 2, true  },
-        [ARRAY_INDEX(BlinkMode::ON_TOO_HIGH_SPEED)] = { blink_pattern_5_250, 2, true  },
-};
-
-static G602 g602;
-
-G602::G602()
+G602::G602(
+    void (*event_strober)(bool on)
+)
 : sched()
-, blinker()
+, m_blinker()
 , ctrl(G602_SPEED_BASELINE_LOW, G602_SPEED_BASELINE_HIGH, P_ctrl_event, this)
 , di_gauge_stop(false, P_event_stopUnset, P_event_stopSet, this, DI_DEBOUNCE_TIME)
 , di_btn_speed_mode(false, P_event_speedMode33,  P_event_speedMode45, this, DI_DEBOUNCE_TIME)
 , di_btn_autostop(false, P_event_autostopEnable,  P_event_autostopDisable, this, DI_DEBOUNCE_TIME)
 , di_btn_start(false, P_event_start,  nullptr, this, DI_DEBOUNCE_TIME)
 , di_btn_stop(false, P_event_stop,  nullptr, this, DI_DEBOUNCE_TIME)
-, m_blinkMode(BlinkMode::BLINK__NO)
+, m_event_strober(event_strober)
 {
 }
 
@@ -237,7 +192,7 @@ G602::~G602()
 {
 }
 
-unsigned long G602::rtcNextTimeGet() const
+unsigned long G602::P_rtcNextTimeGet() const
 {
     unsigned long time_next;
     time_next = sched.nearestTime();
@@ -254,43 +209,36 @@ void G602::loop()
 
 /*    long late = (long)time - (long)time_next; */
     sched.handle(time);
-    time_next = rtcNextTimeGet();
+    time_next = P_rtcNextTimeGet();
 }
 
-void G602::blinkerStart(BlinkMode mode)
+void G602::P_blinkerStart(GBlinker::BlinkType type)
 {
-    blinkerStop();
+    unsigned actions = m_blinker.typeSet(type, true);
 
-    m_blinkMode = mode;
-
-    const struct blink_descr * blink_descr = &blink_descrs[ARRAY_INDEX(mode)];
-    blinker.start(blink_descr->pattern, blink_descr->size, blink_descr->infinite);
-    sched.shedule(shed_task_id, time, this->P_blinker_task, this);
-
-    time_next = rtcNextTimeGet();
-}
-
-void G602::blinkerStop()
-{
-    blinker.stop();
-    sched.unshedule(shed_task_id);
-}
-
-G602::BlinkMode G602::blinkerModeGet()
-{
-    return m_blinkMode;
-}
-
-void G602::P_ctrl_run_blink(G602 * self, app::Ctrl::RunMode mode)
-{
-    switch(mode)
+    if(actions & GBLINKER_ACTIONFLAG_UNSCHEDULE)
     {
-        case app::Ctrl::RunMode::STOPPED       : self->blinkerStart(BlinkMode::ON_STOP); break;
-        case app::Ctrl::RunMode::STARTED_AUTO  : self->blinkerStart(BlinkMode::ON_START_AUTO); break;
-        case app::Ctrl::RunMode::STARTED_MANUAL: self->blinkerStart(BlinkMode::ON_START_MANUAL); break;
+        sched.unshedule(shed_task_id_blinker);
+    }
+    if(actions & GBLINKER_ACTIONFLAG_SCHEDULE)
+    {
+        sched.shedule(shed_task_id_blinker, time, P_blinker_task, this);
     }
 }
 
+void G602::P_blinkerStop(GBlinker::BlinkType type)
+{
+    unsigned actions = m_blinker.typeSet(type, false);
+
+    if(actions & GBLINKER_ACTIONFLAG_UNSCHEDULE)
+    {
+        sched.unshedule(shed_task_id_blinker);
+    }
+    if(actions & GBLINKER_ACTIONFLAG_SCHEDULE)
+    {
+        sched.shedule(shed_task_id_blinker, time, P_blinker_task, this);
+    }
+}
 
 void G602::P_blinker_task(nostd::size_t id, unsigned long time, unsigned long now, G602Scheduler & sched, void * args)
 {
@@ -298,14 +246,14 @@ void G602::P_blinker_task(nostd::size_t id, unsigned long time, unsigned long no
     bool end;
     bool light;
     unsigned long wait_time;
-    self->blinker.partGet(&end, &light, &wait_time);
+    self->m_blinker.scheduledPartGet(&end, &light, &wait_time);
     if(end)
     {
-        digitalWrite(PIN_DO_STROBE_ERROR, HIGH);
+        self->m_event_strober(true);
     }
     else
     {
-        digitalWrite(PIN_DO_STROBE_ERROR, light ? LOW : HIGH);
+        self->m_event_strober(!light);
         sched.shedule(id, time + wait_time, G602::P_blinker_task, args);
     }
 }
@@ -354,7 +302,22 @@ void G602::P_event_start(void * args)
     app::Ctrl::RunMode mode = self->ctrl.runModeGet();
     if(mode != mode_prev)
     {
-        P_ctrl_run_blink(self, mode);
+        if(
+                mode_prev == app::Ctrl::RunMode::STARTED_AUTO ||
+                mode_prev == app::Ctrl::RunMode::STARTED_MANUAL
+        )
+        {
+            switch(mode)
+            {
+                case app::Ctrl::RunMode::STARTED_AUTO  : self->P_blinkerStart(GBlinker::BlinkType::ON_AUTO); break;
+                case app::Ctrl::RunMode::STARTED_MANUAL: self->P_blinkerStart(GBlinker::BlinkType::ON_MANUAL); break;
+                default: break;
+            }
+        }
+        else
+        {
+            self->P_blinkerStart(GBlinker::BlinkType::ON_START);
+        }
     }
 }
 
@@ -366,7 +329,7 @@ void G602::P_event_stop(void * args)
     app::Ctrl::RunMode mode = self->ctrl.runModeGet();
     if(mode != mode_prev)
     {
-        P_ctrl_run_blink(self, mode);
+        self->P_blinkerStart(GBlinker::BlinkType::ON_STOP);
     }
 }
 
@@ -403,30 +366,22 @@ void G602::P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& data
             bool blink_speed_to_low  = TO_BOOL(data.WARNINGS_UPDATE.warnings | CTRL_WARNING_SPEED_TOO_LOW);
             bool blink_speed_to_high = TO_BOOL(data.WARNINGS_UPDATE.warnings | CTRL_WARNING_SPEED_TOO_HIGH);
 
-            G602::BlinkMode mode = self->blinkerModeGet();
-
             if(blink_speed_to_low)
             {
-                self->blinkerStart(G602::BlinkMode::ON_TOO_LOW_SPEED);
+                self->P_blinkerStart(GBlinker::BlinkType::ON_TOO_LOW_SPEED);
             }
             else
             {
-                if(mode == G602::BlinkMode::ON_TOO_LOW_SPEED)
-                {
-                    self->blinkerStop();
-                }
+                self->P_blinkerStop(GBlinker::BlinkType::ON_TOO_LOW_SPEED);
             }
 
             if(blink_speed_to_high)
             {
-                self->blinkerStart(G602::BlinkMode::ON_TOO_HIGH_SPEED);
+                self->P_blinkerStart(GBlinker::BlinkType::ON_TOO_HIGH_SPEED);
             }
             else
             {
-                if(mode == G602::BlinkMode::ON_TOO_HIGH_SPEED)
-                {
-                    self->blinkerStop();
-                }
+                self->P_blinkerStop(GBlinker::BlinkType::ON_TOO_HIGH_SPEED);
             }
 
             break;
@@ -780,7 +735,7 @@ void G602::P_measures_start()
                 this
         );
     }
-    time_next = rtcNextTimeGet();
+    time_next = P_rtcNextTimeGet();
 }
 
 void G602::P_measures_stop()
@@ -792,7 +747,7 @@ void G602::P_measures_stop()
                 rotate_measurer_sheduler_id[i]
         );
     }
-    time_next = rtcNextTimeGet();
+    time_next = P_rtcNextTimeGet();
 }
 
 static void P_real_time_calls_init()
