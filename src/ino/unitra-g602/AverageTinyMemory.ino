@@ -4,6 +4,8 @@
 
 #include "AverageTinyMemory.hpp"
 
+#include <nostd/fatal>
+
 AverageTinyMemory::AverageTinyMemory(unsigned char factor)
 {
     this->mean = 0;

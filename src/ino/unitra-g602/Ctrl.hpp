@@ -56,7 +56,7 @@ public:
         MODE_LOW,
         MODE_HIGH,
     };
-#define G602_BASESPEEDMODE__NUM (static_cast<int>(BaselineSpeedMode::MODE_HIGH) + 1)
+#define CTRL_BASESPEEDMODE__NUM (static_cast<int>(BaselineSpeedMode::MODE_HIGH) + 1)
 
     Ctrl() = delete;
     /**
@@ -80,7 +80,7 @@ public:
     /**
      * @brief Вручную задать отклонение скорости от выбраной базовой скорости
      */
-    void manualSpeedDeltaSet(speed_t speed, void * args);
+    void manualSpeedSet(speed_t speed, void * args);
     void autostopAllowSet(bool allow_autostop, void * args);
 
     void start(void * args);
@@ -150,7 +150,7 @@ private:
 
     /* init vars */
     void (*m_eventFunc)(Event event, const EventData& data, void * args);
-    speed_t m_speed_baselines[G602_BASESPEEDMODE__NUM];
+    speed_t m_speed_baselines[CTRL_BASESPEEDMODE__NUM];
 
     State m_state;        /**< Finite State Machine state */
     unsigned m_state_errors; /**< bitmap of errors */

@@ -349,15 +349,15 @@ void Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
 }
 
 Ctrl::Ctrl(
-        speed_t baseSpeedLow,
-        speed_t baseSpeedHigh,
+        speed_t baselineSpeedLow,
+        speed_t baselineSpeedHigh,
         void (*eventFunc)(Event event, const EventData& data, void * args),
         void * args
 )
 {
     /* init vars */
-    m_speed_baselines[ARRAY_INDEX(BaselineSpeedMode::MODE_LOW )] = baseSpeedLow;
-    m_speed_baselines[ARRAY_INDEX(BaselineSpeedMode::MODE_HIGH)] = baseSpeedHigh;
+    m_speed_baselines[ARRAY_INDEX(BaselineSpeedMode::MODE_LOW )] = baselineSpeedLow;
+    m_speed_baselines[ARRAY_INDEX(BaselineSpeedMode::MODE_HIGH)] = baselineSpeedHigh;
     m_eventFunc = eventFunc;
 
     m_state = State::INIT;
@@ -381,7 +381,7 @@ void Ctrl::baselineSpeedModeSet(BaselineSpeedMode baselineSpeedMode, void * args
     P_fsm(cmd, m_cmdData, args);
 }
 
-void Ctrl::manualSpeedDeltaSet(speed_t speed, void * args)
+void Ctrl::manualSpeedSet(speed_t speed, void * args)
 {
     m_cmdData.SPEED_MANUAL_UPDATE.speed = speed;
     P_fsm(Command::SPEED_MANUAL_UPDATE, m_cmdData, args);

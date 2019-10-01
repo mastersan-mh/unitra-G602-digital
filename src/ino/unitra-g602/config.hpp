@@ -32,7 +32,7 @@ pins_arduino.h:
 
 #ifdef IDE_ECLIPSE
 #   ifndef __OPTIMIZE__
-#       define __OPTIMIZE__
+#       define __OPTIMIZE__ 1
 #   endif
 #   define F_CPU 8
 #   define __AVR_ATmega8__

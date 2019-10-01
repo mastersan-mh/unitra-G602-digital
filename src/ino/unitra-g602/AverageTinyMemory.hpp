@@ -5,8 +5,6 @@
 #ifndef AVERAGE_TINY_MEMORY_HPP_
 #define AVERAGE_TINY_MEMORY_HPP_
 
-#include <nostd/fatal>
-
 #define AverageTinyMemory_FACTOR_MAX 32
 
 class AverageTinyMemory
