@@ -9,10 +9,7 @@
 
 #include "AverageTinyMemory.hpp"
 
-#include "GDInputDebounced.hpp"
-#include "GTime.hpp"
-#include "Ctrl.hpp"
-#include "GBlinker.hpp"
+#include "G602.hpp"
 
 
 DEBUG_INIT_GLOBAL();
@@ -115,6 +112,18 @@ static void P_event_strober(bool on)
     digitalWrite(PIN_DO_STROBE_ERROR, (on ? HIGH : LOW));
 }
 
+static void P_event_lift_up()
+{
+    digitalWrite(PIN_DO_LIFT, LOW);
+    digitalWrite(PIN_DO_AUDIO_DENY, LOW);
+}
+
+static void P_event_lift_down()
+{
+    digitalWrite(PIN_DO_LIFT, HIGH);
+    digitalWrite(PIN_DO_AUDIO_DENY, HIGH);
+}
+
 static unsigned long time;
 static unsigned long time_prev = 0;
 static unsigned long cycletime = 0;
@@ -130,7 +139,9 @@ class G602
 public:
     static const nostd::size_t shed_task_id_blinker = 0;
     G602(
-        void (*event_strober)(bool on)
+        void (*event_strober)(bool on),
+        void (*event_lift_up)(),
+        void (*event_lift_down)()
     );
     ~G602();
     G602(const G602 &) = delete;
@@ -151,6 +162,8 @@ public:
 
 private:
     void (*m_event_strober)(bool on);
+    void (*m_event_lift_up)();
+    void (*m_event_lift_down)();
 
     void P_blinkerStart(GBlinker::BlinkType type);
     void P_blinkerStop(GBlinker::BlinkType type);
@@ -171,10 +184,16 @@ private:
 
 };
 
-static G602 g602(P_event_strober);
+static G602 g602(
+    P_event_strober,
+    P_event_lift_up,
+    P_event_lift_down
+    );
 
 G602::G602(
-    void (*event_strober)(bool on)
+    void (*event_strober)(bool on),
+    void (*event_lift_up)(),
+    void (*event_lift_down)()
 )
 : sched()
 , m_blinker()
@@ -185,6 +204,8 @@ G602::G602(
 , di_btn_start(false, P_event_start,  nullptr, this, DI_DEBOUNCE_TIME)
 , di_btn_stop(false, P_event_stop,  nullptr, this, DI_DEBOUNCE_TIME)
 , m_event_strober(event_strober)
+, m_event_lift_up(event_lift_up)
+, m_event_lift_down(event_lift_down)
 {
 }
 
@@ -412,15 +433,13 @@ void G602::P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& data
 
         case app::Ctrl::Event::LIFT_UP:
         {
-            digitalWrite(PIN_DO_LIFT, LOW);
-            digitalWrite(PIN_DO_AUDIO_DENY, LOW);
+            self->m_event_lift_up();
             break;
         }
 
         case app::Ctrl::Event::LIFT_DOWN:
         {
-            digitalWrite(PIN_DO_LIFT, HIGH);
-            digitalWrite(PIN_DO_AUDIO_DENY, HIGH);
+            self->m_event_lift_down();
             break;
         }
 

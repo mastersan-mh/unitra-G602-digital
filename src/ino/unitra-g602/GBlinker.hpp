@@ -1,5 +1,5 @@
 /**
- * @file Blinker.hpp
+ * @file GBlinker.hpp
  */
 
 #ifndef GBLINKER_HPP_INCLUDED_
@@ -43,4 +43,4 @@ private:
     bool m_intermission;
     bool m_on[GBLINK_BLINKS_NUM]; /**< on/off blink */
 };
-#endif
+#endif /* GBLINKER_HPP_INCLUDED_ */

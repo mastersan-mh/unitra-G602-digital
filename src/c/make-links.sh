@@ -1,6 +1,8 @@
 list="config.hpp
 defs.hpp
 unitra-g602.ino
+G602.hpp
+G602.ino
 GBlinkerPatterned.hpp
 GBlinkerPatterned.ino
 GBlinker.hpp
