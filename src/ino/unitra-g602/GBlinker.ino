@@ -4,6 +4,8 @@
 
 #include "GBlinker.hpp"
 
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
+
 struct blink_descr
 {
     const unsigned long * pattern;
@@ -16,14 +18,28 @@ struct blink_descr
 
 static const unsigned long P_blink_pattern_braking[] =
 {
-        100,
-        100,
-        250,
-        250,
-        500,
-        500,
-        750,
-        750,
+        12,
+        12,
+        17,
+        17,
+        26,
+        26,
+        39,
+        39,
+        59,
+        59,
+        88,
+        88,
+        132,
+        132,
+        198,
+        198,
+        296,
+        296,
+        444,
+        444,
+        667,
+        667,
         1000,
 };
 
@@ -31,13 +47,27 @@ static const unsigned long P_blink_pattern_acceleration[] =
 {
         1000,
         1000,
-        750,
-        750,
-        500,
-        500,
-        250,
-        250,
-        100,
+        667,
+        667,
+        444,
+        444,
+        296,
+        296,
+        198,
+        198,
+        132,
+        132,
+        88,
+        88,
+        59,
+        59,
+        39,
+        39,
+        26,
+        26,
+        17,
+        17,
+        12,
 };
 
 static const unsigned long P_blink_pattern_5_250[5] =
@@ -77,8 +107,8 @@ static const unsigned long P_blink_pattern_1_100[1] =
 
 static const struct blink_descr P_blink_descrs[GBLINK_BLINKS_NUM] =
 {
-        [ARRAY_INDEX(GBlinker::BlinkType::ON_START         )] = { P_blink_pattern_acceleration, 9, false, 1 },
-        [ARRAY_INDEX(GBlinker::BlinkType::ON_STOP          )] = { P_blink_pattern_braking     , 9, false, 1 },
+        [ARRAY_INDEX(GBlinker::BlinkType::ON_START         )] = { P_blink_pattern_acceleration, ARRAY_SIZE(P_blink_pattern_acceleration), false, 1 },
+        [ARRAY_INDEX(GBlinker::BlinkType::ON_STOP          )] = { P_blink_pattern_braking     , ARRAY_SIZE(P_blink_pattern_braking), false, 1 },
         [ARRAY_INDEX(GBlinker::BlinkType::ON_AUTO          )] = { P_blink_pattern_5_250       , 1, false, 1 },
         [ARRAY_INDEX(GBlinker::BlinkType::ON_MANUAL        )] = { P_blink_pattern_5_250       , 5, false, 1 },
         [ARRAY_INDEX(GBlinker::BlinkType::ON_TOO_LOW_SPEED )] = { P_blink_pattern_1_500       , 1, true , 0 },

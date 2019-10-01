@@ -122,6 +122,8 @@ static void P_event_lift_down()
 
 void P_motor_update(bool state, int setpoint)
 {
+    DEBUG_PRINT("setpoint = " ); DEBUG_PRINTLN(setpoint);
+
     if(state)
     {
         /* [0; 255] */
@@ -331,6 +333,9 @@ static void P_rotator_handler(size_t id, GTime_t time, GTime_t now, G602Schedule
         int speed_actual = map(speed, 33, 45, G602_SPEED_BASELINE_LOW, G602_SPEED_BASELINE_HIGH);
         g602.actualSpeedUpdate(speed_actual);
 
+        DEBUG_PRINT("speed = " ); DEBUG_PRINTLN(speed);
+        DEBUG_PRINT("speed_actual = " ); DEBUG_PRINTLN(speed_actual);
+
         /*
             Fixed ctrl;
             Fixed sp;
@@ -349,7 +354,7 @@ static void P_rotator_handler(size_t id, GTime_t time, GTime_t now, G602Schedule
 //        DEBUG_PRINT("; t_pulses_d = " ); DEBUG_PRINT((int)table_pulses_diff);
 //        DEBUG_PRINT("; t_speed(rpm) = "); DEBUG_PRINT(speed);
     }
-
+#if 0
     DEBUG_PRINT((unsigned long)now);
 
     unsigned i;
@@ -385,7 +390,7 @@ static void P_rotator_handler(size_t id, GTime_t time, GTime_t now, G602Schedule
     DEBUG_PRINT(table_pulses.bounces);
 
     DEBUG_PRINTLN();
-
+#endif
     sched.shedule(
             id,
             time + time_delta,

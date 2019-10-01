@@ -178,8 +178,8 @@ void G602::P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& data
 
         case app::Ctrl::Event::WARNINGS_UPDATE:
         {
-            bool blink_speed_to_low  = TO_BOOL(data.WARNINGS_UPDATE.warnings | CTRL_WARNING_SPEED_TOO_LOW);
-            bool blink_speed_to_high = TO_BOOL(data.WARNINGS_UPDATE.warnings | CTRL_WARNING_SPEED_TOO_HIGH);
+            bool blink_speed_to_low  = TO_BOOL(data.WARNINGS_UPDATE.warnings & CTRL_WARNING_SPEED_TOO_LOW);
+            bool blink_speed_to_high = TO_BOOL(data.WARNINGS_UPDATE.warnings & CTRL_WARNING_SPEED_TOO_HIGH);
 
             if(blink_speed_to_low)
             {
@@ -306,6 +306,7 @@ void G602::P_event_start(void * args)
             }
             else
             {
+                self->P_blinker_stop(GBlinker::BlinkType::ON_STOP);
                 self->P_blinker_start(GBlinker::BlinkType::ON_START);
             }
         }
@@ -329,6 +330,7 @@ void G602::P_event_stop(void * args)
         app::Ctrl::RunMode mode = self->m_ctrl.runModeGet();
         if(mode != mode_prev)
         {
+            self->P_blinker_stop(GBlinker::BlinkType::ON_START);
             self->P_blinker_start(GBlinker::BlinkType::ON_STOP);
         }
         self->sched.shedule(
