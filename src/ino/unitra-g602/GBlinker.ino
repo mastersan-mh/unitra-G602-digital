@@ -42,11 +42,26 @@ static const unsigned long P_blink_pattern_acceleration[] =
 
 static const unsigned long P_blink_pattern_5_250[5] =
 {
-        250,
-        250,
-        250,
-        250,
-        250,
+        250, /* [ ] (initial) */
+        250, /* [*] */
+        250, /* [ ] */
+        250, /* [*] */
+        250, /* [ ] */
+};
+
+static const unsigned long P_blink_pattern_11_100[11] =
+{
+        100, /* [ ] (initial) */
+        100, /* [*] */
+        100, /* [ ] */
+        100, /* [*] */
+        100, /* [ ] */
+        100, /* [*] */
+        100, /* [ ] */
+        100, /* [*] */
+        100, /* [ ] */
+        100, /* [*] */
+        100, /* [ ] */
 };
 
 static const unsigned long P_blink_pattern_1_500[1] =
@@ -68,6 +83,7 @@ static const struct blink_descr P_blink_descrs[GBLINK_BLINKS_NUM] =
         [ARRAY_INDEX(GBlinker::BlinkType::ON_MANUAL        )] = { P_blink_pattern_5_250       , 5, false, 1 },
         [ARRAY_INDEX(GBlinker::BlinkType::ON_TOO_LOW_SPEED )] = { P_blink_pattern_1_500       , 1, true , 0 },
         [ARRAY_INDEX(GBlinker::BlinkType::ON_TOO_HIGH_SPEED)] = { P_blink_pattern_1_100       , 1, true , 0 },
+        [ARRAY_INDEX(GBlinker::BlinkType::ON_ENTER_SERVICE_MODE)] = { P_blink_pattern_11_100  , 11, false , 1 },
 };
 
 GBlinker::GBlinker()

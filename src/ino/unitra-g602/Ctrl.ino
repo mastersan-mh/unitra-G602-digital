@@ -143,22 +143,6 @@ void Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
                     m_state_allowed_autostop = false;
                     break;
                 }
-                case Command::START:
-                {
-                    if(!(m_state_allowed_autostop && m_state_autostop_triggered))
-                    {
-                        Ctrl::speed_t speed = P_speed_baseline_get();
-                        P_event_motor_setpoint_update(speed, args);
-                        P_event_motor_on(args);
-                        P_event_lift_down(args);
-                        next_state = State::STARTED;
-                    }
-                    break;
-                }
-                case Command::STOP:
-                {
-                    break;
-                }
                 case Command::GAUGE_STOP_ON:
                 {
                     m_state_autostop_triggered = true;
@@ -169,11 +153,33 @@ void Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
                     m_state_autostop_triggered = false;
                     break;
                 }
+                case Command::START:
+                {
+                    if(!(m_state_allowed_autostop && m_state_autostop_triggered))
+                    {
+                        Ctrl::speed_t speed = P_speed_baseline_get();
+                        P_event_motor_setpoint_update(speed, args);
+                        P_event_motor_on(args);
+                        P_event_lift_down(args);
+                        next_state = State::STARTED_AUTO;
+                    }
+                    break;
+                }
+                case Command::STOP:
+                {
+                    break;
+                }
+                case Command::SERVICE_MODE_1:
+                {
+                    P_event_lift_down(args);
+                    next_state = State::SERVICE_MODE_1;
+                    break;
+                }
             }
             break;
         }
 
-        case State::STARTED:
+        case State::STARTED_AUTO:
         {
             switch(cmd)
             {
@@ -215,21 +221,6 @@ void Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
                     m_state_allowed_autostop = false;
                     break;
                 }
-                case Command::START:
-                {
-                    Ctrl::speed_t speed = P_speed_baseline_get() + m_speed_manual_delta;
-                    P_event_motor_setpoint_update(speed, args);
-                    next_state = State::STARTED_MANUAL;
-                    break;
-                }
-                case Command::STOP:
-                {
-                    P_event_warnings_clean(CTRL_WARNING_SPEED_TOO_LOW | CTRL_WARNING_SPEED_TOO_HIGH, args);
-                    P_event_motor_off(args);
-                    P_event_lift_up(args);
-                    next_state = State::STOPPED;
-                    break;
-                }
                 case Command::GAUGE_STOP_ON:
                 {
                     m_state_autostop_triggered = true;
@@ -250,6 +241,25 @@ void Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
                         P_event_lift_up(args);
                         next_state = State::STOPPED;
                     }
+                    break;
+                }
+                case Command::START:
+                {
+                    Ctrl::speed_t speed = P_speed_baseline_get() + m_speed_manual_delta;
+                    P_event_motor_setpoint_update(speed, args);
+                    next_state = State::STARTED_MANUAL;
+                    break;
+                }
+                case Command::STOP:
+                {
+                    P_event_warnings_clean(CTRL_WARNING_SPEED_TOO_LOW | CTRL_WARNING_SPEED_TOO_HIGH, args);
+                    P_event_motor_off(args);
+                    P_event_lift_up(args);
+                    next_state = State::STOPPED;
+                    break;
+                }
+                case Command::SERVICE_MODE_1:
+                {
                     break;
                 }
             }
@@ -303,21 +313,6 @@ void Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
                     m_state_allowed_autostop = false;
                     break;
                 }
-                case Command::START:
-                {
-                    Ctrl::speed_t speed = P_speed_baseline_get();
-                    P_event_motor_setpoint_update(speed, args);
-                    next_state = State::STARTED;
-                    break;
-                }
-                case Command::STOP:
-                {
-                    P_event_warnings_clean(CTRL_WARNING_SPEED_TOO_LOW | CTRL_WARNING_SPEED_TOO_HIGH, args);
-                    P_event_motor_off(args);
-                    P_event_lift_up(args);
-                    next_state = State::STOPPED;
-                    break;
-                }
                 case Command::GAUGE_STOP_ON:
                 {
                     m_state_autostop_triggered = true;
@@ -340,9 +335,90 @@ void Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
                     }
                     break;
                 }
+                case Command::START:
+                {
+                    Ctrl::speed_t speed = P_speed_baseline_get();
+                    P_event_motor_setpoint_update(speed, args);
+                    next_state = State::STARTED_AUTO;
+                    break;
+                }
+                case Command::STOP:
+                {
+                    P_event_warnings_clean(CTRL_WARNING_SPEED_TOO_LOW | CTRL_WARNING_SPEED_TOO_HIGH, args);
+                    P_event_motor_off(args);
+                    P_event_lift_up(args);
+                    next_state = State::STOPPED;
+                    break;
+                }
+                case Command::SERVICE_MODE_1:
+                {
+                    break;
+                }
             }
             break;
         }
+
+        case State::SERVICE_MODE_1:
+        {
+            switch(cmd)
+            {
+                case Command::INIT:
+                {
+                    break;
+                }
+                case Command::SPEED_BASELINE_LOW:
+                {
+                    m_speed_baseline_mode = BaselineSpeedMode::MODE_LOW;
+                    break;
+                }
+                case Command::SPEED_BASELINE_HIGH:
+                {
+                    m_speed_baseline_mode = BaselineSpeedMode::MODE_HIGH;
+                    break;
+                }
+                case Command::SPEED_MANUAL_UPDATE:
+                {
+                    m_speed_manual_delta = data.SPEED_MANUAL_UPDATE.speed;
+                    break;
+                }
+                case Command::AUTOSTOP_ALLOW:
+                {
+                    m_state_allowed_autostop = true;
+                    break;
+                }
+                case Command::AUTOSTOP_DENY:
+                {
+                    m_state_allowed_autostop = false;
+                    break;
+                }
+                case Command::GAUGE_STOP_ON:
+                {
+                    m_state_autostop_triggered = true;
+                    break;
+                }
+                case Command::GAUGE_STOP_OFF:
+                {
+                    m_state_autostop_triggered = false;
+                    break;
+                }
+                case Command::START:
+                {
+                    break;
+                }
+                case Command::STOP:
+                {
+                    P_event_lift_up(args);
+                    next_state = State::STOPPED;
+                    break;
+                }
+                case Command::SERVICE_MODE_1:
+                {
+                    break;
+                }
+            }
+            break;
+        }
+
     }
 
     m_state = next_state;
@@ -402,15 +478,20 @@ void Ctrl::stop(void * args)
     P_fsm(Command::STOP, m_cmdData, args);
 }
 
+void Ctrl::service_mode_1(void * args)
+{
+    P_fsm(Command::SERVICE_MODE_1, m_cmdData, args);
+}
+
 void Ctrl::actualSpeedUpdate(speed_t speed, void * args)
 {
-    bool check = false;
     speed_t setpoint = 0;
+    bool check = false;
     switch(m_state)
     {
         case State::INIT: break;
         case State::STOPPED: break;
-        case State::STARTED:
+        case State::STARTED_AUTO:
         {
             setpoint = P_speed_baseline_get();
             check = true;
@@ -422,6 +503,7 @@ void Ctrl::actualSpeedUpdate(speed_t speed, void * args)
             check = true;
             break;
         }
+        case State::SERVICE_MODE_1: break;
     }
 
     if(check)
@@ -453,8 +535,9 @@ Ctrl::RunMode Ctrl::runModeGet()
     {
         case State::INIT   : return RunMode::STOPPED;
         case State::STOPPED: return RunMode::STOPPED;
-        case State::STARTED: return RunMode::STARTED_AUTO;
+        case State::STARTED_AUTO: return RunMode::STARTED_AUTO;
         case State::STARTED_MANUAL: return RunMode::STARTED_MANUAL;
+        case State::SERVICE_MODE_1: return RunMode::SERVICE_MODE_1;
     }
     return RunMode::STOPPED;
 }

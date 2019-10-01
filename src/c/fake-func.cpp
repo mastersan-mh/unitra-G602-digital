@@ -6,6 +6,20 @@
 
 #include <Arduino.h>
 
+void setup();
+void loop();
+
+
+int main()
+{
+    setup();
+    while(1)
+    {
+        loop();
+    }
+    return EXIT_SUCCESS;
+}
+
 void attachInterrupt(uint8_t, void (*)(void), int mode)
 {
 

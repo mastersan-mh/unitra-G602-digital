@@ -224,11 +224,11 @@ static AverageTinyMemory potentiometer_avg(FACTOR);
 
 static const unsigned rotate_measurer_sheduler_id[G602_ROTATE_MEASURES__NUM] =
 {
-        1,
         2,
         3,
         4,
         5,
+        6,
 };
 
 static const unsigned long rotate_measurer_handler_times[G602_ROTATE_MEASURES__NUM] =
@@ -428,6 +428,7 @@ void G602::P_measures_stop()
 void setup()
 {
     DEBUG_PRINT_INIT();
+
     time = millis();
 
     nostd::set_fatal(terminate_handler);
@@ -464,12 +465,11 @@ void setup()
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LOW);
 #endif
+
 }
 
 void loop()
 {
-    //DEBUG_PRINTLN("xxx");
-
     time_prev = time;
     time = millis();
     cycletime = time - time_prev;

@@ -49,6 +49,7 @@ public:
         STOPPED,
         STARTED_AUTO,
         STARTED_MANUAL,
+        SERVICE_MODE_1,
     };
 
     enum class BaselineSpeedMode
@@ -85,6 +86,8 @@ public:
 
     void start(void * args);
     void stop(void * args);
+    /** @brief needle setting: drive stopped, lift down */
+    void service_mode_1(void * args);
 
     /**
      * @param speed     Current table speed
@@ -111,10 +114,11 @@ private:
         SPEED_MANUAL_UPDATE,
         AUTOSTOP_ALLOW,
         AUTOSTOP_DENY,
-        START,
-        STOP,
         GAUGE_STOP_ON,
         GAUGE_STOP_OFF,
+        START,
+        STOP,
+        SERVICE_MODE_1,
     };
 
     typedef union
@@ -129,8 +133,9 @@ private:
     {
         INIT,
         STOPPED,
-        STARTED,
+        STARTED_AUTO,
         STARTED_MANUAL,
+        SERVICE_MODE_1, /* needle setting: drive stopped, lift down. Can start only from STOPPED */
     };
 
     speed_t P_speed_baseline_get() const;

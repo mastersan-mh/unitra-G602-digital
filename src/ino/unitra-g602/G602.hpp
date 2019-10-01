@@ -25,6 +25,9 @@ class G602
 
 public:
     static const nostd::size_t shed_task_id_blinker = 0;
+    static const nostd::size_t shed_task_id_service_mode_awaiting = 1;
+    static const unsigned long service_mode_awaiting_tine = 5000; /**< time to wait to enter service mode, ms */
+
     G602() = delete;
     G602(
         int baselineSpeedLow,
@@ -61,12 +64,14 @@ private:
     unsigned long m_time_now;
     unsigned long m_time_next;
 
+    unsigned m_service_mode; /**< index of service mode: 0 - no, 1 - service mode #1 an so on*/
+
     bool m_motor_on;
     int m_motor_setpoint;
 
 public:
     G602Scheduler sched;
-
+private:
     GBlinker m_blinker;
     app::Ctrl m_ctrl;
     GDInputDebounced m_di_gauge_stop;
@@ -78,7 +83,8 @@ public:
     unsigned long P_rtcNextTimeGet() const;
     void P_blinker_start(GBlinker::BlinkType type);
     void P_blinker_stop(GBlinker::BlinkType type);
-    static void P_blinker_task(nostd::size_t id, unsigned long time, unsigned long now, G602Scheduler & sched, void * args);
+    static void P_task_blinker(nostd::size_t id, unsigned long time, unsigned long now, G602Scheduler & sched, void * args);
+    static void P_task_awaiting_service_mode(nostd::size_t id, unsigned long time, unsigned long now, G602Scheduler & sched, void * args);
     void P_measures_start();
     void P_measures_stop();
 
@@ -92,6 +98,7 @@ public:
     static void P_event_autostopDisable(void * args);
     static void P_event_start(void * args);
     static void P_event_stop(void * args);
+    static void P_event_stop_release(void * args);
 
 };
 

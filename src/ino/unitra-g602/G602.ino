@@ -20,6 +20,7 @@ G602::G602(
 , m_event_motor_update(event_motor_update)
 , m_time_now(0)
 , m_time_next(0)
+, m_service_mode(0)
 , m_motor_on(false)
 , m_motor_setpoint(0)
 , sched()
@@ -29,7 +30,7 @@ G602::G602(
 , m_di_btn_speed_mode(false, P_event_speedMode33,  P_event_speedMode45, this, DI_DEBOUNCE_TIME)
 , m_di_btn_autostop(false, P_event_autostopEnable,  P_event_autostopDisable, this, DI_DEBOUNCE_TIME)
 , m_di_btn_start(false, P_event_start,  nullptr, this, DI_DEBOUNCE_TIME)
-, m_di_btn_stop(false, P_event_stop,  nullptr, this, DI_DEBOUNCE_TIME)
+, m_di_btn_stop(false, P_event_stop,  P_event_stop_release, this, DI_DEBOUNCE_TIME)
 {
 }
 
@@ -114,7 +115,7 @@ void G602::P_blinker_start(GBlinker::BlinkType type)
     }
     if(actions & GBLINKER_ACTIONFLAG_SCHEDULE)
     {
-        sched.shedule(shed_task_id_blinker, m_time_now, P_blinker_task, this);
+        sched.shedule(shed_task_id_blinker, m_time_now, P_task_blinker, this);
         m_time_next = P_rtcNextTimeGet();
     }
 }
@@ -129,12 +130,12 @@ void G602::P_blinker_stop(GBlinker::BlinkType type)
     }
     if(actions & GBLINKER_ACTIONFLAG_SCHEDULE)
     {
-        sched.shedule(shed_task_id_blinker, m_time_now, P_blinker_task, this);
+        sched.shedule(shed_task_id_blinker, m_time_now, P_task_blinker, this);
         m_time_next = P_rtcNextTimeGet();
     }
 }
 
-void G602::P_blinker_task(nostd::size_t id, unsigned long time, unsigned long now, G602Scheduler & sched, void * args)
+void G602::P_task_blinker(nostd::size_t id, unsigned long time, unsigned long now, G602Scheduler & sched, void * args)
 {
     G602_DEFINE_SELF();
     bool end = false;
@@ -148,8 +149,16 @@ void G602::P_blinker_task(nostd::size_t id, unsigned long time, unsigned long no
     else
     {
         self->m_event_strober(!light);
-        sched.shedule(id, time + wait_time, G602::P_blinker_task, args);
+        sched.shedule(id, time + wait_time, G602::P_task_blinker, args);
     }
+}
+
+void G602::P_task_awaiting_service_mode(nostd::size_t id, unsigned long time, unsigned long now, G602Scheduler & sched, void * args)
+{
+    G602_DEFINE_SELF();
+    self->m_service_mode = 1;
+
+    self->P_blinker_start(GBlinker::BlinkType::ON_ENTER_SERVICE_MODE);
 }
 
 void G602::P_motor_update()
@@ -271,26 +280,34 @@ void G602::P_event_autostopDisable(void * args)
 void G602::P_event_start(void * args)
 {
     G602_DEFINE_SELF();
-    app::Ctrl::RunMode mode_prev = self->m_ctrl.runModeGet();
-    self->m_ctrl.start(self);
-    app::Ctrl::RunMode mode = self->m_ctrl.runModeGet();
-    if(mode != mode_prev)
+    if(self->m_service_mode > 0)
     {
-        if(
-                mode_prev == app::Ctrl::RunMode::STARTED_AUTO ||
-                mode_prev == app::Ctrl::RunMode::STARTED_MANUAL
-        )
+        /* enter service mode #1 */
+        self->m_ctrl.service_mode_1(self);
+    }
+    else
+    {
+        app::Ctrl::RunMode mode_prev = self->m_ctrl.runModeGet();
+        self->m_ctrl.start(self);
+        app::Ctrl::RunMode mode = self->m_ctrl.runModeGet();
+        if(mode != mode_prev)
         {
-            switch(mode)
+            if(
+                    mode_prev == app::Ctrl::RunMode::STARTED_AUTO ||
+                    mode_prev == app::Ctrl::RunMode::STARTED_MANUAL
+            )
             {
-                case app::Ctrl::RunMode::STARTED_AUTO  : self->P_blinker_start(GBlinker::BlinkType::ON_AUTO); break;
-                case app::Ctrl::RunMode::STARTED_MANUAL: self->P_blinker_start(GBlinker::BlinkType::ON_MANUAL); break;
-                default: break;
+                switch(mode)
+                {
+                    case app::Ctrl::RunMode::STARTED_AUTO  : self->P_blinker_start(GBlinker::BlinkType::ON_AUTO); break;
+                    case app::Ctrl::RunMode::STARTED_MANUAL: self->P_blinker_start(GBlinker::BlinkType::ON_MANUAL); break;
+                    default: break;
+                }
             }
-        }
-        else
-        {
-            self->P_blinker_start(GBlinker::BlinkType::ON_START);
+            else
+            {
+                self->P_blinker_start(GBlinker::BlinkType::ON_START);
+            }
         }
     }
 }
@@ -298,11 +315,33 @@ void G602::P_event_start(void * args)
 void G602::P_event_stop(void * args)
 {
     G602_DEFINE_SELF();
-    app::Ctrl::RunMode mode_prev = self->m_ctrl.runModeGet();
-    self->m_ctrl.stop(self);
-    app::Ctrl::RunMode mode = self->m_ctrl.runModeGet();
-    if(mode != mode_prev)
+
+    if(self->m_service_mode > 0)
     {
+        self->m_ctrl.stop(self);
         self->P_blinker_start(GBlinker::BlinkType::ON_STOP);
+        self->m_service_mode = 0;
     }
+    else
+    {
+        app::Ctrl::RunMode mode_prev = self->m_ctrl.runModeGet();
+        self->m_ctrl.stop(self);
+        app::Ctrl::RunMode mode = self->m_ctrl.runModeGet();
+        if(mode != mode_prev)
+        {
+            self->P_blinker_start(GBlinker::BlinkType::ON_STOP);
+        }
+        self->sched.shedule(
+            shed_task_id_service_mode_awaiting,
+            self->m_time_now + service_mode_awaiting_tine,
+            P_task_awaiting_service_mode,
+            self
+        );
+    }
+}
+
+void G602::P_event_stop_release(void * args)
+{
+    G602_DEFINE_SELF();
+    self->sched.unshedule(shed_task_id_service_mode_awaiting);
 }
