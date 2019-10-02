@@ -3,6 +3,10 @@
 #include "nostd/fixed/fixed32"
 #include "nostd/fixed/fixed32.h"
 
+#include "ctestmotor.h"
+#include "pid/fan.h"
+#include "pid/pidadjustp.h"
+
 #include <QtMath>
 
 #include <algorithm>
@@ -58,7 +62,7 @@
 #elif defined(PID_RECURRENT_FIXED32)
 
 #   define PIDK_SELECTION_MIN (0.0)
-#   define PIDK_SELECTION_MAX (100.0)
+#   define PIDK_SELECTION_MAX (1000.0)
 #   define PIDK_SELECTION_RANGE_MIN (0.0)
 #   define PIDK_SELECTION_RANGE_MAX (10.0)
 #   define PID_Kp (1.25000000)
@@ -308,6 +312,10 @@ void MainWindow::init_UI()
             m_ui.ctrl1_Layout->addWidget(m_ui.processVariable_indicator);
             m_ui.processVariable_indicator->setText(QString("process variable = %1").arg(m_processVariable));
 
+            m_ui.processVariable_amplitude_indicator = new QLabel(m_ui.central);
+            m_ui.ctrl1_Layout->addWidget(m_ui.processVariable_amplitude_indicator);
+            m_ui.processVariable_amplitude_indicator->setText(QString("PV amplitude = %1").arg(0));
+
             m_ui.SPminusPV_indicator = new QLabel(m_ui.central);
             m_ui.ctrl1_Layout->addWidget(m_ui.SPminusPV_indicator);
             m_ui.SPminusPV_indicator->setText(QString("SP - PV = %1").arg(0));
@@ -441,8 +449,6 @@ MainWindow::MainWindow(QWidget *parent) :
     m_ui.cplot->xAxis->setTickPen(axisPen);
     m_ui.cplot->xAxis->setSubTickPen(axisPen);
     m_ui.cplot->xAxis->setRange(AXIS_X_MIN, AXIS_X_MAX);
-
-    m_accumulated_values = 0;
 
     m_ui.plotSetpoint = m_ui.cplot->addGraph();
     m_ui.plotSetpoint->setPen(QPen(QColor(Qt::red)));
@@ -676,6 +682,8 @@ double MainWindow::map_integer_to_double(
 
 void MainWindow::mainEvent()
 {
+    fan::FuncDescr fdescr;
+
     int len_max = (AXIS_X_MAX - AXIS_X_MIN) * 1000 / INTERVAL_MS;
 
     bool autoScale = (m_ui.cplotAutoScale->checkState() != Qt::Unchecked);
@@ -699,14 +707,12 @@ void MainWindow::mainEvent()
 
         m_processVariable = m_engine->process(power);
 
-        ++m_accumulated_values;
         m_valuesSetpoint.push_back(m_setpoint);
         m_valuesPV.push_back(m_processVariable);
         m_time += INTERVAL_MS;
 
-        if(m_accumulated_values > len_max)
+        if(m_valuesSetpoint.size() > len_max)
         {
-            --m_accumulated_values;
             /* erase old values */
             m_valuesSetpoint.pop_front();
             m_valuesPV.pop_front();
@@ -715,9 +721,22 @@ void MainWindow::mainEvent()
             m_axis_x_shift += (INTERVAL_MS / 1000.0);
         }
 
+        fan::FuncDescr::PointsDescr::const_iterator PV_index_min;
+        fan::FuncDescr::PointsDescr::const_iterator PV_index_max;
+
+        fan::functionAnalysis(m_valuesPV, fdescr);
+        const fan::FuncDescr::PointsDescr & pdescr = fdescr.pointsDescrGet();
+        fan::functionExtremumsGet(pdescr, PV_index_min, PV_index_max);
+
+        double PV_min = (PV_index_min != pdescr.constEnd() ? m_valuesPV[PV_index_min.key()] : 0);
+        double PV_max = (PV_index_max != pdescr.constEnd() ? m_valuesPV[PV_index_max.key()] : 0);
+
+        double PV_amplitude = PV_max - PV_min;
+
         double sp_pv_diff = (double)((double)m_setpoint - m_processVariable);
         double sp_pv_diff_abs = fabs(sp_pv_diff);
         m_ui.processVariable_indicator->setText(QString("process variable = %1").arg(m_processVariable));
+        m_ui.processVariable_amplitude_indicator->setText(QString("PV amplitude = %1").arg(PV_amplitude));
         m_ui.SPminusPV_indicator->setText(QString("SP - PV = %1 (%2% SP) (SP %3 PV)")
                                      .arg(sp_pv_diff_abs, 0, 'g', 9)
                                      .arg(100.0 * (sp_pv_diff_abs / (double)m_setpoint) , 0, 'g', 2)
@@ -742,7 +761,6 @@ void MainWindow::mainEvent()
         axis_x[i] = m_axis_x_shift + idx;
         idx += (INTERVAL_MS / 1000.0);
     }
-
 
     QVector<double> mins =
     {

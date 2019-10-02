@@ -2,10 +2,10 @@
 
 #include <math.h>
 
-CTestMotor::CTestMotor(double unpower_)
+CTestMotor::CTestMotor(double unpower)
 {
-    unpower = unpower_;
-    speed = 0.0;
+    m_unpower = unpower;
+    m_speed = 0.0;
 }
 
 CTestMotor::~CTestMotor()
@@ -17,27 +17,27 @@ CTestMotor::~CTestMotor()
  * @param power = [0; 1]
  * @return speed
  */
-double CTestMotor::process(double power_)
+double CTestMotor::process(double power)
 {
 
-    bool rev = (power_ < 0.0);
+    bool rev = (power < 0.0);
     double dspeed;
     if(!rev)
     {
-        dspeed = log(power_ + 1);
+        dspeed = log(power + 1) * 0.1;
     }
     else
     {
-        power_ = -power_;
-        dspeed = -log(power_ + 1);
+        power = -power;
+        dspeed = -log(power + 1) * 0.05;
     }
 
-    speed -= unpower;
-    speed += dspeed;
+    m_speed -= m_unpower;
+    m_speed += dspeed;
 
-    if(speed < 0.0)
+    if(m_speed < 0.0)
     {
-        speed = 0.0;
+        m_speed = 0.0;
     }
-    return speed;
+    return m_speed;
 }

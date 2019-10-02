@@ -25,14 +25,18 @@ SOURCES  += main.cpp\
             mainwindow.cpp \
             qcustomplot.cpp \
             cgraph.cpp \
-    pid/autopid.cpp \
-    ctestmotor.cpp
+            ctestmotor.cpp \
+            pid/autopid.cpp \
+            pid/pidadjustp.cpp \
+            pid/fan.cpp \
 
 HEADERS  += mainwindow.h \
             qcustomplot.h \
             cgraph.h \
+            ctestmotor.h \
             pid/pid.h \
-    pid/autopid.hpp \
-    ctestmotor.h
+            pid/autopid.hpp \
+            pid/pidadjustp.h \
+            pid/fan.h \
 
 FORMS    +=

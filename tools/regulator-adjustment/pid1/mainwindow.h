@@ -229,6 +229,7 @@ private:
         QGroupBox * Kselector;
 
         QLabel * processVariable_indicator;
+        QLabel * processVariable_amplitude_indicator;
         QLabel * SPminusPV_indicator;
         QLabel * output_indicator;
 
