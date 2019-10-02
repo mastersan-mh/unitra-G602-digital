@@ -113,7 +113,7 @@ public:
         {
             if (m_round_index >= m_window->m_length)
             {
-                THROW(nostd::out_of_range);
+                FATAL(NOSTD_ERR_OUT_OF_RANGE);
             }
             return m_window->m_items[m_index];
         }
@@ -121,7 +121,7 @@ public:
         {
             if (m_round_index >= m_window->m_length)
             {
-                THROW(nostd::out_of_range);
+                FATAL(NOSTD_ERR_OUT_OF_RANGE);
             }
             return m_window->m_items[m_index];
         }
@@ -184,7 +184,7 @@ public:
                 i >= m_length
         )
         {
-            THROW(nostd::out_of_range);
+            FATAL(NOSTD_ERR_OUT_OF_RANGE);
         }
 
         return operator[](i);
