@@ -1,3 +1,6 @@
+
+#include "defs.h"
+
 #include "mainwindow.h"
 
 #include "nostd/fixed/fixed32"
@@ -11,390 +14,73 @@
 
 #include <algorithm>
 
-
-#define INTERVAL_MS 100
-
-#if defined(PID_RECURRENT_FIXED32)
-#   define MANUAL_SETPOINT_MAX (255)
-#   define MANUAL_SETPOINT_MIN (0)
-#   define MANUAL_SETPOINT_INITIAL_VALUE (0)
-#   define AXIS_Y_MIN (MANUAL_SETPOINT_MAX)
-#   define AXIS_Y_MAX (MANUAL_SETPOINT_MIN)
-#else
-#   define MANUAL_SETPOINT_MAX (255)
-#   define MANUAL_SETPOINT_MIN (0)
-#   define MANUAL_SETPOINT_INITIAL_VALUE (0)
-#   define AXIS_Y_MIN (MANUAL_SETPOINT_MAX)
-#   define AXIS_Y_MAX (MANUAL_SETPOINT_MIN)
-#endif
-
-
-#define ENGINE_POWER_MIN (0.0)
-#define ENGINE_POWER_MAX (1000.0)
-
-/* seconds */
-#define AXIS_X_MIN (0)
-#define AXIS_X_MAX (15)
-
-#define UI_LEVEL_BEGIN(xlayout) do
-#define UI_LEVEL_END(xlayout) while(0)
-
-#if defined(PID_DISCRETE)
-
-#   define PIDK_SELECTION_MIN (0.0)
-#   define PIDK_SELECTION_MAX (100.0)
-#   define PIDK_SELECTION_RANGE_MIN (0.0)
-#   define PIDK_SELECTION_RANGE_MAX (10.0)
-#   define PID_Kp (1.25000000)
-#   define PID_Ki (0.00488281)
-#   define PID_Kd (0.07934570)
-
-#elif defined(PID_RECURRENT)
-
-#   define PIDK_SELECTION_MIN (0.0)
-#   define PIDK_SELECTION_MAX (100.0)
-#   define PIDK_SELECTION_RANGE_MIN (0.0)
-#   define PIDK_SELECTION_RANGE_MAX (10.0)
-#   define PID_Kp (1.25000000)
-#   define PID_Ki (0.00488281)
-#   define PID_Kd (0.07934570)
-
-#elif defined(PID_RECURRENT_FIXED32)
-
-#   define PIDK_SELECTION_MIN (0.0)
-#   define PIDK_SELECTION_MAX (1000.0)
-#   define PIDK_SELECTION_RANGE_MIN (0.0)
-#   define PIDK_SELECTION_RANGE_MAX (10.0)
-#   define PID_Kp (1.25000000)
-#   define PID_Ki (0.01464844)
-#   define PID_Kd (0.11718750)
-
-#endif
-
-
-
-
-void CPIDK::init()
+Parser::Parser()
+    : m_str()
 {
-    mainLayout = new QVBoxLayout(this);
-    this->setLayout(mainLayout);
-
-    QLabel * Kp_label = new QLabel(tr("Kp:"), this);
-    QLabel * Ki_label = new QLabel(tr("Ki:"), this);
-    QLabel * Kd_label = new QLabel(tr("Kd:"), this);
-
-    mainLayout->addWidget(Kp_label);
-    Kp_spinBox = new QDoubleSpinBox(this);
-
-    mainLayout->addWidget(Kp_spinBox);
-    QObject::connect(
-                Kp_spinBox, SIGNAL(valueChanged(double)),
-                this, SLOT(K_changed(double))
-                );
-
-    mainLayout->addWidget(Ki_label);
-
-    Ki_spinBox = new QDoubleSpinBox(this);
-    mainLayout->addWidget(Ki_spinBox);
-    QObject::connect(
-                Ki_spinBox, SIGNAL(valueChanged(double)),
-                this, SLOT(K_changed(double))
-                );
-
-    mainLayout->addWidget(Kd_label);
-
-    Kd_spinBox = new QDoubleSpinBox(this);
-    mainLayout->addWidget(Kd_spinBox);
-    QObject::connect(
-                Kd_spinBox, SIGNAL(valueChanged(double)),
-                this, SLOT(K_changed(double))
-                );
-
-
-
-    Kp_spinBox->setDecimals(8);
-    Kp_spinBox->setMinimum(PIDK_SELECTION_MIN);
-    Kp_spinBox->setMaximum(PIDK_SELECTION_MAX);
-
-    Ki_spinBox->setDecimals(8);
-    Ki_spinBox->setMinimum(PIDK_SELECTION_MIN);
-    Ki_spinBox->setMaximum(PIDK_SELECTION_MAX);
-
-    Kd_spinBox->setDecimals(8);
-    Kd_spinBox->setMinimum(PIDK_SELECTION_MIN);
-    Kd_spinBox->setMaximum(PIDK_SELECTION_MAX);
-
-    mainLayout->addStretch();
+    m_str.reserve(32);
 }
 
-CPIDK::CPIDK(QWidget* parent)
-    :QGroupBox(parent)
+Parser::~Parser()
 {
-    init();
 }
 
-CPIDK::CPIDK(const QString &title, QWidget* parent)
-    :QGroupBox(title, parent)
+void Parser::reset()
 {
-    init();
+    m_str.clear();
 }
 
-CPIDK::~CPIDK(){}
-
-void CPIDK::K_changed(double)
+bool Parser::P_string_append(QByteArray::const_iterator &from, const QByteArray::const_iterator to, QString &str)
 {
-    emit valuesChanged(
-                Kp_spinBox->value(),
-                Ki_spinBox->value(),
-                Kd_spinBox->value()
-                );
-}
-
-void MainWindow::init_UI()
-{
-    QSizePolicy::Policy sp = QSizePolicy::Maximum;
-
-    m_ui.central = new QWidget(this);
-    setCentralWidget(m_ui.central);
-
-    m_ui.centralWLayout = new QHBoxLayout(m_ui.central);
-    m_ui.central->setLayout(m_ui.centralWLayout);
-    UI_LEVEL_BEGIN(m_ui.central)
+    while(from != to)
     {
-        m_ui.ctrl1_Layout = new QVBoxLayout(m_ui.central);
-        m_ui.centralWLayout->addLayout(m_ui.ctrl1_Layout);
-        UI_LEVEL_BEGIN(m_ui.ctrl1_Layout)
+        char ch = (*from);
+	++from;
+	if(ch == 10 || ch == 13)
         {
-            m_ui.selection.main = new QGroupBox("K select", m_ui.central);
-            m_ui.ctrl1_Layout->addWidget(m_ui.selection.main);
-            UI_LEVEL_BEGIN(m_ui.selection.mainLayout)
-            {
-
-                /*
-                  LLLL          CCCC            RRRR
-                  <try-left>             <try-right>
-                  <left-to-center> <right-to-center>
-                */
-
-                m_ui.selection.mainLayout = new QHBoxLayout(m_ui.selection.main);
-                m_ui.selection.main->setLayout(m_ui.selection.mainLayout);
-
-                m_ui.selection.leftLayout = new QVBoxLayout(m_ui.selection.main);
-                m_ui.selection.mainLayout->addLayout(m_ui.selection.leftLayout);
-                UI_LEVEL_BEGIN(m_ui.selection.leftLayout)
-                {
-                    m_ui.selection.leftValue = new QDoubleSpinBox(m_ui.selection.main);
-                    m_ui.selection.leftValue->setMinimum(PIDK_SELECTION_MIN);
-                    m_ui.selection.leftValue->setMaximum(PIDK_SELECTION_MAX);
-                    m_ui.selection.leftLayout->addWidget(m_ui.selection.leftValue);
-
-                    m_ui.selection.tryLeft = new QPushButton("Try", m_ui.selection.main);
-                    m_ui.selection.leftLayout->addWidget(m_ui.selection.tryLeft);
-
-                    m_ui.selection.setCenterToLeft = new QPushButton("Set <", m_ui.selection.main);
-                    m_ui.selection.leftLayout->addWidget(m_ui.selection.setCenterToLeft);
-
-                    m_ui.selection.leftLayout->addStretch();
-
-                    QObject::connect(
-                                m_ui.selection.leftValue, SIGNAL(valueChanged(double)),
-                                this, SLOT(selection_leftValue_changed(double))
-                                );
-
-                    QObject::connect(
-                                m_ui.selection.tryLeft, SIGNAL(clicked(bool)),
-                                this, SLOT(selection_tryLeft_clicked(bool))
-                                );
-
-                    QObject::connect(
-                                m_ui.selection.setCenterToLeft, SIGNAL(clicked(bool)),
-                                this, SLOT(selection_setCenterToLeft_clicked(bool))
-                                );
-
-                    m_ui.selection.leftValue->setDecimals(9);
-                    m_ui.selection.leftValue->setValue(PIDK_SELECTION_RANGE_MIN);
-
-                } UI_LEVEL_END(m_ui.selection.leftLayout);
-
-                m_ui.selection.centerLayout = new QVBoxLayout(m_ui.selection.main);
-                m_ui.selection.mainLayout->addLayout(m_ui.selection.centerLayout);
-                UI_LEVEL_BEGIN(m_ui.selection.centerLayout)
-                {
-                    m_ui.selection.centerValue = new QDoubleSpinBox(m_ui.selection.main);
-                    m_ui.selection.centerValue->setMinimum(PIDK_SELECTION_MIN);
-                    m_ui.selection.centerValue->setMaximum(PIDK_SELECTION_MAX);
-                    m_ui.selection.centerLayout->addWidget(m_ui.selection.centerValue);
-
-                    m_ui.selection.tryCenter = new QPushButton("Try", m_ui.selection.main);
-                    m_ui.selection.centerLayout->addWidget(m_ui.selection.tryCenter);
-
-                    m_ui.selection.centerLayout->addStretch();
-
-                    QObject::connect(
-                                m_ui.selection.tryCenter, SIGNAL(clicked(bool)),
-                                this, SLOT(selection_tryCenter_clicked(bool))
-                                );
-
-                    m_ui.selection.centerValue->setDecimals(9);
-
-                } UI_LEVEL_END(m_ui.selection.centerLayout);
-
-                m_ui.selection.rightLayout = new QVBoxLayout(m_ui.selection.main);
-                m_ui.selection.mainLayout->addLayout(m_ui.selection.rightLayout);
-                UI_LEVEL_BEGIN(m_ui.selection.rightLayout)
-                {
-                    m_ui.selection.rightValue = new QDoubleSpinBox(m_ui.selection.main);
-                    m_ui.selection.rightValue->setMinimum(PIDK_SELECTION_MIN);
-                    m_ui.selection.rightValue->setMaximum(PIDK_SELECTION_MAX);
-                    m_ui.selection.rightLayout->addWidget(m_ui.selection.rightValue);
-
-                    m_ui.selection.tryRight = new QPushButton("Try", m_ui.selection.main);
-                    m_ui.selection.rightLayout->addWidget(m_ui.selection.tryRight);
-
-                    m_ui.selection.setCenterToRight = new QPushButton("> Set", m_ui.selection.main);
-                    m_ui.selection.rightLayout->addWidget(m_ui.selection.setCenterToRight);
-
-                    m_ui.selection.rightLayout->addStretch();
-
-                    QObject::connect(
-                                m_ui.selection.rightValue, SIGNAL(valueChanged(double)),
-                                this, SLOT(selection_rightValue_changed(double))
-                                );
-
-                    QObject::connect(
-                                m_ui.selection.tryRight, SIGNAL(clicked(bool)),
-                                this, SLOT(selection_tryRight_clicked(bool))
-                                );
-
-                    QObject::connect(
-                                m_ui.selection.setCenterToRight, SIGNAL(clicked(bool)),
-                                this, SLOT(selection_setCenterToRight_clicked(bool))
-                                );
-
-                    m_ui.selection.rightValue->setDecimals(9);
-                    m_ui.selection.rightValue->setValue(PIDK_SELECTION_RANGE_MAX);
-
-                } UI_LEVEL_END(m_ui.selection.rightLayout);
-
-                m_ui.selection.main->setSizePolicy(sp, sp);
-
-            } UI_LEVEL_END(m_ui.selection.mainLayout);
-
-            /* pid */
-
-            m_ui.pidK_Kselector_Layout = new QHBoxLayout();
-            m_ui.ctrl1_Layout->addLayout(m_ui.pidK_Kselector_Layout);
-
-            UI_LEVEL_BEGIN(m_ui.pidK_Kselector_Layout)
-            {
-
-#define PIDK_MAXIMUM_WIDTH (28 + 8 + 10 * 12)
-                m_ui.pidK = new CPIDK("PID", m_ui.central);
-                m_ui.pidK->setMaximumWidth(PIDK_MAXIMUM_WIDTH);
-                m_ui.pidK_Kselector_Layout->addWidget(m_ui.pidK);
-
-                QObject::connect(
-                            m_ui.pidK, SIGNAL(valuesChanged(double, double, double)),
-                            this, SLOT(pidK_changed(double, double, double))
-                            );
-
-                m_ui.pidK->setValueKp(PID_Kp);
-                m_ui.pidK->setValueKi(PID_Ki);
-                m_ui.pidK->setValueKd(PID_Kd);
-
-                m_ui.Kselector = init_UI_Kselector(m_ui.central);
-                m_ui.pidK_Kselector_Layout->addWidget(m_ui.Kselector);
-                m_ui.Kselector->setSizePolicy(sp, QSizePolicy::Preferred);
-
-            } UI_LEVEL_END(m_ui.pidK_Kselector_Layout);
-
-            m_ui.processVariable_indicator = new QLabel(m_ui.central);
-            m_ui.ctrl1_Layout->addWidget(m_ui.processVariable_indicator);
-            m_ui.processVariable_indicator->setText(QString("process variable = %1").arg(m_processVariable));
-
-            m_ui.processVariable_amplitude_indicator = new QLabel(m_ui.central);
-            m_ui.ctrl1_Layout->addWidget(m_ui.processVariable_amplitude_indicator);
-            m_ui.processVariable_amplitude_indicator->setText(QString("PV amplitude = %1").arg(0));
-
-            m_ui.SPminusPV_indicator = new QLabel(m_ui.central);
-            m_ui.ctrl1_Layout->addWidget(m_ui.SPminusPV_indicator);
-            m_ui.SPminusPV_indicator->setText(QString("SP - PV = %1").arg(0));
-
-            m_ui.output_indicator = new QLabel(m_ui.central);
-            m_ui.ctrl1_Layout->addWidget(m_ui.output_indicator);
-            m_ui.output_indicator->setText(QString("PID output = %1").arg(0));
-
-            m_ui.pausePushButton = new QPushButton(m_ui.central);
-            m_ui.ctrl1_Layout->addWidget(m_ui.pausePushButton);
-            m_ui.pausePushButton->setSizePolicy(sp, QSizePolicy::Preferred);
-
-            m_ui.pausePushButton->setText(tr("PAUSE"));
-            QObject::connect(
-                        m_ui.pausePushButton, SIGNAL(clicked(bool)),
-                        this, SLOT(pause_unpause(bool))
-                        );
-
-            QGroupBox *setpointMode = init_UI_pidSetup(m_ui.central);
-
-            m_ui.ctrl1_Layout->addWidget(setpointMode);
-
-            /* Stretch */
-            m_ui.ctrl1_Layout->addStretch();
-
-        } UI_LEVEL_END(m_ui.ctrl1_Layout);
-
-        /* setpoint */
-        m_ui.setpoint_Layout = new QVBoxLayout(m_ui.central);
-        m_ui.centralWLayout->addLayout(m_ui.setpoint_Layout);
-        UI_LEVEL_BEGIN(m_ui.setpoint_Layout)
-        {
-            m_ui.setpoint_slider = new QSlider(Qt::Vertical, m_ui.central);
-            m_ui.setpoint_Layout->addWidget(m_ui.setpoint_slider);
-            m_ui.setpoint_slider->setMinimum(MANUAL_SETPOINT_MIN);
-            m_ui.setpoint_slider->setMaximum(MANUAL_SETPOINT_MAX);
-            m_ui.setpoint_slider->setValue(MANUAL_SETPOINT_INITIAL_VALUE);
-            QObject::connect(
-                        m_ui.setpoint_slider, SIGNAL(valueChanged(int)),
-                        this, SLOT(setpoint_sliderChangeValue(int))
-                        );
-            m_ui.setpoint_spinBox = new QSpinBox(m_ui.central);
-            m_ui.setpoint_Layout->addWidget(m_ui.setpoint_spinBox);
-            m_ui.setpoint_spinBox->setMinimum(MANUAL_SETPOINT_MIN);
-            m_ui.setpoint_spinBox->setMaximum(MANUAL_SETPOINT_MAX);
-            m_ui.setpoint_spinBox->setValue(MANUAL_SETPOINT_INITIAL_VALUE);
-            m_ui.setpoint_spinBox->setMaximumWidth(12*10);
-            QObject::connect(
-                        m_ui.setpoint_spinBox, SIGNAL(valueChanged(int)),
-                        this, SLOT(setpoint_spinBoxChangeValue(int))
-                        );
-            setpointFuncSetValue(MANUAL_SETPOINT_INITIAL_VALUE);
-        } UI_LEVEL_END(setpoint_Layout);
-
-        /* cplot ctrl */
-        m_ui.cplotCtrl_Layout = new QVBoxLayout(m_ui.central);
-        m_ui.centralWLayout->addLayout(m_ui.cplotCtrl_Layout);
-        UI_LEVEL_BEGIN(m_ui.cplotCtrl_Layout)
-        {
-            m_ui.cplotAutoScale = new QCheckBox(tr("autoscale"), m_ui.central);
-            m_ui.cplotCtrl_Layout->addWidget(m_ui.cplotAutoScale);
-            m_ui.cplotAutoScale->setMaximumWidth(8*15);
-            m_ui.cplotCtrl_Layout->addStretch();
-
-        } UI_LEVEL_END(m_ui.cplotCtrl_Layout);
-
-        /* cplot widget */
-        m_ui.cplot = new QCustomPlot(m_ui.central);
-        m_ui.centralWLayout->addWidget(m_ui.cplot);
-
-    } UI_LEVEL_END(m_central);
-
+            return true;
+        }
+        str.append(ch);
+    }
+    return false;
 }
 
-MainWindow::MainWindow(QWidget *parent) :
-    QMainWindow(parent)
+
+void Parser::dataRead(const QByteArray &data)
 {
+    QByteArray::const_iterator x = data.constBegin();
+    do
+    {
+        bool string_end = P_string_append(x, data.constEnd(), m_str);
+        if(string_end)
+        {
+            emit stringReady(m_str);
+            m_str.clear();
+        }
+    }while(x != data.constEnd());
+}
+
+/*
+http://www.controlplast.ru/site/index.php?/rinforms/kdocuments/nastroykapid
+https://www.bookasutp.ru/Chapter5_5.aspx
+http://lazysmart.ru/osnovy-avtomatiki/nastrojka-pid-regulyatora/
+*/
+
+MainWindow::MainWindow(QWidget *parent)
+    : QMainWindow(parent)
+    , m_ui(new MainWindow_Ui)
+{
+    m_ui->init_UI(this);
+
+    m_serial = new QSerialPort(this);
+    m_parser = new Parser();
+    m_settings = new SettingsDialog;
 
     m_engine = new CTestMotor(0.1);
+
+    m_ui->mainMenu.actionConnect->setEnabled(true);
+    m_ui->mainMenu.actionDisconnect->setEnabled(false);
+    m_ui->mainMenu.actionQuit->setEnabled(true);
+    m_ui->mainMenu.actionConfigure->setEnabled(true);
 
 #if defined(PID_DISCRETE)
     pid = new PID(0.0, 0.0, 0.0);
@@ -417,8 +103,6 @@ MainWindow::MainWindow(QWidget *parent) :
     m_kselector = PID_K_Selector::Kp;
     m_paused = false;
 
-    init_UI();
-
     /* graph */
 #ifdef APP_USE_CGRAPH
     graph = new CGraph(central);
@@ -433,98 +117,198 @@ MainWindow::MainWindow(QWidget *parent) :
     QPen axisPen(axisColor);
     axisPen.setColor(axisColor);
 
-    m_ui.cplot->setBackground(QBrush(QColor(Qt::black)));
+    m_ui->cplot->setBackground(QBrush(QColor(Qt::black)));
 
-    m_ui.cplot->yAxis->setLabelColor(axisColor);
-    m_ui.cplot->yAxis->setBasePen(axisPen);
-    m_ui.cplot->yAxis->setTickLabelColor(axisColor);
-    m_ui.cplot->yAxis->setTickPen(axisPen);
-    m_ui.cplot->yAxis->setSubTickPen(axisPen);
-    m_ui.cplot->yAxis->setRange(AXIS_Y_MIN, AXIS_Y_MAX);
+    m_ui->cplot->yAxis->setLabelColor(axisColor);
+    m_ui->cplot->yAxis->setBasePen(axisPen);
+    m_ui->cplot->yAxis->setTickLabelColor(axisColor);
+    m_ui->cplot->yAxis->setTickPen(axisPen);
+    m_ui->cplot->yAxis->setSubTickPen(axisPen);
+    m_ui->cplot->yAxis->setRange(AXIS_Y_MIN, AXIS_Y_MAX);
 
-    m_ui.cplot->xAxis->setBasePen(axisPen);
-    m_ui.cplot->xAxis->setLabel("time");
-    m_ui.cplot->xAxis->setLabelColor(axisColor);
-    m_ui.cplot->xAxis->setTickLabelColor(axisColor);
-    m_ui.cplot->xAxis->setTickPen(axisPen);
-    m_ui.cplot->xAxis->setSubTickPen(axisPen);
-    m_ui.cplot->xAxis->setRange(AXIS_X_MIN, AXIS_X_MAX);
+    m_ui->cplot->xAxis->setBasePen(axisPen);
+    m_ui->cplot->xAxis->setLabel("time");
+    m_ui->cplot->xAxis->setLabelColor(axisColor);
+    m_ui->cplot->xAxis->setTickLabelColor(axisColor);
+    m_ui->cplot->xAxis->setTickPen(axisPen);
+    m_ui->cplot->xAxis->setSubTickPen(axisPen);
+    m_ui->cplot->xAxis->setRange(AXIS_X_MIN, AXIS_X_MAX);
 
-    m_ui.plotSetpoint = m_ui.cplot->addGraph();
-    m_ui.plotSetpoint->setPen(QPen(QColor(Qt::red)));
+    m_ui->plotSetpoint = m_ui->cplot->addGraph();
+    m_ui->plotSetpoint->setPen(QPen(QColor(Qt::red)));
 
-    m_ui.plotPV = m_ui.cplot->addGraph();
-    m_ui.plotPV->setPen(QPen(QColor(Qt::white)));
+    m_ui->plotPV = m_ui->cplot->addGraph();
+    m_ui->plotPV->setPen(QPen(QColor(Qt::white)));
+
+    QObject::connect(m_ui->mainMenu.actionConnect   , SIGNAL(triggered()), this, SLOT(P_openSerialPort()));
+    QObject::connect(m_ui->mainMenu.actionDisconnect, SIGNAL(triggered()), this, SLOT(P_closeSerialPort()));
+    QObject::connect(m_ui->mainMenu.actionQuit      , SIGNAL(triggered()), this, SLOT(close()));
+    QObject::connect(m_ui->mainMenu.actionConfigure , SIGNAL(triggered()), m_settings, SLOT(show()));
+    //QObject::connect(m_ui->mainMenu.actionClear     , SIGNAL(triggered()), console , SLOT(clear()));
+
+    QObject::connect(m_serial, SIGNAL(readyRead()), this, SLOT(P_readRawData()));
+    QObject::connect(m_ui->tab.serial->console, SIGNAL(getData(QByteArray)), this, SLOT(P_writeRawData(QByteArray)));
+    QObject::connect(m_parser, SIGNAL(stringReady(QString)), this, SLOT(P_readParcedData(QString)));
+
+    QObject::connect(
+                m_ui->selection.leftValue, SIGNAL(valueChanged(double)),
+                this, SLOT(selection_leftValue_changed(double))
+                );
+
+    QObject::connect(
+                m_ui->selection.tryLeft, SIGNAL(clicked(bool)),
+                this, SLOT(selection_tryLeft_clicked(bool))
+                );
+
+    QObject::connect(
+                m_ui->selection.setCenterToLeft, SIGNAL(clicked(bool)),
+                this, SLOT(selection_setCenterToLeft_clicked(bool))
+                );
+
+    QObject::connect(
+                m_ui->selection.tryCenter, SIGNAL(clicked(bool)),
+                this, SLOT(selection_tryCenter_clicked(bool))
+                );
+
+    QObject::connect(
+                m_ui->selection.rightValue, SIGNAL(valueChanged(double)),
+                this, SLOT(selection_rightValue_changed(double))
+                );
+
+    QObject::connect(
+                m_ui->selection.tryRight, SIGNAL(clicked(bool)),
+                this, SLOT(selection_tryRight_clicked(bool))
+                );
+
+    QObject::connect(
+                m_ui->selection.setCenterToRight, SIGNAL(clicked(bool)),
+                this, SLOT(selection_setCenterToRight_clicked(bool))
+                );
+
+    QObject::connect(
+                m_ui->pidK, SIGNAL(valuesChanged(double, double, double)),
+                this, SLOT(pidK_changed(double, double, double))
+                );
+
+    QObject::connect(
+                m_ui->tab.simulation->setpointMode_radio1, SIGNAL(toggled(bool)),
+                this, SLOT(setpoint_ManualModeSelected(bool))
+                );
+    QObject::connect(
+                m_ui->tab.simulation->setpointMode_radio2, SIGNAL(toggled(bool)),
+                this, SLOT(setpoint_AutoModeSelected(bool))
+                );
+
+    QObject::connect(
+                m_ui->Kselector_radio1_Kp, SIGNAL(toggled(bool)),
+                this, SLOT(Kselector_Kp_select(bool))
+                );
+    QObject::connect(
+                m_ui->Kselector_radio2_Ki, SIGNAL(toggled(bool)),
+                this, SLOT(Kselector_Ki_select(bool))
+                );
+    QObject::connect(
+                m_ui->Kselector_radio3_Kd, SIGNAL(toggled(bool)),
+                this, SLOT(Kselector_Kd_select(bool))
+                );
+
+    QObject::connect(
+                m_ui->tab.simulation->pausePushButton, SIGNAL(clicked(bool)),
+                this, SLOT(pause_unpause(bool))
+                );
+
+    QObject::connect(
+                m_ui->setpoint_slider, SIGNAL(valueChanged(int)),
+                this, SLOT(setpoint_sliderChangeValue(int))
+                );
+    QObject::connect(
+                m_ui->setpoint_spinBox, SIGNAL(valueChanged(int)),
+                this, SLOT(setpoint_spinBoxChangeValue(int))
+                );
+
+    setpointFuncSetValue(MANUAL_SETPOINT_INITIAL_VALUE);
+    m_ui->selection.leftValue->setValue(PIDK_SELECTION_RANGE_MIN);
+    m_ui->selection.rightValue->setValue(PIDK_SELECTION_RANGE_MAX);
+    m_ui->setpoint_slider->setValue(MANUAL_SETPOINT_INITIAL_VALUE);
+    m_ui->setpoint_spinBox->setValue(MANUAL_SETPOINT_INITIAL_VALUE);
+    m_ui->tab.simulation->setpointMode_radio1->setChecked(true);
+    m_ui->Kselector_radio1_Kp->setChecked(true);
+    m_ui->pidK->setValueKp(PID_Kp);
+    m_ui->pidK->setValueKi(PID_Ki);
+    m_ui->pidK->setValueKd(PID_Kd);
 
 }
 
 MainWindow::~MainWindow()
 {
-
+    delete m_settings;
+    delete m_ui;
 }
 
-QGroupBox *MainWindow::init_UI_pidSetup(QWidget * parent)
+//! [4]
+void MainWindow::P_openSerialPort()
 {
-    QGroupBox *groupBox = new QGroupBox(tr("Setpoint"), parent);
-
-    QRadioButton *radio1 = new QRadioButton(tr("&Manual"), parent);
-    QRadioButton *radio2 = new QRadioButton(tr("&Auto"), parent);
-
-
-    QObject::connect(
-                radio1, SIGNAL(toggled(bool)),
-                this, SLOT(setpoint_ManualModeSelected(bool))
-                );
-    QObject::connect(
-                radio2, SIGNAL(toggled(bool)),
-                this, SLOT(setpoint_AutoModeSelected(bool))
-                );
-
-    radio1->setChecked(true);
-
-    QVBoxLayout *vbox = new QVBoxLayout(parent);
-    vbox->addWidget(radio1);
-    vbox->addWidget(radio2);
-    vbox->addStretch(1);
-    groupBox->setLayout(vbox);
-
-    groupBox->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
-    return groupBox;
+    SettingsDialog::Settings p = m_settings->settings();
+    m_serial->setPortName(p.name);
+    m_serial->setBaudRate(p.baudRate);
+    m_serial->setDataBits(p.dataBits);
+    m_serial->setParity(p.parity);
+    m_serial->setStopBits(p.stopBits);
+    m_serial->setFlowControl(p.flowControl);
+    if (m_serial->open(QIODevice::ReadWrite))
+    {
+            m_ui->tab.serial->console->setEnabled(true);
+            m_ui->tab.serial->console->setLocalEchoEnabled(p.localEchoEnabled);
+            m_ui->mainMenu.actionConnect->setEnabled(false);
+            m_ui->mainMenu.actionDisconnect->setEnabled(true);
+            m_ui->mainMenu.actionConfigure->setEnabled(false);
+            m_ui->statusBar->showMessage(tr("Connected to %1 : %2, %3, %4, %5, %6")
+                                       .arg(p.name).arg(p.stringBaudRate).arg(p.stringDataBits)
+                                       .arg(p.stringParity).arg(p.stringStopBits).arg(p.stringFlowControl));
+    }
+    else
+    {
+        QMessageBox::critical(this, tr("Error"), m_serial->errorString());
+        m_ui->statusBar->showMessage(tr("Open error"));
+    }
 }
 
-QGroupBox *MainWindow::init_UI_Kselector(QWidget * parent)
+void MainWindow::P_closeSerialPort()
 {
-    QGroupBox *groupBox = new QGroupBox(tr("Kselector"), parent);
-
-    QRadioButton *radio1 = new QRadioButton(tr("K&p"), parent);
-    QRadioButton *radio2 = new QRadioButton(tr("K&i"), parent);
-    QRadioButton *radio3 = new QRadioButton(tr("K&d"), parent);
-
-    QObject::connect(
-                radio1, SIGNAL(toggled(bool)),
-                this, SLOT(Kselector_Kp_select(bool))
-                );
-    QObject::connect(
-                radio2, SIGNAL(toggled(bool)),
-                this, SLOT(Kselector_Ki_select(bool))
-                );
-    QObject::connect(
-                radio3, SIGNAL(toggled(bool)),
-                this, SLOT(Kselector_Kd_select(bool))
-                );
-
-    radio1->setChecked(true);
-
-    QVBoxLayout *vbox = new QVBoxLayout(parent);
-    vbox->addWidget(radio1);
-    vbox->addWidget(radio2);
-    vbox->addWidget(radio3);
-    vbox->addStretch(1);
-    groupBox->setLayout(vbox);
-
-    return groupBox;
+    if (m_serial->isOpen())
+    {
+        m_serial->close();
+    }
+    m_ui->tab.serial->console->setEnabled(false);
+    m_ui->mainMenu.actionConnect->setEnabled(true);
+    m_ui->mainMenu.actionDisconnect->setEnabled(false);
+    m_ui->mainMenu.actionConfigure->setEnabled(true);
+    m_ui->statusBar->showMessage(tr("Disconnected"));
 }
 
+void MainWindow::P_writeRawData(const QByteArray &data)
+{
+    m_serial->write(data);
+}
+
+void MainWindow::P_readRawData()
+{
+    QByteArray data = m_serial->readAll();
+    m_ui->tab.serial->console->putData(data);
+
+    m_parser->dataRead(data);
+
+}
+
+void MainWindow::P_readParcedData(const QString & in)
+{
+	QString str(in.trimmed());
+	if(str.length() == 0)
+	{
+		return;
+	}
+	QStringList list = str.split(QStringLiteral(" "));
+}
 
 void MainWindow::pidK_changed(double Kp, double Ki, double Kd)
 {
@@ -561,18 +345,18 @@ void MainWindow::setpoint_AutoModeSelected(bool toggled)
 
 void MainWindow::setpoint_valueSet(int value)
 {
-    m_ui.setpoint_slider->setValue(value);
+    m_ui->setpoint_slider->setValue(value);
 }
 
 void MainWindow::setpoint_sliderChangeValue(int value)
 {
-    m_ui.setpoint_spinBox->setValue(value);
+    m_ui->setpoint_spinBox->setValue(value);
     setpointFuncSetValue(value);
 }
 
 void MainWindow::setpoint_spinBoxChangeValue(int value)
 {
-    m_ui.setpoint_slider->setValue(value);
+    m_ui->setpoint_slider->setValue(value);
     setpointFuncSetValue(value);
 }
 
@@ -590,60 +374,60 @@ void MainWindow::setpointFuncSetValue(int value_)
 
 void MainWindow::selection_leftValue_changed(double value)
 {
-    double mid = (m_ui.selection.rightValue->value() + value) / 2;
-    m_ui.selection.centerValue->setValue(mid);
+    double mid = (m_ui->selection.rightValue->value() + value) / 2;
+    m_ui->selection.centerValue->setValue(mid);
 }
 
 void MainWindow::selection_rightValue_changed(double value)
 {
-    double mid = (value + m_ui.selection.leftValue->value()) / 2;
-    m_ui.selection.centerValue->setValue(mid);
+    double mid = (value + m_ui->selection.leftValue->value()) / 2;
+    m_ui->selection.centerValue->setValue(mid);
 }
 
 void MainWindow::selection_tryLeft_clicked(bool)
 {
-    double val = m_ui.selection.leftValue->value();
+    double val = m_ui->selection.leftValue->value();
     switch(m_kselector)
     {
-    case PID_K_Selector::Kp: m_ui.pidK->setValueKp(val); break;
-    case PID_K_Selector::Ki: m_ui.pidK->setValueKi(val); break;
-    case PID_K_Selector::Kd: m_ui.pidK->setValueKd(val); break;
+    case PID_K_Selector::Kp: m_ui->pidK->setValueKp(val); break;
+    case PID_K_Selector::Ki: m_ui->pidK->setValueKi(val); break;
+    case PID_K_Selector::Kd: m_ui->pidK->setValueKd(val); break;
     }
 }
 
 void MainWindow::selection_tryCenter_clicked(bool)
 {
-    double val = m_ui.selection.centerValue->value();
+    double val = m_ui->selection.centerValue->value();
     switch(m_kselector)
     {
-    case PID_K_Selector::Kp: m_ui.pidK->setValueKp(val); break;
-    case PID_K_Selector::Ki: m_ui.pidK->setValueKi(val); break;
-    case PID_K_Selector::Kd: m_ui.pidK->setValueKd(val); break;
+    case PID_K_Selector::Kp: m_ui->pidK->setValueKp(val); break;
+    case PID_K_Selector::Ki: m_ui->pidK->setValueKi(val); break;
+    case PID_K_Selector::Kd: m_ui->pidK->setValueKd(val); break;
     }
 }
 
 void MainWindow::selection_tryRight_clicked(bool)
 {
-    double val = m_ui.selection.rightValue->value();
+    double val = m_ui->selection.rightValue->value();
     switch(m_kselector)
     {
-    case PID_K_Selector::Kp: m_ui.pidK->setValueKp(val); break;
-    case PID_K_Selector::Ki: m_ui.pidK->setValueKi(val); break;
-    case PID_K_Selector::Kd: m_ui.pidK->setValueKd(val); break;
+    case PID_K_Selector::Kp: m_ui->pidK->setValueKp(val); break;
+    case PID_K_Selector::Ki: m_ui->pidK->setValueKi(val); break;
+    case PID_K_Selector::Kd: m_ui->pidK->setValueKd(val); break;
     }
 }
 
 void MainWindow::selection_setCenterToLeft_clicked(bool)
 {
-    m_ui.selection.leftValue->setValue(
-                m_ui.selection.centerValue->value()
+    m_ui->selection.leftValue->setValue(
+                m_ui->selection.centerValue->value()
                 );
 }
 
 void MainWindow::selection_setCenterToRight_clicked(bool)
 {
-    m_ui.selection.rightValue->setValue(
-                m_ui.selection.centerValue->value()
+    m_ui->selection.rightValue->setValue(
+                m_ui->selection.centerValue->value()
                 );
 }
 
@@ -665,7 +449,7 @@ void MainWindow::Kselector_Kd_select(bool)
 void MainWindow::pause_unpause(bool)
 {
     m_paused = !m_paused;
-    m_ui.pausePushButton->setText(tr(m_paused ? "UNPAUSE" : "PAUSE"));
+    m_ui->tab.simulation->pausePushButton->setText(tr(m_paused ? "UNPAUSE" : "PAUSE"));
 }
 
 double MainWindow::map_integer_to_double(
@@ -686,7 +470,7 @@ void MainWindow::mainEvent()
 
     int len_max = (AXIS_X_MAX - AXIS_X_MIN) * 1000 / INTERVAL_MS;
 
-    bool autoScale = (m_ui.cplotAutoScale->checkState() != Qt::Unchecked);
+    bool autoScale = (m_ui->cplotAutoScale->checkState() != Qt::Unchecked);
 
     if(!m_setpoint_manual)
     {
@@ -735,9 +519,9 @@ void MainWindow::mainEvent()
 
         double sp_pv_diff = (double)((double)m_setpoint - m_processVariable);
         double sp_pv_diff_abs = fabs(sp_pv_diff);
-        m_ui.processVariable_indicator->setText(QString("process variable = %1").arg(m_processVariable));
-        m_ui.processVariable_amplitude_indicator->setText(QString("PV amplitude = %1").arg(PV_amplitude));
-        m_ui.SPminusPV_indicator->setText(QString("SP - PV = %1 (%2% SP) (SP %3 PV)")
+        m_ui->indication.processVariable->setText(QString("process variable = %1").arg(m_processVariable));
+        m_ui->indication.PV_amplitude->setText(QString("PV amplitude = %1").arg(PV_amplitude));
+        m_ui->indication.diff_SP_PV->setText(QString("SP - PV = %1 (%2% SP) (SP %3 PV)")
                                      .arg(sp_pv_diff_abs, 0, 'g', 9)
                                      .arg(100.0 * (sp_pv_diff_abs / (double)m_setpoint) , 0, 'g', 2)
                                      .arg(
@@ -746,7 +530,7 @@ void MainWindow::mainEvent()
                                                                                "="
                                                                                )
                                      );
-        m_ui.output_indicator->setText(QString("PID output = %1").arg(power));
+        m_ui->indication.PID_power->setText(QString("PID output = %1").arg(power));
 
     }
 
@@ -775,8 +559,8 @@ void MainWindow::mainEvent()
     double min = *std::min_element(mins.begin(), mins.end());
     double max = *std::max_element(maxs.begin(), maxs.end());
 
-    m_ui.plotSetpoint->setData(axis_x, m_valuesSetpoint);
-    m_ui.plotPV->setData(axis_x, m_valuesPV);
+    m_ui->plotSetpoint->setData(axis_x, m_valuesSetpoint);
+    m_ui->plotPV->setData(axis_x, m_valuesPV);
 
     /* scale setup */
     if(autoScale)
@@ -786,15 +570,15 @@ void MainWindow::mainEvent()
 
         if(half == 0.0) half = 1;
         QCPRange range(mid - half * 1.3, mid + half * 1.3);
-        m_ui.cplot->yAxis->setRange(range);
+        m_ui->cplot->yAxis->setRange(range);
     }
     else
     {
-        m_ui.cplot->yAxis->setRange(AXIS_Y_MIN, AXIS_Y_MAX);
+        m_ui->cplot->yAxis->setRange(AXIS_Y_MIN, AXIS_Y_MAX);
     }
-    m_ui.cplot->xAxis->setRange(AXIS_X_MIN + m_axis_x_shift, AXIS_X_MAX + m_axis_x_shift);
+    m_ui->cplot->xAxis->setRange(AXIS_X_MIN + m_axis_x_shift, AXIS_X_MAX + m_axis_x_shift);
 
-    m_ui.cplot->replot();
+    m_ui->cplot->replot();
 
 #ifdef APP_USE_CGRAPH
     plotSetpoint->updatePlotValues(valuesSetpoint);

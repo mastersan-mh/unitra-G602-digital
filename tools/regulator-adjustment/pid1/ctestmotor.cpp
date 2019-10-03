@@ -2,9 +2,9 @@
 
 #include <math.h>
 
-CTestMotor::CTestMotor(double unpower)
+CTestMotor::CTestMotor(double braking_strength)
 {
-    m_unpower = unpower;
+    m_braking_strength = braking_strength;
     m_speed = 0.0;
 }
 
@@ -32,7 +32,7 @@ double CTestMotor::process(double power)
         dspeed = -log(power + 1) * 0.05;
     }
 
-    m_speed -= m_unpower;
+    m_speed -= m_braking_strength;
     m_speed += dspeed;
 
     if(m_speed < 0.0)

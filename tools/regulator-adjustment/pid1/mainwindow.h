@@ -1,96 +1,27 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include "mainwindow_ui.h"
+#include "settingsdialog.h"
+
 #include "ctestmotor.h"
 
 #include "pid/pid.h"
 
-#include "qcustomplot.h"
-
-#include <QMainWindow>
-
-#include <QLayout>
-#include <QHBoxLayout>
-
-#include <QGroupBox>
-
-#include <QSlider>
-#include <QSpinBox>
-#include <QDoubleSpinBox>
-
-#include <QRadioButton>
-#include <QCheckBox>
-
-#include <QTimer>
-#include <QTime>
-
-#include <QGraphicsScale>
-
-#ifdef APP_USE_CGRAPH
-#   include"cgraph.h"
-#endif
-
-namespace Ui {
-class MainWindow;
-}
-
-
-#include <QWidget>
-#include <QLabel>
-
-
-class CPIDK: public QGroupBox
+class Parser: public QObject
 {
     Q_OBJECT
 public:
-    explicit CPIDK(QWidget* parent=0);
-    explicit CPIDK(const QString &title, QWidget* parent=0);
-    ~CPIDK();
-
-    inline double valueKp()
-    {
-        return Kp_spinBox->value();
-    }
-
-    inline double valueKi()
-    {
-        return Ki_spinBox->value();
-    }
-
-    inline double valueKd()
-    {
-        return Kd_spinBox->value();
-    }
-
-    inline void setValueKp(double value)
-    {
-        return Kp_spinBox->setValue(value);
-    }
-
-    inline void setValueKi(double value)
-    {
-        return Ki_spinBox->setValue(value);
-    }
-
-    inline void setValueKd(double value)
-    {
-        return Kd_spinBox->setValue(value);
-    }
-
+    Parser();
+    virtual ~Parser();
+    void reset();
+public slots:
+    void dataRead(const QByteArray &data);
 signals:
-    void valuesChanged(double Kp, double Ki, double Kd);
-private slots:
-    void K_changed(double);
+    void stringReady(const QString &);
 private:
-    void init();
-
-    QVBoxLayout * mainLayout;
-    // Kp -  proportional gain
-    QDoubleSpinBox * Kp_spinBox;
-    // Ki -  Integral gain
-    QDoubleSpinBox * Ki_spinBox;
-    // Kd -  derivative gain
-    QDoubleSpinBox * Kd_spinBox;
+    bool P_string_append(QByteArray::const_iterator &from, const QByteArray::const_iterator to, QString &str);
+    QString m_str;
 };
 
 class MainWindow : public QMainWindow
@@ -128,6 +59,11 @@ private slots:
     void mainEvent();
 
 private:
+
+    MainWindow_Ui * m_ui;
+    SettingsDialog *m_settings;
+    QSerialPort *m_serial;
+    Parser * m_parser;
 
     double m_processVariable;
     bool m_setpoint_manual;
@@ -172,9 +108,6 @@ private:
 
     void setpoint_valueSet(int value);
 
-    QGroupBox *init_UI_pidSetup(QWidget * parent);
-    QGroupBox *init_UI_Kselector(QWidget * parent);
-
     void setpointFuncSetValue(int value_);
 
     double map_integer_to_double(
@@ -184,75 +117,13 @@ private:
             double dmin,
             double dmax
             );
-    /* visual components, UI */
-    void init_UI();
 
-    struct
-    {
-        QWidget * central;
-
-        QHBoxLayout *centralWLayout;
-
-        QVBoxLayout *ctrl1_Layout;
-
-        /* column1 */
-        struct Selection
-        {
-            /*
-          LLLL           CCCC             RRRR
-          <try-left>               <try-right>
-          <set-left-center> <set-center-right>
-        */
-            QGroupBox * main;
-
-            QHBoxLayout * mainLayout;
-
-            QVBoxLayout * leftLayout;
-            QDoubleSpinBox * leftValue;
-            QPushButton * tryLeft;
-            QPushButton * setCenterToLeft;
-
-            QVBoxLayout * centerLayout;
-            QDoubleSpinBox * centerValue;
-            QPushButton * tryCenter;
-
-            QVBoxLayout * rightLayout;
-            QDoubleSpinBox * rightValue;
-            QPushButton * tryRight;
-            QPushButton * setCenterToRight;
-
-        } selection;
-
-        /* column2 */
-        QHBoxLayout * pidK_Kselector_Layout;
-        CPIDK * pidK;
-        QGroupBox * Kselector;
-
-        QLabel * processVariable_indicator;
-        QLabel * processVariable_amplitude_indicator;
-        QLabel * SPminusPV_indicator;
-        QLabel * output_indicator;
-
-        QPushButton * pausePushButton;
-
-        /* column3 */
-        QVBoxLayout * setpoint_Layout;
-        QSlider * setpoint_slider;
-        QSpinBox * setpoint_spinBox;
-
-        QVBoxLayout *cplotCtrl_Layout;
-        QCheckBox * cplotAutoScale;
-
-#ifdef APP_USE_CGRAPH
-        CGraph * graph;
-        CGraphPlot * plotSetpoint;
-        CGraphPlot * plotMain;
-#endif
-
-        QCustomPlot * cplot;
-        QCPGraph * plotSetpoint;
-        QCPGraph * plotPV;
-    } m_ui;
+private slots:
+    void P_openSerialPort();
+    void P_closeSerialPort();
+    void P_writeRawData(const QByteArray &data);
+    void P_readRawData();
+    void P_readParcedData(const QString &str);
 
 };
 

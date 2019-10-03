@@ -10,13 +10,13 @@ Kd =
 class CTestMotor
 {
 public:
-    explicit CTestMotor(double unpower);
+    explicit CTestMotor(double braking_strength);
     ~CTestMotor();
     double process(double power);
 
 private:
     double m_speed;
-    double m_unpower;
+    double m_braking_strength;
 };
 
 #endif // CTESTMOTOR_H
