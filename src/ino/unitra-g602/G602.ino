@@ -4,8 +4,6 @@
 
 #include "G602.hpp"
 
-#include "config.hpp"
-
 #define TO_BOOL(x) ((x) != 0)
 
 G602::G602(
@@ -32,6 +30,7 @@ G602::G602(
 , m_di_btn_autostop(false, P_event_autostopEnable,  P_event_autostopDisable, this, DI_DEBOUNCE_TIME)
 , m_di_btn_start(false, P_event_start,  nullptr, this, DI_DEBOUNCE_TIME)
 , m_di_btn_stop(false, P_event_stop,  P_event_stop_release, this, DI_DEBOUNCE_TIME)
+, m_comm()
 {
 }
 
@@ -54,6 +53,18 @@ void G602::loop()
 /*    long late = (long)time - (long)time_next; */
     sched.handle(m_time_now);
     m_time_next = P_rtcNextTimeGet();
+
+    switch(m_ctrl.runModeGet())
+    {
+        case app::Ctrl::RunMode::SERVICE_MODE3_STOPPED: /* Fallthrough */
+        case app::Ctrl::RunMode::SERVICE_MODE3_STARTED:
+        {
+            m_comm.recv();
+            break;
+        }
+        default: ;
+    }
+    m_comm.send();
 
 #ifdef CTRL_DEBUG
     app::Ctrl::internal_state_t state;
@@ -280,9 +291,6 @@ void G602::P_event_autostopDisable(void * args)
 void G602::P_event_start(void * args)
 {
     G602_DEFINE_SELF();
-
-    DEBUG_PRINT("P_event_start(): self->m_ctrl.runModeGet()) = ");
-    DEBUG_PRINTLN((int)self->m_ctrl.runModeGet());
 
     switch(self->m_ctrl.runModeGet())
     {

@@ -16,6 +16,8 @@ GDInput.hpp
 GDInput.ino
 GDInputDebounced.hpp
 GDInputDebounced.ino
+GComm.hpp
+GComm.ino
 AverageTinyMemory.hpp
 AverageTinyMemory.ino
 "

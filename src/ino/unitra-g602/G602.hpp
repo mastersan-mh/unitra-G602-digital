@@ -11,6 +11,7 @@
 #include "GTime.hpp"
 #include "Ctrl.hpp"
 #include "GBlinker.hpp"
+#include "GComm.hpp"
 
 #include <nostd.h>
 
@@ -77,6 +78,7 @@ private:
     GDInputDebounced m_di_btn_autostop;
     GDInputDebounced m_di_btn_start;
     GDInputDebounced m_di_btn_stop;
+    GComm m_comm;
 
     unsigned long P_rtcNextTimeGet() const;
     void P_blinker_start(GBlinker::BlinkType type);
