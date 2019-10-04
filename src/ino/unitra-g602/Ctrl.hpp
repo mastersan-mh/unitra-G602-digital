@@ -6,8 +6,10 @@ namespace app
 
 //#define CTRL_DEBUG
 
-#define CTRL_WARNING_SPEED_TOO_LOW   (1 << 0)
-#define CTRL_WARNING_SPEED_TOO_HIGH  (1 << 1)
+#define CTRL_WARNING_SPEED_TOO_LOW   (1U << 0)
+#define CTRL_WARNING_SPEED_TOO_HIGH  (1U << 1)
+
+#define CTRL_WARNING_ALL (CTRL_WARNING_SPEED_TOO_LOW | CTRL_WARNING_SPEED_TOO_HIGH)
 
 /**
  * @brief Class-controller
@@ -16,6 +18,13 @@ class Ctrl
 {
 public:
     typedef int speed_t;
+
+    enum class Error
+    {
+        OK,
+        FATAL,
+        INVALID_MODE, /* Unable to execute command in this mode */
+    };
 
     enum class Event
     {
@@ -46,10 +55,15 @@ public:
 
     enum class RunMode
     {
-        STOPPED,
-        STARTED_AUTO,
-        STARTED_MANUAL,
-        SERVICE_MODE_1,
+        NORMAL_STOPPED,
+        NORMAL_STARTED_AUTO,
+        NORMAL_STARTED_MANUAL,
+        SERVICE_MODE1_STOPPED,
+        SERVICE_MODE1_STARTED,
+        SERVICE_MODE2_STOPPED,
+        SERVICE_MODE2_STARTED,
+        SERVICE_MODE3_STOPPED,
+        SERVICE_MODE3_STARTED,
     };
 
     enum class BaselineSpeedMode
@@ -77,17 +91,28 @@ public:
     /**
      * @brief Выбор базовой скорости
      */
-    void baselineSpeedModeSet(BaselineSpeedMode baselineSpeedMode, void * args);
+    Error baselineSpeedModeSet(BaselineSpeedMode baselineSpeedMode, void * args);
     /**
      * @brief Вручную задать отклонение скорости от выбраной базовой скорости
      */
-    void manualSpeedSet(speed_t speed, void * args);
-    void autostopAllowSet(bool allow_autostop, void * args);
+    Error speedManualSet(speed_t speed, void * args);
+    /**
+     * @brief Свободное задание скорости для SERVICE_MODE_3
+     * @note не зависит от baseline
+     */
+    Error speedFreeSet(speed_t speed, void * args);
+    Error autostopAllowSet(bool allow_autostop, void * args);
 
-    void start(void * args);
-    void stop(void * args);
-    /** @brief needle setting: drive stopped, lift down */
-    void service_mode_1(void * args);
+    /** @breif Leave service mode, enter normal mode */
+    Error mode_normal(void * args);
+    /** @brief Needle setting: drive stopped, lift down */
+    Error mode_service_1(void * args);
+    Error mode_service_2(void * args);
+    Error mode_service_3(void * args);
+    /** @brief Start action in normal or service mode */
+    Error start(void * args);
+    /** @brief Stop current action in normal or service mode */
+    Error stop(void * args);
 
     /**
      * @param speed     Current table speed
@@ -97,7 +122,7 @@ public:
     /**
      * @brief сработал датчик автостопа?
      */
-    void stopTriggeredSet(bool triggered, void * args);
+    Error stopTriggeredSet(bool triggered, void * args);
 
     RunMode runModeGet();
 
@@ -109,16 +134,20 @@ private:
     enum class Command
     {
         INIT,
+        ENTER_MODE_NORMAL,
+        ENTER_SERVICE_MODE1,
+        ENTER_SERVICE_MODE2,
+        ENTER_SERVICE_MODE3,
+        START,
+        STOP,
         SPEED_BASELINE_LOW,
         SPEED_BASELINE_HIGH,
         SPEED_MANUAL_UPDATE,
+        SPEED_FREE_UPDATE,
         AUTOSTOP_ALLOW,
         AUTOSTOP_DENY,
         GAUGE_STOP_ON,
         GAUGE_STOP_OFF,
-        START,
-        STOP,
-        SERVICE_MODE_1,
     };
 
     typedef union
@@ -127,15 +156,25 @@ private:
         {
             speed_t speed;
         } SPEED_MANUAL_UPDATE;
+
+        struct
+        {
+            speed_t speed;
+        } SPEED_FREE_UPDATE;
     } CommandData;
 
     enum class State
     {
         INIT,
-        STOPPED,
-        STARTED_AUTO,
-        STARTED_MANUAL,
-        SERVICE_MODE_1, /* needle setting: drive stopped, lift down. Can start only from STOPPED */
+        NORMAL_STOPPED,
+        NORMAL_STARTED_AUTO,
+        NORMAL_STARTED_MANUAL,
+        SERVICE_MODE1_STOPPED,
+        SERVICE_MODE1_STARTED,
+        SERVICE_MODE2_STOPPED,
+        SERVICE_MODE2_STARTED,
+        SERVICE_MODE3_STOPPED,
+        SERVICE_MODE3_STARTED,
     };
 
     speed_t P_speed_baseline_get() const;
@@ -151,7 +190,7 @@ private:
     void P_event_lift_up(void * args);
     void P_event_lift_down(void * args);
 
-    void P_fsm(Command cmd, const CommandData & data, void * args);
+    Error P_fsm(Command cmd, const CommandData & data, void * args);
 
     /* init vars */
     void (*m_eventFunc)(Event event, const EventData& data, void * args);
@@ -165,6 +204,7 @@ private:
 
     /* user control variables */
     speed_t m_speed_manual_delta;
+    speed_t m_speed_free;
 
     BaselineSpeedMode m_speed_baseline_mode;
 

@@ -15,16 +15,17 @@ class GBlinker
 public:
     enum class BlinkType
     {
-        ON_START,
-        ON_STOP,
-        ON_AUTO,
-        ON_MANUAL,
-        ON_TOO_LOW_SPEED,
-        ON_TOO_HIGH_SPEED,
-        ON_ENTER_SERVICE_MODE,
+        ACCELERATING,
+        BRAKING,
+        B1TIME,
+        B2TIME,
+        B3TIME,
+        FAST6,
+        SLOW,
+        FAST,
     };
 
-#define GBLINK_BLINKS_NUM (ARRAY_INDEX(GBlinker::BlinkType::ON_ENTER_SERVICE_MODE) + 1)
+#define GBLINK_BLINKS_NUM (ARRAY_INDEX(GBlinker::BlinkType::FAST) + 1)
 
 #define GBLINKER_ACTIONFLAG_UNSCHEDULE 0x01
 #define GBLINKER_ACTIONFLAG_SCHEDULE   0x02

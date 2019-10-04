@@ -26,7 +26,7 @@ class G602
 public:
     static const nostd::size_t shed_task_id_blinker = 0;
     static const nostd::size_t shed_task_id_service_mode_awaiting = 1;
-    static const unsigned long service_mode_awaiting_tine = 5000; /**< time to wait to enter service mode, ms */
+    static const unsigned long service_mode_enter_awaiting_time = 5000; /**< time to wait to enter service mode, ms */
 
     G602() = delete;
     G602(
@@ -63,8 +63,6 @@ private:
 
     unsigned long m_time_now;
     unsigned long m_time_next;
-
-    unsigned m_service_mode; /**< index of service mode: 0 - no, 1 - service mode #1 an so on*/
 
     bool m_motor_on;
     int m_motor_setpoint;

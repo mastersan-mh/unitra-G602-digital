@@ -107,13 +107,14 @@ static const unsigned long P_blink_pattern_1_100[1] =
 
 static const struct blink_descr P_blink_descrs[GBLINK_BLINKS_NUM] =
 {
-        [ARRAY_INDEX(GBlinker::BlinkType::ON_START         )] = { P_blink_pattern_acceleration, ARRAY_SIZE(P_blink_pattern_acceleration), false, 1 },
-        [ARRAY_INDEX(GBlinker::BlinkType::ON_STOP          )] = { P_blink_pattern_braking     , ARRAY_SIZE(P_blink_pattern_braking), false, 1 },
-        [ARRAY_INDEX(GBlinker::BlinkType::ON_AUTO          )] = { P_blink_pattern_5_250       , 1, false, 1 },
-        [ARRAY_INDEX(GBlinker::BlinkType::ON_MANUAL        )] = { P_blink_pattern_5_250       , 5, false, 1 },
-        [ARRAY_INDEX(GBlinker::BlinkType::ON_TOO_LOW_SPEED )] = { P_blink_pattern_1_500       , 1, true , 0 },
-        [ARRAY_INDEX(GBlinker::BlinkType::ON_TOO_HIGH_SPEED)] = { P_blink_pattern_1_100       , 1, true , 0 },
-        [ARRAY_INDEX(GBlinker::BlinkType::ON_ENTER_SERVICE_MODE)] = { P_blink_pattern_11_100  , 11, false , 1 },
+        [ARRAY_INDEX(GBlinker::BlinkType::ACCELERATING)] = { P_blink_pattern_acceleration, ARRAY_SIZE(P_blink_pattern_acceleration), false, 1 },
+        [ARRAY_INDEX(GBlinker::BlinkType::BRAKING     )] = { P_blink_pattern_braking, ARRAY_SIZE(P_blink_pattern_braking), false, 1 },
+        [ARRAY_INDEX(GBlinker::BlinkType::B1TIME      )] = { P_blink_pattern_5_250  ,  1, false, 1 },
+        [ARRAY_INDEX(GBlinker::BlinkType::B2TIME      )] = { P_blink_pattern_5_250  ,  3, false, 1 },
+        [ARRAY_INDEX(GBlinker::BlinkType::B3TIME      )] = { P_blink_pattern_5_250  ,  5, false, 1 },
+        [ARRAY_INDEX(GBlinker::BlinkType::FAST6       )] = { P_blink_pattern_11_100 , 11, false, 1 },
+        [ARRAY_INDEX(GBlinker::BlinkType::SLOW        )] = { P_blink_pattern_1_500  ,  1, true , 0 },
+        [ARRAY_INDEX(GBlinker::BlinkType::FAST        )] = { P_blink_pattern_1_100  ,  1, true , 0 },
 };
 
 GBlinker::GBlinker()

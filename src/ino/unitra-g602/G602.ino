@@ -4,6 +4,8 @@
 
 #include "G602.hpp"
 
+#include "config.hpp"
+
 #define TO_BOOL(x) ((x) != 0)
 
 G602::G602(
@@ -20,7 +22,6 @@ G602::G602(
 , m_event_motor_update(event_motor_update)
 , m_time_now(0)
 , m_time_next(0)
-, m_service_mode(0)
 , m_motor_on(false)
 , m_motor_setpoint(0)
 , sched()
@@ -91,7 +92,7 @@ void G602::notifyButtonStopSet(bool state)
 
 void G602::manualSpeedSet(int speed)
 {
-    m_ctrl.manualSpeedSet(speed, this);
+    m_ctrl.speedManualSet(speed, this);
 }
 
 void G602::actualSpeedUpdate(int speed)
@@ -156,9 +157,8 @@ void G602::P_task_blinker(nostd::size_t id, unsigned long time, unsigned long no
 void G602::P_task_awaiting_service_mode(nostd::size_t id, unsigned long time, unsigned long now, G602Scheduler & sched, void * args)
 {
     G602_DEFINE_SELF();
-    self->m_service_mode = 1;
-
-    self->P_blinker_start(GBlinker::BlinkType::ON_ENTER_SERVICE_MODE);
+    self->m_ctrl.mode_service_1(self);
+    self->P_blinker_start(GBlinker::BlinkType::FAST6);
 }
 
 void G602::P_motor_update()
@@ -183,20 +183,20 @@ void G602::P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& data
 
             if(blink_speed_to_low)
             {
-                self->P_blinker_start(GBlinker::BlinkType::ON_TOO_LOW_SPEED);
+                self->P_blinker_start(GBlinker::BlinkType::SLOW);
             }
             else
             {
-                self->P_blinker_stop(GBlinker::BlinkType::ON_TOO_LOW_SPEED);
+                self->P_blinker_stop(GBlinker::BlinkType::SLOW);
             }
 
             if(blink_speed_to_high)
             {
-                self->P_blinker_start(GBlinker::BlinkType::ON_TOO_HIGH_SPEED);
+                self->P_blinker_start(GBlinker::BlinkType::FAST);
             }
             else
             {
-                self->P_blinker_stop(GBlinker::BlinkType::ON_TOO_HIGH_SPEED);
+                self->P_blinker_stop(GBlinker::BlinkType::FAST);
             }
 
             break;
@@ -280,66 +280,136 @@ void G602::P_event_autostopDisable(void * args)
 void G602::P_event_start(void * args)
 {
     G602_DEFINE_SELF();
-    if(self->m_service_mode > 0)
+
+    DEBUG_PRINT("P_event_start(): self->m_ctrl.runModeGet()) = ");
+    DEBUG_PRINTLN((int)self->m_ctrl.runModeGet());
+
+    switch(self->m_ctrl.runModeGet())
     {
-        /* enter service mode #1 */
-        self->m_ctrl.service_mode_1(self);
-    }
-    else
-    {
-        app::Ctrl::RunMode mode_prev = self->m_ctrl.runModeGet();
-        self->m_ctrl.start(self);
-        app::Ctrl::RunMode mode = self->m_ctrl.runModeGet();
-        if(mode != mode_prev)
+        case app::Ctrl::RunMode::NORMAL_STOPPED:
         {
-            if(
-                    mode_prev == app::Ctrl::RunMode::STARTED_AUTO ||
-                    mode_prev == app::Ctrl::RunMode::STARTED_MANUAL
-            )
-            {
-                switch(mode)
-                {
-                    case app::Ctrl::RunMode::STARTED_AUTO  : self->P_blinker_start(GBlinker::BlinkType::ON_AUTO); break;
-                    case app::Ctrl::RunMode::STARTED_MANUAL: self->P_blinker_start(GBlinker::BlinkType::ON_MANUAL); break;
-                    default: break;
-                }
-            }
-            else
-            {
-                self->P_blinker_stop(GBlinker::BlinkType::ON_STOP);
-                self->P_blinker_start(GBlinker::BlinkType::ON_START);
-            }
+            self->m_ctrl.start(self);
+            self->P_blinker_start(GBlinker::BlinkType::ACCELERATING);
+            break;
+        }
+        case app::Ctrl::RunMode::NORMAL_STARTED_AUTO:
+        {
+            self->m_ctrl.start(self);
+            self->P_blinker_start(GBlinker::BlinkType::B3TIME);
+            break;
+        }
+        case app::Ctrl::RunMode::NORMAL_STARTED_MANUAL:
+        {
+            self->m_ctrl.start(self);
+            self->P_blinker_start(GBlinker::BlinkType::B1TIME);
+            break;
+        }
+        case app::Ctrl::RunMode::SERVICE_MODE1_STOPPED:
+        {
+            self->m_ctrl.start(self);
+            break;
+        }
+        case app::Ctrl::RunMode::SERVICE_MODE1_STARTED:
+        {
+            break;
+        }
+        case app::Ctrl::RunMode::SERVICE_MODE2_STOPPED:
+        {
+            self->m_ctrl.start(self);
+            break;
+        }
+        case app::Ctrl::RunMode::SERVICE_MODE2_STARTED:
+        {
+            break;
+        }
+        case app::Ctrl::RunMode::SERVICE_MODE3_STOPPED:
+        {
+            self->m_ctrl.start(self);
+            break;
+        }
+        case app::Ctrl::RunMode::SERVICE_MODE3_STARTED:
+        {
+            break;
         }
     }
+
+    DEBUG_PRINT("P_event_start(): self->m_ctrl.runModeGet()) = ");
+    DEBUG_PRINTLN((int)self->m_ctrl.runModeGet());
+
 }
 
 void G602::P_event_stop(void * args)
 {
     G602_DEFINE_SELF();
 
-    if(self->m_service_mode > 0)
+    DEBUG_PRINT("P_event_stop(): self->m_ctrl.runModeGet()) = ");
+    DEBUG_PRINTLN((int)self->m_ctrl.runModeGet());
+
+    switch(self->m_ctrl.runModeGet())
     {
-        self->m_ctrl.stop(self);
-        self->P_blinker_start(GBlinker::BlinkType::ON_STOP);
-        self->m_service_mode = 0;
-    }
-    else
-    {
-        app::Ctrl::RunMode mode_prev = self->m_ctrl.runModeGet();
-        self->m_ctrl.stop(self);
-        app::Ctrl::RunMode mode = self->m_ctrl.runModeGet();
-        if(mode != mode_prev)
+        case app::Ctrl::RunMode::NORMAL_STOPPED:
         {
-            self->P_blinker_stop(GBlinker::BlinkType::ON_START);
-            self->P_blinker_start(GBlinker::BlinkType::ON_STOP);
+            self->sched.shedule(
+                shed_task_id_service_mode_awaiting,
+                self->m_time_now + service_mode_enter_awaiting_time,
+                P_task_awaiting_service_mode,
+                self
+            );
+            break;
         }
-        self->sched.shedule(
-            shed_task_id_service_mode_awaiting,
-            self->m_time_now + service_mode_awaiting_tine,
-            P_task_awaiting_service_mode,
-            self
-        );
+        case app::Ctrl::RunMode::NORMAL_STARTED_AUTO:
+        {
+            self->m_ctrl.stop(self);
+            self->P_blinker_start(GBlinker::BlinkType::BRAKING);
+            break;
+        }
+        case app::Ctrl::RunMode::NORMAL_STARTED_MANUAL:
+        {
+            self->m_ctrl.stop(self);
+            self->P_blinker_start(GBlinker::BlinkType::BRAKING);
+            break;
+        }
+        case app::Ctrl::RunMode::SERVICE_MODE1_STOPPED:
+        {
+            self->m_ctrl.mode_service_2(self);
+            self->P_blinker_start(GBlinker::BlinkType::B2TIME);
+            break;
+        }
+        case app::Ctrl::RunMode::SERVICE_MODE1_STARTED:
+        {
+            self->m_ctrl.stop(self);
+            self->P_blinker_start(GBlinker::BlinkType::BRAKING);
+            break;
+        }
+        case app::Ctrl::RunMode::SERVICE_MODE2_STOPPED:
+        {
+            self->m_ctrl.mode_service_3(self);
+            self->P_blinker_start(GBlinker::BlinkType::B3TIME);
+            break;
+        }
+        case app::Ctrl::RunMode::SERVICE_MODE2_STARTED:
+        {
+            self->m_ctrl.stop(self);
+            self->P_blinker_start(GBlinker::BlinkType::BRAKING);
+            break;
+        }
+        case app::Ctrl::RunMode::SERVICE_MODE3_STOPPED:
+        {
+            self->m_ctrl.mode_normal(self);
+            self->P_blinker_start(GBlinker::BlinkType::FAST6);
+            break;
+        }
+        case app::Ctrl::RunMode::SERVICE_MODE3_STARTED:
+        {
+            self->m_ctrl.stop(self);
+            self->P_blinker_start(GBlinker::BlinkType::BRAKING);
+            break;
+        }
     }
+
+    DEBUG_PRINT("P_event_stop(): self->m_ctrl.runModeGet()) = ");
+    DEBUG_PRINTLN((int)self->m_ctrl.runModeGet());
+
 }
 
 void G602::P_event_stop_release(void * args)
