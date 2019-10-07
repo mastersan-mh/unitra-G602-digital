@@ -34,4 +34,25 @@ void analogWrite(uint8_t pin, int value);
 void pinMode(uint8_t pin, uint8_t);
 long map(long value, long fromLow, long fromHigh, long toLow, long toHigh);
 
+#define min(a,b) ((a)<(b)?(a):(b))
+
+class CSerial
+{
+public:
+    CSerial();
+    ~CSerial();
+    void begin(int);
+    int available();
+    int read();
+    void write(char);
+    void write(const char *);
+    void println(const char *);
+    void println(char);
+    void print(const char *);
+    void print(char);
+
+
+};
+extern CSerial Serial;
+
 #endif /* ARDUINO_H_ */

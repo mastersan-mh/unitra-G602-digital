@@ -96,6 +96,8 @@ public:
      * @brief Вручную задать отклонение скорости от выбраной базовой скорости
      */
     Error speedManualSet(speed_t speed, void * args);
+
+    speed_t speedFreeGet();
     /**
      * @brief Свободное задание скорости для SERVICE_MODE_3
      * @note не зависит от baseline

@@ -12,8 +12,10 @@
 #include "Ctrl.hpp"
 #include "GBlinker.hpp"
 #include "GComm.hpp"
+#include "GRPC.hpp"
 
 #include <nostd.h>
+#include <stdint.h>
 
 typedef nostd::SchedulerSoft< G602_SHEDULER_TASKS__NUM, GTime_t > G602Scheduler;
 
@@ -79,14 +81,18 @@ private:
     GDInputDebounced m_di_btn_start;
     GDInputDebounced m_di_btn_stop;
     GComm m_comm;
+    GRPC m_rpc;
+
+    bool m_permanent_process_send;
+    unsigned m_permanent_process_send_ruid;
 
     unsigned long P_rtcNextTimeGet() const;
     void P_blinker_start(GBlinker::BlinkType type);
     void P_blinker_stop(GBlinker::BlinkType type);
-    static void P_task_blinker(nostd::size_t id, unsigned long time, unsigned long now, G602Scheduler & sched, void * args);
-    static void P_task_awaiting_service_mode(nostd::size_t id, unsigned long time, unsigned long now, G602Scheduler & sched, void * args);
+    static void P_task_blinker(nostd::size_t id, GTime_t time, GTime_t now, G602Scheduler & sched, void * args);
+    static void P_task_awaiting_service_mode(nostd::size_t id, GTime_t time, GTime_t now, G602Scheduler & sched, void * args);
+    static void P_task_rotator_handler(nostd::size_t id, GTime_t time, GTime_t now, G602Scheduler & sched, void * args);
     void P_measures_start();
-    void P_measures_stop();
 
     void P_motor_update();
     static void P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& data, void * args);
@@ -99,6 +105,19 @@ private:
     static void P_event_start(void * args);
     static void P_event_stop(void * args);
     static void P_event_stop_release(void * args);
+    void P_comm_reader();
+    static void P_rpc_send(const uint8_t * data, unsigned data_size, void * args);
+    static uint8_t P_rpc_proc_00_impulses_r(uint16_t ruid, unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args);
+    static uint8_t P_rpc_proc_01_mode_current_r(uint16_t ruid, unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args);
+    /** @brief koeffizient read */
+    static uint8_t P_rpc_proc_02_koef_r(uint16_t ruid, unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args);
+    /** @brief koeffizient write */
+    static uint8_t P_rpc_proc_03_koef_w(uint16_t ruid, unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args);
+    static uint8_t P_rpc_proc_04_speed_SP_r(uint16_t ruid, unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args);
+    static uint8_t P_rpc_proc_05_speed_SP_w(uint16_t ruid, unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args);
+    static uint8_t P_rpc_proc_06_speed_PV_r(uint16_t ruid, unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args);
+    static uint8_t P_rpc_proc_07_process_start(uint16_t ruid, unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args);
+    static uint8_t P_rpc_proc_08_process_stop(uint16_t ruid, unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args);
 
 };
 

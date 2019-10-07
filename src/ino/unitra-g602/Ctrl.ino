@@ -942,6 +942,11 @@ Ctrl::Error Ctrl::speedManualSet(speed_t speed, void * args)
     return P_fsm(Command::SPEED_MANUAL_UPDATE, m_cmdData, args);
 }
 
+Ctrl::speed_t Ctrl::speedFreeGet()
+{
+    return m_speed_free;
+}
+
 Ctrl::Error Ctrl::speedFreeSet(speed_t speed, void * args)
 {
     m_cmdData.SPEED_FREE_UPDATE.speed = speed;

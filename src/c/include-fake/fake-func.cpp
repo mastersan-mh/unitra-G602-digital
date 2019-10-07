@@ -2,8 +2,6 @@
  * @file fake.cpp
  */
 
-#include "config.hpp"
-
 #include <Arduino.h>
 
 void setup();

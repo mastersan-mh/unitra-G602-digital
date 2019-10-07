@@ -31,7 +31,19 @@ G602::G602(
 , m_di_btn_start(false, P_event_start,  nullptr, this, DI_DEBOUNCE_TIME)
 , m_di_btn_stop(false, P_event_stop,  P_event_stop_release, this, DI_DEBOUNCE_TIME)
 , m_comm()
+, m_rpc(P_rpc_send, this)
+, m_permanent_process_send(false)
+, m_permanent_process_send_ruid()
 {
+    const GRPC::procedure_t procs[] =
+    {
+            P_rpc_proc_00_impulses_r,
+            nullptr
+    };
+    m_rpc.procedures_register(procs);
+
+    P_measures_start();
+
 }
 
 G602::~G602()
@@ -45,26 +57,15 @@ void G602::timeSet(unsigned long time_now)
 
 void G602::loop()
 {
-    if(m_time_now < m_time_next)
-    {
-        return;
-    }
+    P_comm_reader();
 
-/*    long late = (long)time - (long)time_next; */
-    sched.handle(m_time_now);
-    m_time_next = P_rtcNextTimeGet();
-
-    switch(m_ctrl.runModeGet())
+    if(m_time_now >= m_time_next)
     {
-        case app::Ctrl::RunMode::SERVICE_MODE3_STOPPED: /* Fallthrough */
-        case app::Ctrl::RunMode::SERVICE_MODE3_STARTED:
-        {
-            m_comm.recv();
-            break;
-        }
-        default: ;
+        /*    long late = (long)time - (long)time_next; */
+        sched.handle(m_time_now);
+        m_time_next = P_rtcNextTimeGet();
+
     }
-    m_comm.send();
 
 #ifdef CTRL_DEBUG
     app::Ctrl::internal_state_t state;
@@ -147,7 +148,7 @@ void G602::P_blinker_stop(GBlinker::BlinkType type)
     }
 }
 
-void G602::P_task_blinker(nostd::size_t id, unsigned long time, unsigned long now, G602Scheduler & sched, void * args)
+void G602::P_task_blinker(nostd::size_t id, GTime_t time, GTime_t now, G602Scheduler & sched, void * args)
 {
     G602_DEFINE_SELF();
     bool end = false;
@@ -165,7 +166,7 @@ void G602::P_task_blinker(nostd::size_t id, unsigned long time, unsigned long no
     }
 }
 
-void G602::P_task_awaiting_service_mode(nostd::size_t id, unsigned long time, unsigned long now, G602Scheduler & sched, void * args)
+void G602::P_task_awaiting_service_mode(nostd::size_t id, GTime_t time, GTime_t now, G602Scheduler & sched, void * args)
 {
     G602_DEFINE_SELF();
     self->m_ctrl.mode_service_1(self);
@@ -217,7 +218,6 @@ void G602::P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& data
         {
             self->m_motor_on = true;
             self->P_motor_update();
-            self->P_measures_start();
             break;
         }
 
@@ -225,7 +225,6 @@ void G602::P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& data
         {
             self->m_motor_on = false;
             self->P_motor_update();
-            self->P_measures_stop();
             break;
         }
 
@@ -424,4 +423,218 @@ void G602::P_event_stop_release(void * args)
 {
     G602_DEFINE_SELF();
     self->sched.unshedule(shed_task_id_service_mode_awaiting);
+}
+
+void G602::P_comm_reader()
+{
+#define CAPACITY 32
+    uint8_t data[CAPACITY];
+    unsigned size;
+    unsigned rest;
+
+    size = m_comm.readFrame(data, CAPACITY, &rest);
+    if(size > 0)
+    {
+#ifdef DEBUG
+        unsigned i;
+        for(i = 0; i < size; ++i)
+        {
+            DEBUG_PRINT("P_comm_reader(): data[");
+            DEBUG_PRINT(i);
+            DEBUG_PRINT("]=");
+            DEBUG_PRINTLN(data[i]);
+        }
+#endif
+        GRPC::Error err = m_rpc.handle(data, size);
+        DEBUG_PRINT("P_comm_reader(): m_rpc.handle: err = ");
+        DEBUG_PRINTLN((int)err);
+    }
+}
+
+void G602::P_rpc_send(const uint8_t * data, unsigned data_size, void * args)
+{
+    G602_DEFINE_SELF();
+    self->m_comm.writeFrame(data, data_size);
+
+}
+
+/**
+ * @param argc = 0
+ */
+uint8_t G602::P_rpc_proc_00_impulses_r(uint16_t ruid, unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args)
+{
+    DEBUG_PRINTLN("P_rpc_proc_00_impulses_r():");
+
+    if(argc != 0) return GRPC_ERR_INVALID_ARGUMENTS;
+
+    (*resc) = 1;
+    resv[0] = G602_TABLE_PULSES_PER_REV;
+    return GRPC_ERR_OK;
+}
+
+/**
+ * @param argc = 0
+ */
+uint8_t G602::P_rpc_proc_01_mode_current_r(uint16_t ruid, unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args)
+{
+    G602_DEFINE_SELF();
+    if(argc != 0) return GRPC_ERR_INVALID_ARGUMENTS;
+
+    DEBUG_PRINTLN("P_rpc_proc_01_mode_current_r():");
+
+    app::Ctrl::RunMode runMode = self->m_ctrl.runModeGet();
+    static const uint16_t modes[] =
+    {
+            [ARRAY_INDEX(app::Ctrl::RunMode::NORMAL_STOPPED       )] = 0x1000, /* 1.1: stopped */
+            [ARRAY_INDEX(app::Ctrl::RunMode::NORMAL_STARTED_AUTO  )] = 0x1001, /* 1.2: auto */
+            [ARRAY_INDEX(app::Ctrl::RunMode::NORMAL_STARTED_MANUAL)] = 0x1002, /* 1.3: manual */
+            [ARRAY_INDEX(app::Ctrl::RunMode::SERVICE_MODE1_STOPPED)] = 0x2100, /* 2.1: stopped */
+            [ARRAY_INDEX(app::Ctrl::RunMode::SERVICE_MODE1_STARTED)] = 0x2101, /* 2.1: started */
+            [ARRAY_INDEX(app::Ctrl::RunMode::SERVICE_MODE2_STOPPED)] = 0x2200, /* 2.2: stopped */
+            [ARRAY_INDEX(app::Ctrl::RunMode::SERVICE_MODE2_STARTED)] = 0x2201, /* 2.2: started */
+            [ARRAY_INDEX(app::Ctrl::RunMode::SERVICE_MODE3_STOPPED)] = 0x2300, /* 2.3: stopped */
+            [ARRAY_INDEX(app::Ctrl::RunMode::SERVICE_MODE3_STARTED)] = 0x2301, /* 2.3: started */
+    };
+
+    (*resc) = 1;
+    resv[0] = modes[ARRAY_INDEX(runMode)];
+
+    return GRPC_ERR_OK;
+}
+
+/**
+ * @param argc = 0
+ */
+uint8_t G602::P_rpc_proc_02_koef_r(uint16_t ruid, unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args)
+{
+    //G602_DEFINE_SELF();
+    if(argc != 0) return GRPC_ERR_INVALID_ARGUMENTS;
+    (*resc) = 6;
+
+    nostd::Fixed32 Kp(1.1);
+    nostd::Fixed32 Ki(2.2);
+    nostd::Fixed32 Kd(3.3);
+
+    uint32_t Kp_raw = Kp.toRawFixed();
+    uint32_t Ki_raw = Ki.toRawFixed();
+    uint32_t Kd_raw = Kd.toRawFixed();
+
+    resv[0] = (Kp_raw >> 16);
+    resv[1] = (Kp_raw & 0x0000ffff);
+    resv[2] = (Ki_raw >> 16);
+    resv[3] = (Ki_raw & 0x0000ffff);
+    resv[4] = (Kd_raw >> 16);
+    resv[5] = (Kd_raw & 0x0000ffff);
+    return GRPC_ERR_OK;
+}
+
+/**
+ * @param argc = 6
+ * @param argv[0]   Kp hi
+ * @param argv[1]   Kp lo
+ * @param argv[2]   Ki hi
+ * @param argv[3]   Ki lo
+ * @param argv[4]   Kd hi
+ * @param argv[5]   Kd lo
+ */
+uint8_t G602::P_rpc_proc_03_koef_w(uint16_t ruid, unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args)
+{
+    //G602_DEFINE_SELF();
+    if(argc != 6) return GRPC_ERR_INVALID_ARGUMENTS;
+
+    uint32_t Kp_raw;
+    uint32_t Ki_raw;
+    uint32_t Kd_raw;
+#define BUILD_32(hi, lo) (((uint32_t)(hi) << 16) | (uint32_t)(lo))
+
+    Kp_raw = BUILD_32(argv[0], argv[1]);
+    Ki_raw = BUILD_32(argv[2], argv[3]);
+    Kd_raw = BUILD_32(argv[4], argv[5]);
+
+    nostd::Fixed32 Kp;
+    nostd::Fixed32 Ki;
+    nostd::Fixed32 Kd;
+
+    Kp.setRawFixed(Kp_raw);
+    Ki.setRawFixed(Ki_raw);
+    Kd.setRawFixed(Kd_raw);
+
+    return GRPC_ERR_OK;
+}
+
+/**
+ * @param argc = 0
+ */
+uint8_t G602::P_rpc_proc_04_speed_SP_r(uint16_t ruid, unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args)
+{
+    G602_DEFINE_SELF();
+    if(argc != 0) return GRPC_ERR_INVALID_ARGUMENTS;
+
+    app::Ctrl::speed_t speed = self->m_ctrl.speedFreeGet();
+    (*resc) = 1;
+    resv[0] = speed;
+
+    return GRPC_ERR_OK;
+}
+
+/**
+ * @param argc = 1
+ * @param argv[0]   imp/rev
+ */
+uint8_t G602::P_rpc_proc_05_speed_SP_w(uint16_t ruid, unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args)
+{
+    G602_DEFINE_SELF();
+
+    app::Ctrl::RunMode runMode = self->m_ctrl.runModeGet();
+    if(!(
+            runMode == app::Ctrl::RunMode::SERVICE_MODE3_STOPPED ||
+            runMode == app::Ctrl::RunMode::SERVICE_MODE3_STARTED
+    ))
+    {
+        return GRPC_ERR_INVALID_MODE;
+    }
+    if(argc != 1) return GRPC_ERR_INVALID_ARGUMENTS;
+
+    unsigned speed = argv[0];
+    if(speed > G602_SPEED_MAX)
+    {
+        return GRPC_ERR_OUT_OF_RANGE;
+    }
+
+    self->m_ctrl.speedFreeSet(speed, self);
+    return GRPC_ERR_OK;
+}
+
+uint8_t G602::P_rpc_proc_06_speed_PV_r(uint16_t ruid, unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args)
+{
+    //G602_DEFINE_SELF();
+    if(argc != 0) return GRPC_ERR_INVALID_ARGUMENTS;
+
+    (*resc) = 1;
+    resv[0] = 666;
+
+    return GRPC_ERR_OK;
+}
+
+/**
+ * @param argc = 0
+ */
+uint8_t G602::P_rpc_proc_07_process_start(uint16_t ruid, unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args)
+{
+    G602_DEFINE_SELF();
+    if(argc != 0) return GRPC_ERR_INVALID_ARGUMENTS;
+    self->m_permanent_process_send = true;
+    self->m_permanent_process_send_ruid = ruid;
+    return GRPC_ERR_OK;
+}
+
+/**
+ * @param argc = 0
+ */
+uint8_t G602::P_rpc_proc_08_process_stop(uint16_t ruid, unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args)
+{
+    G602_DEFINE_SELF();
+    if(argc != 0) return GRPC_ERR_INVALID_ARGUMENTS;
+    self->m_permanent_process_send = false;
+    return GRPC_ERR_OK;
 }

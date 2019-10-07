@@ -1,5 +1,6 @@
 list="config.hpp
 defs.hpp
+utils.hpp
 unitra-g602.ino
 G602.hpp
 G602.ino
@@ -16,8 +17,12 @@ GDInput.hpp
 GDInput.ino
 GDInputDebounced.hpp
 GDInputDebounced.ino
+GCommBase.hpp
+GCommBase.ino
 GComm.hpp
 GComm.ino
+GRPC.hpp
+GRPC.ino
 AverageTinyMemory.hpp
 AverageTinyMemory.ino
 "

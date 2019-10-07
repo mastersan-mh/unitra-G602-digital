@@ -4,7 +4,7 @@
 
 #include "GBlinker.hpp"
 
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
+#include "utils.hpp"
 
 struct blink_descr
 {
