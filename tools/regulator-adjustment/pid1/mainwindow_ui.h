@@ -167,6 +167,15 @@ class TabDataSourceSerail : public QWidget
 
 public:
     Console *console;
+    QPushButton * buttonReq0;
+    QPushButton * buttonReq1;
+    QPushButton * buttonReq2;
+    QPushButton * buttonReq3;
+    QPushButton * buttonReq4;
+    QPushButton * buttonReq5;
+    QPushButton * buttonReq6;
+    QPushButton * buttonReq7;
+    QPushButton * buttonReq8;
 
     TabDataSourceSerail(QWidget *parent)
         : QWidget(parent)
@@ -176,8 +185,31 @@ public:
         console->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
         console->setEnabled(false);
 
-        QVBoxLayout *mainLayout = new QVBoxLayout;
+        QGridLayout *buttonsLayout = new QGridLayout;
+
+        buttonReq0 = new QPushButton("00_PULSES_R", parent);
+        buttonReq1 = new QPushButton("01_MODE_CURRENT_R", parent);
+        buttonReq2 = new QPushButton("02_KOEF_R", parent);
+        buttonReq3 = new QPushButton("03_KOEF_W", parent);
+        buttonReq4 = new QPushButton("04_SPEED_SP_R", parent);
+        buttonReq5 = new QPushButton("05_SPEED_SP_W", parent);
+        buttonReq6 = new QPushButton("06_SPEED_PV_R", parent);
+        buttonReq7 = new QPushButton("07_PROCESS_START", parent);
+        buttonReq8 = new QPushButton("08_PROCESS_STOP", parent);
+
+        buttonsLayout->addWidget(buttonReq0, 0, 0, 1, 1);
+        buttonsLayout->addWidget(buttonReq1, 1, 0, 1, 1);
+        buttonsLayout->addWidget(buttonReq2, 2, 0, 1, 1);
+        buttonsLayout->addWidget(buttonReq3, 3, 0, 1, 1);
+        buttonsLayout->addWidget(buttonReq4, 4, 0, 1, 1);
+        buttonsLayout->addWidget(buttonReq5, 5, 0, 1, 1);
+        buttonsLayout->addWidget(buttonReq6, 6, 0, 1, 1);
+        buttonsLayout->addWidget(buttonReq7, 7, 0, 1, 1);
+        buttonsLayout->addWidget(buttonReq8, 8, 0, 1, 1);
+
+        QHBoxLayout *mainLayout = new QHBoxLayout;
         mainLayout->addWidget(console);
+        mainLayout->addLayout(buttonsLayout);
         setLayout(mainLayout);
     }
 };

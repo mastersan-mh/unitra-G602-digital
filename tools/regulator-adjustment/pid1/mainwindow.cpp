@@ -14,50 +14,6 @@
 
 #include <algorithm>
 
-Parser::Parser()
-    : m_str()
-{
-    m_str.reserve(32);
-}
-
-Parser::~Parser()
-{
-}
-
-void Parser::reset()
-{
-    m_str.clear();
-}
-
-bool Parser::P_string_append(QByteArray::const_iterator &from, const QByteArray::const_iterator to, QString &str)
-{
-    while(from != to)
-    {
-        char ch = (*from);
-	++from;
-	if(ch == 10 || ch == 13)
-        {
-            return true;
-        }
-        str.append(ch);
-    }
-    return false;
-}
-
-
-void Parser::dataRead(const QByteArray &data)
-{
-    QByteArray::const_iterator x = data.constBegin();
-    do
-    {
-        bool string_end = P_string_append(x, data.constEnd(), m_str);
-        if(string_end)
-        {
-            emit stringReady(m_str);
-            m_str.clear();
-        }
-    }while(x != data.constEnd());
-}
 
 /*
 http://www.controlplast.ru/site/index.php?/rinforms/kdocuments/nastroykapid
@@ -71,9 +27,10 @@ MainWindow::MainWindow(QWidget *parent)
 {
     m_ui->init_UI(this);
 
-    m_serial = new QSerialPort(this);
-    m_parser = new Parser();
     m_settings = new SettingsDialog;
+    m_serial = new QSerialPort(this);
+    m_comm = new Comm();
+    m_rpc = new RPCClient();
 
     m_engine = new CTestMotor(0.1);
 
@@ -95,7 +52,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_timer = new QTimer();
     m_timer->setSingleShot(false);
     //timer->setTimerType(Qt::PreciseTimer);
-    connect(m_timer, SIGNAL(timeout()), this, SLOT(mainEvent()));
+    QObject::connect(m_timer, SIGNAL(timeout()), this, SLOT(P_mainEvent()));
     m_timer->start(INTERVAL_MS);
 
     m_time = 0;
@@ -144,11 +101,14 @@ MainWindow::MainWindow(QWidget *parent)
     QObject::connect(m_ui->mainMenu.actionDisconnect, SIGNAL(triggered()), this, SLOT(P_closeSerialPort()));
     QObject::connect(m_ui->mainMenu.actionQuit      , SIGNAL(triggered()), this, SLOT(close()));
     QObject::connect(m_ui->mainMenu.actionConfigure , SIGNAL(triggered()), m_settings, SLOT(show()));
-    //QObject::connect(m_ui->mainMenu.actionClear     , SIGNAL(triggered()), console , SLOT(clear()));
+    QObject::connect(m_ui->mainMenu.actionClear     , SIGNAL(triggered()), m_ui->tab.serial->console , SLOT(clear()));
 
-    QObject::connect(m_serial, SIGNAL(readyRead()), this, SLOT(P_readRawData()));
-    QObject::connect(m_ui->tab.serial->console, SIGNAL(getData(QByteArray)), this, SLOT(P_writeRawData(QByteArray)));
-    QObject::connect(m_parser, SIGNAL(stringReady(QString)), this, SLOT(P_readParcedData(QString)));
+    QObject::connect(m_serial, SIGNAL(readyRead()), this, SLOT(P_appendRawData()));
+    QObject::connect(m_ui->tab.serial->console, SIGNAL(getData(const QByteArray &)), this, SLOT(P_writeRawData(const QByteArray &)));
+    QObject::connect(m_comm, SIGNAL(readyFrameToRead()), this, SLOT(P_readFrame()));
+    QObject::connect(m_comm, SIGNAL(readyOutputStream(const QByteArray &)), this, SLOT(P_writeRawData(const QByteArray &)));
+    QObject::connect(m_rpc, SIGNAL(readyDataToSend(const QByteArray &)), m_comm, SLOT(writeFrame(const QByteArray&)));
+    QObject::connect(m_rpc, SIGNAL(timedout(unsigned)), this, SLOT(P_rpc_request_timedout(unsigned)));
 
     QObject::connect(
                 m_ui->selection.leftValue, SIGNAL(valueChanged(double)),
@@ -188,6 +148,43 @@ MainWindow::MainWindow(QWidget *parent)
     QObject::connect(
                 m_ui->pidK, SIGNAL(valuesChanged(double, double, double)),
                 this, SLOT(pidK_changed(double, double, double))
+                );
+
+    QObject::connect(
+                m_ui->tab.serial->buttonReq0, SIGNAL(clicked(bool)),
+                this, SLOT(P_rpc_reqest_0_pulses_r(bool))
+                );
+    QObject::connect(
+                m_ui->tab.serial->buttonReq1, SIGNAL(clicked(bool)),
+                this, SLOT(P_rpc_reqest_1_mode_current_r(bool))
+                );
+    QObject::connect(
+                m_ui->tab.serial->buttonReq2, SIGNAL(clicked(bool)),
+                this, SLOT(P_rpc_reqest_2_koef_r(bool))
+                );
+    QObject::connect(
+                m_ui->tab.serial->buttonReq3, SIGNAL(clicked(bool)),
+                this, SLOT(P_rpc_reqest_3_koef_w(bool))
+                );
+    QObject::connect(
+                m_ui->tab.serial->buttonReq4, SIGNAL(clicked(bool)),
+                this, SLOT(P_rpc_reqest_4_speed_SP_r(bool))
+                );
+    QObject::connect(
+                m_ui->tab.serial->buttonReq5, SIGNAL(clicked(bool)),
+                this, SLOT(P_rpc_reqest_5_speed_SP_w(bool))
+                );
+    QObject::connect(
+                m_ui->tab.serial->buttonReq6, SIGNAL(clicked(bool)),
+                this, SLOT(P_rpc_reqest_6_speed_PV_r(bool))
+                );
+    QObject::connect(
+                m_ui->tab.serial->buttonReq7, SIGNAL(clicked(bool)),
+                this, SLOT(P_rpc_reqest_7_process_start(bool))
+                );
+    QObject::connect(
+                m_ui->tab.serial->buttonReq8, SIGNAL(clicked(bool)),
+                this, SLOT(P_rpc_reqest_8_process_stop(bool))
                 );
 
     QObject::connect(
@@ -241,11 +238,18 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
+    if (m_serial->isOpen())
+    {
+        m_serial->close();
+    }
+
+    delete m_rpc;
+    delete m_comm;
+    delete m_serial;
     delete m_settings;
     delete m_ui;
 }
 
-//! [4]
 void MainWindow::P_openSerialPort()
 {
     SettingsDialog::Settings p = m_settings->settings();
@@ -286,28 +290,105 @@ void MainWindow::P_closeSerialPort()
     m_ui->statusBar->showMessage(tr("Disconnected"));
 }
 
+void MainWindow::P_rpc_request_timedout(unsigned ruid)
+{
+    QMessageBox::critical(this, tr("Error"), QString("Request timed out of RUID %1").arg(ruid));
+    m_ui->statusBar->showMessage(tr("Request timed out"));
+}
+
 void MainWindow::P_writeRawData(const QByteArray &data)
 {
     m_serial->write(data);
 }
 
-void MainWindow::P_readRawData()
+void MainWindow::P_appendRawData()
 {
-    QByteArray data = m_serial->readAll();
-    m_ui->tab.serial->console->putData(data);
-
-    m_parser->dataRead(data);
-
+    QByteArray data;
+    while(m_serial->bytesAvailable() > 0)
+    {
+        data = m_serial->readAll();
+        m_ui->tab.serial->console->putData(data);
+        m_comm->appendInputStream(data);
+    }
 }
 
-void MainWindow::P_readParcedData(const QString & in)
+void MainWindow::P_readFrame()
 {
-	QString str(in.trimmed());
-	if(str.length() == 0)
-	{
-		return;
-	}
-	QStringList list = str.split(QStringLiteral(" "));
+    QByteArray frame;
+    while(m_comm->readFrame(frame))
+    {
+        m_rpc->replyReceived(frame);
+    }
+}
+
+void MainWindow::P_rpc_reqest_0_pulses_r(bool)
+{
+    uint8_t procId = RPC_FUNC_00_PULSES_R;
+    QVector<uint16_t> argv;
+    m_rpc->requestSend(procId, argv);
+}
+
+void MainWindow::P_rpc_reqest_1_mode_current_r(bool)
+{
+    uint8_t procId = RPC_FUNC_01_MODE_CURRENT_R;
+    QVector<uint16_t> argv;
+    m_rpc->requestSend(procId, argv);
+}
+
+void MainWindow::P_rpc_reqest_2_koef_r(bool)
+{
+    uint8_t procId = RPC_FUNC_02_KOEF_R;
+    QVector<uint16_t> argv;
+    m_rpc->requestSend(procId, argv);
+}
+
+void MainWindow::P_rpc_reqest_3_koef_w(bool)
+{
+    uint8_t procId = RPC_FUNC_03_KOEF_W;
+    QVector<uint16_t> argv;
+    argv.append(1);
+    argv.append(0);
+    argv.append(2);
+    argv.append(0);
+    argv.append(3);
+    argv.append(0);
+    m_rpc->requestSend(procId, argv);
+}
+
+void MainWindow::P_rpc_reqest_4_speed_SP_r(bool)
+{
+    uint8_t procId = RPC_FUNC_04_SPEED_SP_R;
+    QVector<uint16_t> argv;
+    m_rpc->requestSend(procId, argv);
+}
+
+void MainWindow::P_rpc_reqest_5_speed_SP_w(bool)
+{
+    uint8_t procId = RPC_FUNC_05_SPEED_SP_W;
+    QVector<uint16_t> argv;
+    argv.append(33);
+    m_rpc->requestSend(procId, argv);
+}
+
+void MainWindow::P_rpc_reqest_6_speed_PV_r(bool)
+{
+    uint8_t procId = RPC_FUNC_06_SPEED_PV_R;
+    QVector<uint16_t> argv;
+    m_rpc->requestSend(procId, argv);
+}
+
+void MainWindow::P_rpc_reqest_7_process_start(bool)
+{
+    uint8_t procId = RPC_FUNC_07_PROCESS_START;
+    QVector<uint16_t> argv;
+    m_rpc->requestSend(procId, argv);
+}
+
+void MainWindow::P_rpc_reqest_8_process_stop(bool)
+{
+    uint8_t procId = RPC_FUNC_08_PROCESS_STOP;
+    QVector<uint16_t> argv;
+    m_rpc->requestSend(procId, argv);
 }
 
 void MainWindow::pidK_changed(double Kp, double Ki, double Kd)
@@ -464,7 +545,7 @@ double MainWindow::map_integer_to_double(
 }
 
 
-void MainWindow::mainEvent()
+void MainWindow::P_mainEvent()
 {
     fan::FuncDescr fdescr;
 

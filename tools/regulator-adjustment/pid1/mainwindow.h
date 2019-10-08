@@ -7,22 +7,8 @@
 #include "ctestmotor.h"
 
 #include "pid/pid.h"
-
-class Parser: public QObject
-{
-    Q_OBJECT
-public:
-    Parser();
-    virtual ~Parser();
-    void reset();
-public slots:
-    void dataRead(const QByteArray &data);
-signals:
-    void stringReady(const QString &);
-private:
-    bool P_string_append(QByteArray::const_iterator &from, const QByteArray::const_iterator to, QString &str);
-    QString m_str;
-};
+#include "comm.hpp"
+#include "RPCClient.hpp"
 
 class MainWindow : public QMainWindow
 {
@@ -56,14 +42,15 @@ private slots:
     void setpoint_sliderChangeValue(int value);
     void setpoint_spinBoxChangeValue(int value);
 
-    void mainEvent();
+    void P_mainEvent();
 
 private:
 
     MainWindow_Ui * m_ui;
     SettingsDialog *m_settings;
     QSerialPort *m_serial;
-    Parser * m_parser;
+    Comm * m_comm;
+    RPCClient * m_rpc;
 
     double m_processVariable;
     bool m_setpoint_manual;
@@ -121,9 +108,21 @@ private:
 private slots:
     void P_openSerialPort();
     void P_closeSerialPort();
+    void P_rpc_request_timedout(unsigned ruid);
+    /** @brief Добавить сырые данные из m_serial в консоль и m_comm*/
+    void P_appendRawData();
+    /** @brief Прочитать кадр данных для RPC */
+    void P_readFrame();
     void P_writeRawData(const QByteArray &data);
-    void P_readRawData();
-    void P_readParcedData(const QString &str);
+    void P_rpc_reqest_0_pulses_r(bool);
+    void P_rpc_reqest_1_mode_current_r(bool);
+    void P_rpc_reqest_2_koef_r(bool);
+    void P_rpc_reqest_3_koef_w(bool);
+    void P_rpc_reqest_4_speed_SP_r(bool);
+    void P_rpc_reqest_5_speed_SP_w(bool);
+    void P_rpc_reqest_6_speed_PV_r(bool);
+    void P_rpc_reqest_7_process_start(bool);
+    void P_rpc_reqest_8_process_stop(bool);
 
 };
 

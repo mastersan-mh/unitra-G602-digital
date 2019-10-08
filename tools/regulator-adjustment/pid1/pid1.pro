@@ -31,9 +31,13 @@ SOURCES  += main.cpp\
             pid/autopid.cpp \
             pid/pidadjustp.cpp \
             pid/fan.cpp \
+            GClasses/GCommBase.cpp \
+            comm.cpp \
+            RPCClient.cpp
 
 HEADERS  += mainwindow.h \
             mainwindow_ui.h \
+            defs.h \
             settingsdialog_ui.h \
             settingsdialog.h \
             qcustomplot.h \
@@ -44,6 +48,9 @@ HEADERS  += mainwindow.h \
             pid/autopid.hpp \
             pid/pidadjustp.h \
             pid/fan.h \
-            defs.h \
+            GClasses/GCommBase.hpp \
+            GClasses/GRPCDefs.hpp \
+            comm.hpp \
+            RPCClient.hpp
 
 FORMS    +=

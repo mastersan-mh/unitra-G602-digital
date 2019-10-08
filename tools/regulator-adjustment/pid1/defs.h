@@ -57,5 +57,15 @@
 
 #endif
 
+#define RPC_FUNC_00_PULSES_R     0x00
+#define RPC_FUNC_01_MODE_CURRENT_R 0x01
+#define RPC_FUNC_02_KOEF_R         0x02
+#define RPC_FUNC_03_KOEF_W         0x03
+#define RPC_FUNC_04_SPEED_SP_R     0x04
+#define RPC_FUNC_05_SPEED_SP_W     0x05
+#define RPC_FUNC_06_SPEED_PV_R     0x06
+#define RPC_FUNC_07_PROCESS_START  0x07
+#define RPC_FUNC_08_PROCESS_STOP   0x08
+
 #endif // DEFS_H
 

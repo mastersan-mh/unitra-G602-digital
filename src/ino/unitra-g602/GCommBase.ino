@@ -1,7 +1,7 @@
 
 #include "GCommBase.hpp"
 
-#define SHOW_CRC
+//#define SHOW_CRC
 #ifdef SHOW_CRC
 #   include "config.hpp"
 #endif
