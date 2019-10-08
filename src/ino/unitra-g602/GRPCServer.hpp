@@ -1,30 +1,27 @@
 /**
- * @file GRPC.hpp
+ * @file GRPCServer.hpp
  * @brief Remote procedure call class
  */
 
-#ifndef GRPC_HPP_INCLUDED_
-#define GRPC_HPP_INCLUDED_
+#ifndef GRPCSERVER_HPP_INCLUDED_
+#define GRPCSERVER_HPP_INCLUDED_
+
+#include "GRPCDefs.hpp"
 
 #include <stdint.h>
 
-#define GRPC_ERR_OK 0
-#define GRPC_ERR_PARSING 1
-#define GRPC_ERR_INVALID_MODE 2 /* The procedure is not available in the current mode. */
-#define GRPC_ERR_INVALID_ARGUMENTS 3
-#define GRPC_ERR_OUT_OF_RANGE 4
-
-#define GRPC_ARGV_SIZE 8
-#define GRPC_RESV_SIZE 8
-#define GRPC_SENDBUF_SIZE \
+#define GRPCSERVER_ARGV_SIZE 8
+#define GRPCSERVER_RESV_SIZE 8
+#define GRPCSERVER_SENDBUF_SIZE \
         ( \
-                sizeof(uint16_t) + /* <ruid> */ \
-        sizeof(uint8_t) + /* <error> */ \
+        sizeof(uint8_t) + /* <type> */ \
+        sizeof(uint8_t) + /* <error> / event */ \
+        sizeof(uint16_t) + /* <ruid> */ \
         sizeof(uint16_t) + /* <resc> */ \
-        GRPC_RESV_SIZE * sizeof(uint16_t) /* <resv> */ \
+        GRPCSERVER_RESV_SIZE * sizeof(uint16_t) /* <resv> */ \
         )
 
-class GRPC
+class GRPCServer
 {
 public:
     enum class Error
@@ -37,8 +34,7 @@ public:
     /**
      * @return err
      */
-    typedef uint8_t (*procedure_t)(
-            uint16_t ruid,
+    typedef uint8_t (*func_t)(
             unsigned argc,
             uint16_t * argv,
             unsigned * resc,
@@ -46,21 +42,21 @@ public:
             void * extraargs
     );
 
-    GRPC() = delete;
-    GRPC(
+    GRPCServer() = delete;
+    GRPCServer(
             void (*send)(const uint8_t * data, unsigned data_size, void * extraargs),
             void * extraargs
     );
-    virtual ~GRPC();
-    GRPC(const GRPC &) = delete;
-    GRPC& operator=(const GRPC &) = delete;
-    void procedures_register(const procedure_t procs[]);
+    virtual ~GRPCServer();
+    GRPCServer(const GRPCServer &) = delete;
+    GRPCServer& operator=(const GRPCServer &) = delete;
+    void funcs_register(const func_t funcs[]);
     /**
      * @brief Receive the character and call the command
      */
     Error handle(const uint8_t * data, unsigned size);
-    Error send(
-        uint16_t ruid,
+    Error event(
+        uint8_t eventId,
         unsigned resc,
         const uint16_t * resv
     );
@@ -71,11 +67,11 @@ private:
 
     void (*m_send)(const uint8_t * data, unsigned data_size, void * extraargs);
 
-    const procedure_t *m_procedures;
+    const func_t *m_funcs;
     unsigned m_func_num;
 
-    uint16_t m_argv[GRPC_ARGV_SIZE];
-    uint16_t m_resv[GRPC_RESV_SIZE];
+    uint16_t m_argv[GRPCSERVER_ARGV_SIZE];
+    uint16_t m_resv[GRPCSERVER_RESV_SIZE];
 
     static int P_u8_get(const uint8_t * data, unsigned size, uint8_t * value);
     static int P_u16_get(const uint8_t * data, unsigned size, uint16_t * value);
@@ -91,9 +87,18 @@ private:
             uint16_t * argv
     );
 
-    int P_encode(
-            uint16_t ruid,
+    int P_encode_reply(
             uint8_t err,
+            uint16_t ruid,
+            unsigned resc,
+            const uint16_t * resv,
+            uint8_t * reply,
+            unsigned reply_capacity,
+            unsigned * reply_size
+    );
+
+    int P_encode_event(
+            uint8_t eventId,
             unsigned resc,
             const uint16_t * resv,
             uint8_t * reply,
@@ -103,4 +108,4 @@ private:
 
 };
 
-#endif /* GRPC_HPP_INCLUDED_ */
+#endif /* GRPCSERVER_HPP_INCLUDED_ */

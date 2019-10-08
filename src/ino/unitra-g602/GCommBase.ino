@@ -1,7 +1,10 @@
 
 #include "GCommBase.hpp"
 
-#include "config.hpp"
+#define SHOW_CRC
+#ifdef SHOW_CRC
+#   include "config.hpp"
+#endif
 
 #include <string.h>
 
@@ -102,7 +105,7 @@ GCommBase::~GCommBase()
 
 }
 
-unsigned GCommBase::readFrame(uint8_t * data, unsigned capacity, unsigned * rest)
+GCommBase::Error GCommBase::readFrame(uint8_t * data, unsigned capacity, unsigned * size)
 {
     int avail;
     while((avail = bytesRawAvailable()) > 0)
@@ -113,10 +116,11 @@ unsigned GCommBase::readFrame(uint8_t * data, unsigned capacity, unsigned * rest
         {
             case fsmResult::SUCCESS:
             {
-                unsigned sz = min(capacity, m_buf_size - CRC_SIZE);
-                (*rest) = avail - sz;
+                unsigned framesize = m_buf_size - CRC_SIZE;
+                unsigned sz = min(capacity, framesize);
                 memcpy(data, m_buf, sz);
-                return sz;
+                (*size) = sz;
+                return ( capacity >= framesize ? Error::OK : Error::BUFFER_TOO_SMALL );
             }
             case fsmResult::NEXT:
             {
@@ -124,14 +128,12 @@ unsigned GCommBase::readFrame(uint8_t * data, unsigned capacity, unsigned * rest
             }
             case fsmResult::FAILED:
             {
-                unsigned sz = 0;
-                (*rest) = avail - sz;
-                return sz;
+                return Error::FAILED;
             }
         }
     }
 
-    return 0;
+    return Error::NOT_READY;
 }
 
 void GCommBase::writeFrame(const uint8_t * data, unsigned size)
@@ -171,10 +173,6 @@ GCommBase::fsmResult GCommBase::P_fsm(char ch)
                 m_buf_size = 0;
                 next_state = State::S1_GET_HI;
             }
-            else if(P_char_is_terminal(ch))
-            {
-                /* just skip it */
-            }
             else
             {
                 fsmRes = fsmResult::FAILED;
@@ -187,29 +185,39 @@ GCommBase::fsmResult GCommBase::P_fsm(char ch)
             {
                 if(!P_crc_check(m_buf, m_buf_size))
                 {
+                    m_buf_size = 0;
                     next_state = State::S0_AWAIT;
                     fsmRes = fsmResult::FAILED;
-                    break;
                 }
                 else
                 {
                     next_state = State::S0_AWAIT;
                     fsmRes = fsmResult::SUCCESS;
-                    break;
                 }
             }
             else
             {
-                uint8_t half;
-                res = P_char_to_digit(ch, &half);
-                if(res)
+                if(m_buf_size >= GCOMMBASE_BUF_SIZE)
                 {
+                    m_buf_size = 0;
                     next_state = State::S0_AWAIT;
                     fsmRes = fsmResult::FAILED;
                     break;
                 }
-                m_buf[m_buf_size] = (uint8_t)(half << 4);
-                next_state = State::S2_GET_LO;
+
+                uint8_t half;
+                res = P_char_to_digit(ch, &half);
+                if(res)
+                {
+                    m_buf_size = 0;
+                    next_state = State::S0_AWAIT;
+                    fsmRes = fsmResult::FAILED;
+                }
+                else
+                {
+                    m_buf[m_buf_size] = (uint8_t)(half << 4);
+                    next_state = State::S2_GET_LO;
+                }
             }
             break;
         }
@@ -219,11 +227,16 @@ GCommBase::fsmResult GCommBase::P_fsm(char ch)
             res = P_char_to_digit(ch, &half);
             if(res)
             {
-                return fsmResult::FAILED;
+                m_buf_size = 0;
+                next_state = State::S0_AWAIT;
+                fsmRes = fsmResult::FAILED;
             }
-            m_buf[m_buf_size] = m_buf[m_buf_size] | half;
-            ++m_buf_size;
-            next_state = State::S1_GET_HI;
+            else
+            {
+                m_buf[m_buf_size] = m_buf[m_buf_size] | half;
+                ++m_buf_size;
+                next_state = State::S1_GET_HI;
+            }
             break;
         }
     }
@@ -244,7 +257,7 @@ bool GCommBase::P_crc_check(const uint8_t * data, unsigned size)
 {
     if(size <= CRC_SIZE) return false;
 
-    uint16_t crc_expected = BUILD_16(data[size - 2], data[size - 1]);
+    uint16_t crc = BUILD_16(data[size - 2], data[size - 1]);
 
     int rest = size - CRC_SIZE;
     struct crc_ctx ctx;
@@ -253,16 +266,18 @@ bool GCommBase::P_crc_check(const uint8_t * data, unsigned size)
     {
         P_crc_16_ibm_reversive_byte_add(&ctx, *(data++));
     }
-    uint16_t crc = P_crc_16_ibm_reversive_done(&ctx);
+    uint16_t crc_expected = P_crc_16_ibm_reversive_done(&ctx);
+
+#ifdef SHOW_CRC
+    DEBUG_PRINT("crc = ");
+    DEBUG_PRINTLN(crc);
 
     DEBUG_PRINT("crc_expected = ");
     DEBUG_PRINTLN(crc_expected);
 
-    DEBUG_PRINT("crc = ");
-    DEBUG_PRINTLN(crc);
-
     DEBUG_PRINT("eq? = ");
-    DEBUG_PRINTLN(crc == crc_expected);
+    DEBUG_PRINTLN(crc_expected == crc);
+#endif
 
-    return (crc == crc_expected);
+    return (crc_expected == crc);
 }

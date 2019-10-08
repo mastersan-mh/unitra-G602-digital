@@ -27,6 +27,9 @@
 #define G602_POTENTIOMETER_MIN 512 /* full scale of potentiometer = 1024 -> 1024/2 */
 #define G602_POTENTIOMETER_MAX (G602_POTENTIOMETER_HALF * 2 - 1) /* full scale of potentiometer = 1024 -> 1024/2 */
 
+#define G602_EVENT_MODE_CHANGED 0x00
+#define G602_EVENT_SPPV 0x01
+
 #define G602_ROTATE_MEASURES__NUM 5
 #define G602_SHEDULER_TASKS__NUM 10
 

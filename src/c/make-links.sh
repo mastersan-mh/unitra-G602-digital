@@ -21,8 +21,9 @@ GCommBase.hpp
 GCommBase.ino
 GComm.hpp
 GComm.ino
-GRPC.hpp
-GRPC.ino
+GRPCDefs.hpp
+GRPCServer.hpp
+GRPCServer.ino
 AverageTinyMemory.hpp
 AverageTinyMemory.ino
 "

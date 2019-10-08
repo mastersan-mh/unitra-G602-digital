@@ -332,15 +332,7 @@ void G602::P_task_rotator_handler(size_t id, GTime_t time, GTime_t now, G602Sche
 
         if(self->m_permanent_process_send)
         {
-#define RESC 1
-            unsigned resc = RESC;
-            uint16_t resv[RESC] = { (uint16_t)speed };
-            self->m_rpc.send(
-                self->m_permanent_process_send_ruid,
-                resc,
-                resv
-            );
-
+            self->eventSPPV(speed);
         }
 
 

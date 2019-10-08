@@ -14,11 +14,12 @@ class GCommBase
 {
 public:
 
-    enum class State
+    enum class Error
     {
-        S0_AWAIT,
-        S1_GET_HI,
-        S2_GET_LO,
+        OK, /* frame is ready */
+        BUFFER_TOO_SMALL, /* buffer too small to store entire frame, only part stored */
+        NOT_READY, /* frame is not ready, only part readed */
+        FAILED, /* error while frame reading */
     };
 
     GCommBase();
@@ -26,7 +27,11 @@ public:
     GCommBase(const GCommBase &) = delete;
     GCommBase& operator=(const GCommBase &) = delete;
 
-    unsigned readFrame(uint8_t * data, unsigned capacity, unsigned * rest);
+    /**
+     * @brief Read entire frame
+     * @return Frame is ready?
+     */
+    Error readFrame(uint8_t * data, unsigned capacity, unsigned * size);
     void writeFrame(const uint8_t * data, unsigned size);
 
 
@@ -35,6 +40,13 @@ private:
     virtual unsigned bytesRawAvailable() = 0;
     virtual int  byteReadRaw() = 0;
     virtual void byteWriteRaw(uint8_t byte) = 0;
+
+    enum class State
+    {
+        S0_AWAIT,
+        S1_GET_HI,
+        S2_GET_LO,
+    };
 
     enum class fsmResult
     {
