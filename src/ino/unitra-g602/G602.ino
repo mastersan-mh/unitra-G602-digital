@@ -512,7 +512,7 @@ uint8_t G602::P_rpc_func_00_pulses_r(unsigned argc, uint16_t * argv, unsigned * 
 {
     DEBUG_PRINTLN("P_rpc_func_00_pulses_r():");
 
-    if(argc != 0) return GRPC_REPLY_ERR_INVALID_ARGUMENTS;
+    if(argc != 0) return GRPC_REPLY_ERR_INVALID_ARGUMENTS_AMOUNT;
 
     (*resc) = 1;
     resv[0] = G602_TABLE_PULSES_PER_REV;
@@ -525,7 +525,7 @@ uint8_t G602::P_rpc_func_00_pulses_r(unsigned argc, uint16_t * argv, unsigned * 
 uint8_t G602::P_rpc_func_01_mode_current_r(unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args)
 {
     G602_DEFINE_SELF();
-    if(argc != 0) return GRPC_REPLY_ERR_INVALID_ARGUMENTS;
+    if(argc != 0) return GRPC_REPLY_ERR_INVALID_ARGUMENTS_AMOUNT;
 
     DEBUG_PRINTLN("P_rpc_func_01_mode_current_r():");
 
@@ -543,7 +543,7 @@ uint8_t G602::P_rpc_func_01_mode_current_r(unsigned argc, uint16_t * argv, unsig
 uint8_t G602::P_rpc_func_02_koef_r(unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args)
 {
     //G602_DEFINE_SELF();
-    if(argc != 0) return GRPC_REPLY_ERR_INVALID_ARGUMENTS;
+    if(argc != 0) return GRPC_REPLY_ERR_INVALID_ARGUMENTS_AMOUNT;
     (*resc) = 6;
 
     nostd::Fixed32 Kp(1.1);
@@ -575,7 +575,7 @@ uint8_t G602::P_rpc_func_02_koef_r(unsigned argc, uint16_t * argv, unsigned * re
 uint8_t G602::P_rpc_func_03_koef_w(unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args)
 {
     //G602_DEFINE_SELF();
-    if(argc != 6) return GRPC_REPLY_ERR_INVALID_ARGUMENTS;
+    if(argc != 6) return GRPC_REPLY_ERR_INVALID_ARGUMENTS_AMOUNT;
 
     uint32_t Kp_raw;
     uint32_t Ki_raw;
@@ -603,7 +603,7 @@ uint8_t G602::P_rpc_func_03_koef_w(unsigned argc, uint16_t * argv, unsigned * re
 uint8_t G602::P_rpc_func_04_speed_SP_r(unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args)
 {
     G602_DEFINE_SELF();
-    if(argc != 0) return GRPC_REPLY_ERR_INVALID_ARGUMENTS;
+    if(argc != 0) return GRPC_REPLY_ERR_INVALID_ARGUMENTS_AMOUNT;
 
     app::Ctrl::speed_t speed = self->m_ctrl.speedFreeGet();
     (*resc) = 1;
@@ -628,7 +628,7 @@ uint8_t G602::P_rpc_func_05_speed_SP_w(unsigned argc, uint16_t * argv, unsigned 
     {
         return GRPC_REPLY_ERR_INVALID_MODE;
     }
-    if(argc != 1) return GRPC_REPLY_ERR_INVALID_ARGUMENTS;
+    if(argc != 1) return GRPC_REPLY_ERR_INVALID_ARGUMENTS_AMOUNT;
 
     unsigned speed = argv[0];
     if(speed > G602_SPEED_MAX)
@@ -643,7 +643,7 @@ uint8_t G602::P_rpc_func_05_speed_SP_w(unsigned argc, uint16_t * argv, unsigned 
 uint8_t G602::P_rpc_func_06_speed_PV_r(unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args)
 {
     //G602_DEFINE_SELF();
-    if(argc != 0) return GRPC_REPLY_ERR_INVALID_ARGUMENTS;
+    if(argc != 0) return GRPC_REPLY_ERR_INVALID_ARGUMENTS_AMOUNT;
 
     (*resc) = 1;
     resv[0] = 666;
@@ -657,7 +657,7 @@ uint8_t G602::P_rpc_func_06_speed_PV_r(unsigned argc, uint16_t * argv, unsigned 
 uint8_t G602::P_rpc_func_07_process_start(unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args)
 {
     G602_DEFINE_SELF();
-    if(argc != 0) return GRPC_REPLY_ERR_INVALID_ARGUMENTS;
+    if(argc != 0) return GRPC_REPLY_ERR_INVALID_ARGUMENTS_AMOUNT;
     self->m_permanent_process_send = true;
     return GRPC_REPLY_ERR_OK;
 }
@@ -668,7 +668,7 @@ uint8_t G602::P_rpc_func_07_process_start(unsigned argc, uint16_t * argv, unsign
 uint8_t G602::P_rpc_func_08_process_stop(unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args)
 {
     G602_DEFINE_SELF();
-    if(argc != 0) return GRPC_REPLY_ERR_INVALID_ARGUMENTS;
+    if(argc != 0) return GRPC_REPLY_ERR_INVALID_ARGUMENTS_AMOUNT;
     self->m_permanent_process_send = false;
     return GRPC_REPLY_ERR_OK;
 }

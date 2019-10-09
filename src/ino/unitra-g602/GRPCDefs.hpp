@@ -11,7 +11,7 @@
 
 #define GRPC_REPLY_ERR_OK 0
 #define GRPC_REPLY_ERR_INVALID_MODE 1 /* The procedure is not available in the current mode. */
-#define GRPC_REPLY_ERR_INVALID_ARGUMENTS 2
+#define GRPC_REPLY_ERR_INVALID_ARGUMENTS_AMOUNT 2
 #define GRPC_REPLY_ERR_OUT_OF_RANGE 3
 
 #endif /* GRPC_HPP_INCLUDED_ */
