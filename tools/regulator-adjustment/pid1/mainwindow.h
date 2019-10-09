@@ -8,7 +8,7 @@
 
 #include "pid/pid.h"
 #include "comm.hpp"
-#include "RPCClient.hpp"
+#include "Device.hpp"
 
 class MainWindow : public QMainWindow
 {
@@ -50,7 +50,7 @@ private:
     SettingsDialog *m_settings;
     QSerialPort *m_serial;
     Comm * m_comm;
-    RPCClient * m_rpc;
+    Device * m_device;
 
     double m_processVariable;
     bool m_setpoint_manual;
@@ -108,21 +108,26 @@ private:
 private slots:
     void P_openSerialPort();
     void P_closeSerialPort();
-    void P_rpc_request_timedout(unsigned ruid);
+
+    void P_runModeChange(bool simulation);
+
     /** @brief Добавить сырые данные из m_serial в консоль и m_comm*/
     void P_appendRawData();
     /** @brief Прочитать кадр данных для RPC */
     void P_readFrame();
     void P_writeRawData(const QByteArray &data);
-    void P_rpc_reqest_0_pulses_r(bool);
-    void P_rpc_reqest_1_mode_current_r(bool);
-    void P_rpc_reqest_2_koef_r(bool);
-    void P_rpc_reqest_3_koef_w(bool);
-    void P_rpc_reqest_4_speed_SP_r(bool);
-    void P_rpc_reqest_5_speed_SP_w(bool);
-    void P_rpc_reqest_6_speed_PV_r(bool);
-    void P_rpc_reqest_7_process_start(bool);
-    void P_rpc_reqest_8_process_stop(bool);
+    void P_button_rpc_request_0_pulses_r(bool);
+    void P_button_rpc_request_1_mode_current_r(bool);
+    void P_button_rpc_request_2_koef_r(bool);
+    void P_button_rpc_request_3_koef_w(bool);
+    void P_button_rpc_request_4_speed_SP_r(bool);
+    void P_button_rpc_request_5_speed_SP_w(bool);
+    void P_button_rpc_request_6_speed_PV_r(bool);
+    void P_button_rpc_request_7_process_start(bool);
+    void P_button_rpc_request_8_process_stop(bool);
+
+    void P_device_status_update() const;
+    const QString P_device_mode_string_get(Device::Mode mode) const;
 
 };
 

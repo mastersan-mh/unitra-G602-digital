@@ -1,6 +1,7 @@
 #include "RPCClient.hpp"
 
 #include "GClasses/GRPCDefs.hpp"
+#include "defs.h"
 
 #include <QVector>
 
@@ -50,7 +51,12 @@ RPCClient::RPCClient(QObject *parent)
 {
 }
 
-void RPCClient::requestSend(uint8_t funcId, QVector<uint16_t> argv)
+void RPCClient::timeoutSet(int timeout)
+{
+    m_timeout = timeout;
+}
+
+void RPCClient::requestSend(uint8_t funcId, const QVector<uint16_t> & argv)
 {
     QByteArray data;
     P_encode(m_ruid_last, funcId, argv, data);
@@ -59,10 +65,14 @@ void RPCClient::requestSend(uint8_t funcId, QVector<uint16_t> argv)
     QObject::connect(timer, SIGNAL(timeout()), this, SLOT(P_timeoutEvent()));
     timer->setSingleShot(true);
     timer->start(m_timeout);
-    m_awaiting_requests[m_ruid_last] = timer;
 
-    emit readyDataToSend(data);
-    emit packetRuidSended(m_ruid_last);
+    struct awaiting_request req;
+    req.funcId = funcId;
+    req.timer = timer;
+    m_awaiting_requests[m_ruid_last] = req;
+
+    emit dataReadyToSend(data);
+    emit requestSended(m_ruid_last, funcId, argv);
 
     if(m_ruid_last == 0xFFFF)
     {
@@ -74,28 +84,36 @@ void RPCClient::requestSend(uint8_t funcId, QVector<uint16_t> argv)
     }
 }
 
-void RPCClient::replyReceived(const QByteArray & reply)
+void RPCClient::dataReplyReceive(const QByteArray & reply)
 {
     int res;
     IncomingMsg msg;
     res = P_decode(reply, msg);
     if(res == 0)
     {
-        switch(msg.typeGet())
+        switch(msg.type)
         {
-            case IncomingMsg::Type::REPLY:
+            case GRPC_OUTMSG_TYPE_REPLY:
             {
-                uint16_t ruid = msg.ruidGet();
-                P_awaiting_request_pop(ruid);
-                emit packetRuidReceived(ruid);
-                if(msg.errorGet() == 0)
+                uint16_t ruid = msg.ruid;
+                uint8_t funcId;
+                if(P_awaiting_request_pop(ruid, funcId))
                 {
-                    const QVector<uint16_t> & resv = msg.resvGet();
+                    emit replyReceived(
+                                ruid,
+                                funcId,
+                                msg.error,
+                                msg.resv
+                                );
                 }
                 break;
             }
-            case IncomingMsg::Type::EVENT:
+            case GRPC_OUTMSG_TYPE_EVENT:
             {
+                emit eventReceived(
+                            msg.eventId,
+                            msg.resv
+                            );
                 break;
             }
 
@@ -122,45 +140,41 @@ int RPCClient::P_encode(
     return 0;
 }
 
-int RPCClient::P_decode(const QByteArray & data
-        , IncomingMsg &msg)
+int RPCClient::P_decode(const QByteArray & data, IncomingMsg &msg)
 {
     QByteArray::const_iterator it = data.cbegin();
 
-    uint8_t type;
     uint8_t resc;
 
-    if(P_u8_get(it, data, &type)) return -1;
+    if(P_u8_get(it, data, &msg.type)) return -1;
 
-    switch(type)
+    switch(msg.type)
     {
         case GRPC_OUTMSG_TYPE_REPLY:
         {
-            msg.m_type = IncomingMsg::Type::REPLY;
-            if(P_u16_get(it, data, &msg.m_ruid)) return -1;
-            if(P_u8_get(it, data, &msg.m_error)) return -1;
+            if(P_u16_get(it, data, &msg.ruid)) return -1;
+            if(P_u8_get(it, data, &msg.error)) return -1;
             if(P_u8_get(it, data, &resc)) return -1;
             unsigned i;
             for(i = 0; i < resc; ++i)
             {
                 uint16_t res;
                 if(P_u16_get(it, data, &res)) return -1;
-                msg.m_resv.push_back(res);
+                msg.resv.push_back(res);
             }
 
             break;
         }
         case GRPC_OUTMSG_TYPE_EVENT:
         {
-            msg.m_type = IncomingMsg::Type::EVENT;
-            if(P_u8_get(it, data, &msg.m_eventId)) return -1;
+            if(P_u8_get(it, data, &msg.eventId)) return -1;
             if(P_u8_get(it, data, &resc)) return -1;
             unsigned i;
             for(i = 0; i < resc; ++i)
             {
                 uint16_t res;
                 if(P_u16_get(it, data, &res)) return -1;
-                msg.m_resv.push_back(res);
+                msg.resv.push_back(res);
             }
             break;
         }
@@ -173,7 +187,7 @@ long RPCClient::P_request_timedout_get() const
 {
     for(request_t::const_iterator it = m_awaiting_requests.cbegin(); it != m_awaiting_requests.cend(); ++it)
     {
-        if(!it.value()->isActive()) return it.key();
+        if(!it.value().timer->isActive()) return it.key();
     }
     return -1;
 }
@@ -189,53 +203,39 @@ void RPCClient::P_timeoutEvent()
         }
         else
         {
-            P_awaiting_request_pop(ruid);
+            uint8_t funcId;
+            P_awaiting_request_pop(ruid, funcId);
             emit timedout(ruid);
         }
     }
 }
 
-void RPCClient::P_awaiting_request_pop(uint16_t ruid)
+/**
+ * return true | false = Exists or not
+ */
+bool RPCClient::P_awaiting_request_pop(uint16_t ruid, uint8_t & funcId)
 {
     if(m_awaiting_requests.count(ruid) > 0)
     {
-        QTimer * timer = m_awaiting_requests.take(ruid);
+        struct awaiting_request req = m_awaiting_requests.take(ruid);
+        QTimer * timer = req.timer;
         QObject::disconnect(timer, SIGNAL(timeout()), this, SLOT(P_timeoutEvent()));
         delete timer;
+        funcId = req.funcId;
+        return true;
     }
+    return false;
 }
 
 
 RPCClient::IncomingMsg::IncomingMsg()
-    : m_type()
-    , m_error()
-    , m_ruid()
-    , m_resv()
+    : type()
+    , error()
+    , ruid()
+    , resv()
 {
 }
 
 RPCClient::IncomingMsg::~IncomingMsg()
 {
-}
-
-RPCClient::IncomingMsg::Type RPCClient::IncomingMsg::typeGet() const
-{
-    return m_type;
-}
-
-uint8_t RPCClient::IncomingMsg::errorGet() const
-{
-    if(m_type != Type::REPLY)throw Error::INVALID_MSG_TYPE;
-    return m_error;
-}
-
-uint16_t RPCClient::IncomingMsg::ruidGet() const
-{
-    if(m_type != Type::REPLY)throw Error::INVALID_MSG_TYPE;
-    return m_ruid;
-}
-
-const QVector<uint16_t> & RPCClient::IncomingMsg::resvGet() const
-{
-    return m_resv;
 }

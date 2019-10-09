@@ -166,6 +166,7 @@ class TabDataSourceSerail : public QWidget
     Q_OBJECT
 
 public:
+    QLabel * deviceStatusLabel;
     Console *console;
     QPushButton * buttonReq0;
     QPushButton * buttonReq1;
@@ -181,35 +182,38 @@ public:
         : QWidget(parent)
     {
 
-        console = new Console(parent);
+        deviceStatusLabel = new QLabel(this);
+        deviceStatusLabel->setText("Device state");
+
+        console = new Console(this);
         console->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
         console->setEnabled(false);
 
-        QGridLayout *buttonsLayout = new QGridLayout;
+        buttonReq0 = new QPushButton("00_PULSES_R", this);
+        buttonReq1 = new QPushButton("01_MODE_CURRENT_R", this);
+        buttonReq2 = new QPushButton("02_KOEF_R", this);
+        buttonReq3 = new QPushButton("03_KOEF_W", this);
+        buttonReq4 = new QPushButton("04_SPEED_SP_R", this);
+        buttonReq5 = new QPushButton("05_SPEED_SP_W", this);
+        buttonReq6 = new QPushButton("06_SPEED_PV_R", this);
+        buttonReq7 = new QPushButton("07_PROCESS_START", this);
+        buttonReq8 = new QPushButton("08_PROCESS_STOP", this);
 
-        buttonReq0 = new QPushButton("00_PULSES_R", parent);
-        buttonReq1 = new QPushButton("01_MODE_CURRENT_R", parent);
-        buttonReq2 = new QPushButton("02_KOEF_R", parent);
-        buttonReq3 = new QPushButton("03_KOEF_W", parent);
-        buttonReq4 = new QPushButton("04_SPEED_SP_R", parent);
-        buttonReq5 = new QPushButton("05_SPEED_SP_W", parent);
-        buttonReq6 = new QPushButton("06_SPEED_PV_R", parent);
-        buttonReq7 = new QPushButton("07_PROCESS_START", parent);
-        buttonReq8 = new QPushButton("08_PROCESS_STOP", parent);
+        QGridLayout *mainLayout = new QGridLayout;
 
-        buttonsLayout->addWidget(buttonReq0, 0, 0, 1, 1);
-        buttonsLayout->addWidget(buttonReq1, 1, 0, 1, 1);
-        buttonsLayout->addWidget(buttonReq2, 2, 0, 1, 1);
-        buttonsLayout->addWidget(buttonReq3, 3, 0, 1, 1);
-        buttonsLayout->addWidget(buttonReq4, 4, 0, 1, 1);
-        buttonsLayout->addWidget(buttonReq5, 5, 0, 1, 1);
-        buttonsLayout->addWidget(buttonReq6, 6, 0, 1, 1);
-        buttonsLayout->addWidget(buttonReq7, 7, 0, 1, 1);
-        buttonsLayout->addWidget(buttonReq8, 8, 0, 1, 1);
+        mainLayout->addWidget(deviceStatusLabel, 0, 0, 1, 1);
+        mainLayout->addWidget(console          , 1, 0, 9, 1);
 
-        QHBoxLayout *mainLayout = new QHBoxLayout;
-        mainLayout->addWidget(console);
-        mainLayout->addLayout(buttonsLayout);
+        mainLayout->addWidget(buttonReq0, 0, 1, 1, 1);
+        mainLayout->addWidget(buttonReq1, 1, 1, 1, 1);
+        mainLayout->addWidget(buttonReq2, 2, 1, 1, 1);
+        mainLayout->addWidget(buttonReq3, 3, 1, 1, 1);
+        mainLayout->addWidget(buttonReq4, 4, 1, 1, 1);
+        mainLayout->addWidget(buttonReq5, 5, 1, 1, 1);
+        mainLayout->addWidget(buttonReq6, 6, 1, 1, 1);
+        mainLayout->addWidget(buttonReq7, 7, 1, 1, 1);
+        mainLayout->addWidget(buttonReq8, 8, 1, 1, 1);
+
         setLayout(mainLayout);
     }
 };
@@ -228,7 +232,7 @@ public:
         : QWidget(parent)
     {
 
-        pausePushButton = new QPushButton();
+        pausePushButton = new QPushButton(this);
         pausePushButton->setSizePolicy(sp, QSizePolicy::Preferred);
         pausePushButton->setText(QStringLiteral("PAUSE"));
 
@@ -273,12 +277,15 @@ public:
         QMenuBar *menuBar;
         QMenu *menuCalls;
         QMenu *menuTools;
+        QMenu *menuView;
 
         QAction *actionConnect;
         QAction *actionDisconnect;
+        QAction *actionQuit;
         QAction *actionConfigure;
         QAction *actionClear;
-        QAction *actionQuit;
+        QAction *actionRunMode; /* режим исполнение: true | false = симуляция | устройство */
+        QAction *actionAutoscale;
 
     } mainMenu;
 
@@ -333,9 +340,6 @@ public:
     QSlider * setpoint_slider;
     QSpinBox * setpoint_spinBox;
 
-    QVBoxLayout *cplotCtrl_Layout;
-    QCheckBox * cplotAutoScale;
-
 #ifdef APP_USE_CGRAPH
     CGraph * graph;
     CGraphPlot * plotSetpoint;
@@ -351,6 +355,7 @@ private:
     {
         QGroupBox *groupBox = new QGroupBox(QStringLiteral("Select to try"), parent);
 
+        groupBox->setTitle("");
         Kselector_radio1_Kp = new QRadioButton(QStringLiteral("K&p"), parent);
         Kselector_radio1_Kp->setShortcut(QStringLiteral("Alt+P"));
         Kselector_radio2_Ki = new QRadioButton(QStringLiteral("K&i"), parent);
@@ -378,13 +383,20 @@ public:
         {
             mainMenu.actionConnect = new QAction(MainWindow);
             mainMenu.actionDisconnect = new QAction(MainWindow);
+            mainMenu.actionQuit = new QAction(MainWindow);
             mainMenu.actionConfigure = new QAction(MainWindow);
             mainMenu.actionClear = new QAction(MainWindow);
-            mainMenu.actionQuit = new QAction(MainWindow);
+            mainMenu.actionRunMode = new QAction(MainWindow);
+            mainMenu.actionAutoscale = new QAction(MainWindow);
 
             mainMenu.menuBar = new QMenuBar(MainWindow);
             mainMenu.menuCalls = new QMenu(mainMenu.menuBar);
             mainMenu.menuTools = new QMenu(mainMenu.menuBar);
+            mainMenu.menuView = new QMenu(mainMenu.menuBar);
+
+            mainMenu.menuCalls->setTitle(QStringLiteral("Calls"));
+            mainMenu.menuTools->setTitle(QStringLiteral("Tools"));
+            mainMenu.menuView->setTitle(QStringLiteral("View"));
 
             mainMenu.menuCalls->addAction(mainMenu.actionConnect);
             mainMenu.menuCalls->addAction(mainMenu.actionDisconnect);
@@ -393,10 +405,15 @@ public:
 
             mainMenu.menuTools->addAction(mainMenu.actionConfigure);
             mainMenu.menuTools->addAction(mainMenu.actionClear);
+            mainMenu.menuTools->addSeparator();
+            mainMenu.menuTools->addAction(mainMenu.actionRunMode);
+
+            mainMenu.menuView->addAction(mainMenu.actionAutoscale);
 
             mainMenu.menuBar->setGeometry(QRect(0, 0, 400, 22));
             mainMenu.menuBar->addAction(mainMenu.menuCalls->menuAction());
             mainMenu.menuBar->addAction(mainMenu.menuTools->menuAction());
+            mainMenu.menuBar->addAction(mainMenu.menuView->menuAction());
 
             /* set text */
             mainMenu.actionConnect->setText(QStringLiteral("C&onnect"));
@@ -407,6 +424,9 @@ public:
             mainMenu.actionDisconnect->setToolTip(QStringLiteral("Disconnect from serial port"));
             mainMenu.actionDisconnect->setShortcut(QStringLiteral("Ctrl+D"));
 
+            mainMenu.actionQuit->setText(QStringLiteral("&Quit"));
+            mainMenu.actionQuit->setShortcut(QStringLiteral("Ctrl+Q"));
+
             mainMenu.actionConfigure->setText(QStringLiteral("&Configure"));
             mainMenu.actionConfigure->setToolTip(QStringLiteral("Configure serial port"));
             mainMenu.actionConfigure->setShortcut(QStringLiteral("Alt+C"));
@@ -415,11 +435,15 @@ public:
             mainMenu.actionClear->setToolTip(QStringLiteral("Clear data"));
             mainMenu.actionClear->setShortcut(QStringLiteral("Alt+L"));
 
-            mainMenu.actionQuit->setText(QStringLiteral("&Quit"));
-            mainMenu.actionQuit->setShortcut(QStringLiteral("Ctrl+Q"));
+            mainMenu.actionRunMode->setText(QStringLiteral("Si&mulation"));
+            mainMenu.actionRunMode->setToolTip(QStringLiteral("Run in simulation or real mode"));
+            mainMenu.actionRunMode->setShortcut(QStringLiteral("Alt+M"));
+            mainMenu.actionRunMode->setCheckable(true);
 
-            mainMenu.menuCalls->setTitle(QStringLiteral("Calls"));
-            mainMenu.menuTools->setTitle(QStringLiteral("Tools"));
+            mainMenu.actionAutoscale->setText(QStringLiteral("Auto&scale"));
+            mainMenu.actionAutoscale->setToolTip(QStringLiteral("Autoscale the plots"));
+            mainMenu.actionAutoscale->setShortcut(QStringLiteral("Alt+S"));
+            mainMenu.actionAutoscale->setCheckable(true);
 
         } UI_LEVEL_END(mainMenu);
 
@@ -563,24 +587,14 @@ public:
                 setpoint_Layout->addWidget(setpoint_slider);
                 setpoint_slider->setMinimum(MANUAL_SETPOINT_MIN);
                 setpoint_slider->setMaximum(MANUAL_SETPOINT_MAX);
+                setpoint_slider->setTickPosition(QSlider::TicksRight);
+
                 setpoint_spinBox = new QSpinBox(central);
                 setpoint_Layout->addWidget(setpoint_spinBox);
                 setpoint_spinBox->setMinimum(MANUAL_SETPOINT_MIN);
                 setpoint_spinBox->setMaximum(MANUAL_SETPOINT_MAX);
-                setpoint_spinBox->setMaximumWidth(12*10);
+                setpoint_spinBox->setMaximumWidth(18*3);
             } UI_LEVEL_END(setpoint_Layout);
-
-            /* cplot ctrl */
-            cplotCtrl_Layout = new QVBoxLayout(central);
-            centralWLayout->addLayout(cplotCtrl_Layout);
-            UI_LEVEL_BEGIN(cplotCtrl_Layout)
-            {
-                cplotAutoScale = new QCheckBox(QStringLiteral("autoscale"), central);
-                cplotCtrl_Layout->addWidget(cplotAutoScale);
-                cplotAutoScale->setMaximumWidth(8*15);
-                cplotCtrl_Layout->addStretch();
-
-            } UI_LEVEL_END(cplotCtrl_Layout);
 
             /* cplot widget */
             cplot = new QCustomPlot(central);

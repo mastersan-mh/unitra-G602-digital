@@ -221,17 +221,20 @@ size_t functionAmountOfVibrations(
         const FuncDescr::PointsDescr & pointsDescr
         )
 {
+    size_t minimums = 0;
+    size_t maximums = 0;
     for (FuncDescr::PointsDescr::const_iterator it = pointsDescr.constBegin(); it != pointsDescr.constEnd(); ++it)
     {
         FuncDescr::PointDescr descr = it.value();
         switch(descr)
         {
-            case FuncDescr::PointDescr::LOCAL_MINIMUM: break;
-            case FuncDescr::PointDescr::LOCAL_MAXIMUM: break;
-            case FuncDescr::PointDescr::GLOBAL_MINIMUM: break;
-            case FuncDescr::PointDescr::GLOBAL_MAXIMUM: break;
+            case FuncDescr::PointDescr::LOCAL_MINIMUM : /* fall */
+            case FuncDescr::PointDescr::GLOBAL_MINIMUM: ++minimums; break;
+            case FuncDescr::PointDescr::LOCAL_MAXIMUM : /* fall */
+            case FuncDescr::PointDescr::GLOBAL_MAXIMUM: ++maximums; break;
         }
     }
+    return (minimums < maximums ? minimums : maximums);
 }
 
 void functionMinimumsVectorGet(

@@ -24,13 +24,13 @@ http://lazysmart.ru/osnovy-avtomatiki/nastrojka-pid-regulyatora/
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , m_ui(new MainWindow_Ui)
+    , m_device(new Device)
 {
     m_ui->init_UI(this);
 
     m_settings = new SettingsDialog;
     m_serial = new QSerialPort(this);
     m_comm = new Comm();
-    m_rpc = new RPCClient();
 
     m_engine = new CTestMotor(0.1);
 
@@ -38,6 +38,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_ui->mainMenu.actionDisconnect->setEnabled(false);
     m_ui->mainMenu.actionQuit->setEnabled(true);
     m_ui->mainMenu.actionConfigure->setEnabled(true);
+    m_ui->mainMenu.actionRunMode->setEnabled(true);
 
 #if defined(PID_DISCRETE)
     pid = new PID(0.0, 0.0, 0.0);
@@ -102,13 +103,13 @@ MainWindow::MainWindow(QWidget *parent)
     QObject::connect(m_ui->mainMenu.actionQuit      , SIGNAL(triggered()), this, SLOT(close()));
     QObject::connect(m_ui->mainMenu.actionConfigure , SIGNAL(triggered()), m_settings, SLOT(show()));
     QObject::connect(m_ui->mainMenu.actionClear     , SIGNAL(triggered()), m_ui->tab.serial->console , SLOT(clear()));
+    QObject::connect(m_ui->mainMenu.actionRunMode   , SIGNAL(toggled(bool)), this , SLOT(P_runModeChange(bool)));
 
     QObject::connect(m_serial, SIGNAL(readyRead()), this, SLOT(P_appendRawData()));
     QObject::connect(m_ui->tab.serial->console, SIGNAL(getData(const QByteArray &)), this, SLOT(P_writeRawData(const QByteArray &)));
     QObject::connect(m_comm, SIGNAL(readyFrameToRead()), this, SLOT(P_readFrame()));
     QObject::connect(m_comm, SIGNAL(readyOutputStream(const QByteArray &)), this, SLOT(P_writeRawData(const QByteArray &)));
-    QObject::connect(m_rpc, SIGNAL(readyDataToSend(const QByteArray &)), m_comm, SLOT(writeFrame(const QByteArray&)));
-    QObject::connect(m_rpc, SIGNAL(timedout(unsigned)), this, SLOT(P_rpc_request_timedout(unsigned)));
+    QObject::connect(m_device, SIGNAL(dataReadyToSend(const QByteArray &)), m_comm, SLOT(writeFrame(const QByteArray&)));
 
     QObject::connect(
                 m_ui->selection.leftValue, SIGNAL(valueChanged(double)),
@@ -152,39 +153,39 @@ MainWindow::MainWindow(QWidget *parent)
 
     QObject::connect(
                 m_ui->tab.serial->buttonReq0, SIGNAL(clicked(bool)),
-                this, SLOT(P_rpc_reqest_0_pulses_r(bool))
+                this, SLOT(P_button_rpc_request_0_pulses_r(bool))
                 );
     QObject::connect(
                 m_ui->tab.serial->buttonReq1, SIGNAL(clicked(bool)),
-                this, SLOT(P_rpc_reqest_1_mode_current_r(bool))
+                this, SLOT(P_button_rpc_request_1_mode_current_r(bool))
                 );
     QObject::connect(
                 m_ui->tab.serial->buttonReq2, SIGNAL(clicked(bool)),
-                this, SLOT(P_rpc_reqest_2_koef_r(bool))
+                this, SLOT(P_button_rpc_request_2_koef_r(bool))
                 );
     QObject::connect(
                 m_ui->tab.serial->buttonReq3, SIGNAL(clicked(bool)),
-                this, SLOT(P_rpc_reqest_3_koef_w(bool))
+                this, SLOT(P_button_rpc_request_3_koef_w(bool))
                 );
     QObject::connect(
                 m_ui->tab.serial->buttonReq4, SIGNAL(clicked(bool)),
-                this, SLOT(P_rpc_reqest_4_speed_SP_r(bool))
+                this, SLOT(P_button_rpc_request_4_speed_SP_r(bool))
                 );
     QObject::connect(
                 m_ui->tab.serial->buttonReq5, SIGNAL(clicked(bool)),
-                this, SLOT(P_rpc_reqest_5_speed_SP_w(bool))
+                this, SLOT(P_button_rpc_request_5_speed_SP_w(bool))
                 );
     QObject::connect(
                 m_ui->tab.serial->buttonReq6, SIGNAL(clicked(bool)),
-                this, SLOT(P_rpc_reqest_6_speed_PV_r(bool))
+                this, SLOT(P_button_rpc_request_6_speed_PV_r(bool))
                 );
     QObject::connect(
                 m_ui->tab.serial->buttonReq7, SIGNAL(clicked(bool)),
-                this, SLOT(P_rpc_reqest_7_process_start(bool))
+                this, SLOT(P_button_rpc_request_7_process_start(bool))
                 );
     QObject::connect(
                 m_ui->tab.serial->buttonReq8, SIGNAL(clicked(bool)),
-                this, SLOT(P_rpc_reqest_8_process_stop(bool))
+                this, SLOT(P_button_rpc_request_8_process_stop(bool))
                 );
 
     QObject::connect(
@@ -223,6 +224,11 @@ MainWindow::MainWindow(QWidget *parent)
                 this, SLOT(setpoint_spinBoxChangeValue(int))
                 );
 
+    m_ui->mainMenu.actionRunMode->setChecked(false);
+    m_ui->mainMenu.actionAutoscale->setChecked(false);
+
+    P_device_status_update();
+
     setpointFuncSetValue(MANUAL_SETPOINT_INITIAL_VALUE);
     m_ui->selection.leftValue->setValue(PIDK_SELECTION_RANGE_MIN);
     m_ui->selection.rightValue->setValue(PIDK_SELECTION_RANGE_MAX);
@@ -243,7 +249,7 @@ MainWindow::~MainWindow()
         m_serial->close();
     }
 
-    delete m_rpc;
+    delete m_device;
     delete m_comm;
     delete m_serial;
     delete m_settings;
@@ -269,6 +275,9 @@ void MainWindow::P_openSerialPort()
             m_ui->statusBar->showMessage(tr("Connected to %1 : %2, %3, %4, %5, %6")
                                        .arg(p.name).arg(p.stringBaudRate).arg(p.stringDataBits)
                                        .arg(p.stringParity).arg(p.stringStopBits).arg(p.stringFlowControl));
+            m_device->devConnect();
+
+            P_device_status_update();
     }
     else
     {
@@ -283,6 +292,7 @@ void MainWindow::P_closeSerialPort()
     {
         m_serial->close();
     }
+    m_device->devDisconnect();
     m_ui->tab.serial->console->setEnabled(false);
     m_ui->mainMenu.actionConnect->setEnabled(true);
     m_ui->mainMenu.actionDisconnect->setEnabled(false);
@@ -290,10 +300,26 @@ void MainWindow::P_closeSerialPort()
     m_ui->statusBar->showMessage(tr("Disconnected"));
 }
 
-void MainWindow::P_rpc_request_timedout(unsigned ruid)
+void MainWindow::P_runModeChange(bool simulation)
 {
-    QMessageBox::critical(this, tr("Error"), QString("Request timed out of RUID %1").arg(ruid));
-    m_ui->statusBar->showMessage(tr("Request timed out"));
+    m_ui->tab.serial->setEnabled(!simulation);
+    m_ui->tab.simulation->setEnabled(simulation);
+}
+
+void MainWindow::P_device_status_update() const
+{
+    bool connected = m_serial->isOpen();
+    QString modeStr;
+    if(!connected)
+    {
+        modeStr = QStringLiteral("Disconnected");
+    }
+    else
+    {
+        modeStr = P_device_mode_string_get(m_device->modeGet());
+    }
+
+    m_ui->tab.serial->deviceStatusLabel->setText(modeStr);
 }
 
 void MainWindow::P_writeRawData(const QByteArray &data)
@@ -317,78 +343,53 @@ void MainWindow::P_readFrame()
     QByteArray frame;
     while(m_comm->readFrame(frame))
     {
-        m_rpc->replyReceived(frame);
+        m_device->dataReplyReceive(frame);
     }
 }
 
-void MainWindow::P_rpc_reqest_0_pulses_r(bool)
+void MainWindow::P_button_rpc_request_0_pulses_r(bool)
 {
-    uint8_t procId = RPC_FUNC_00_PULSES_R;
-    QVector<uint16_t> argv;
-    m_rpc->requestSend(procId, argv);
+    m_device->P_rpc_request_0_ppr_r();
 }
 
-void MainWindow::P_rpc_reqest_1_mode_current_r(bool)
+void MainWindow::P_button_rpc_request_1_mode_current_r(bool)
 {
-    uint8_t procId = RPC_FUNC_01_MODE_CURRENT_R;
-    QVector<uint16_t> argv;
-    m_rpc->requestSend(procId, argv);
+    m_device->P_rpc_request_1_mode_current_r();
 }
 
-void MainWindow::P_rpc_reqest_2_koef_r(bool)
+void MainWindow::P_button_rpc_request_2_koef_r(bool)
 {
-    uint8_t procId = RPC_FUNC_02_KOEF_R;
-    QVector<uint16_t> argv;
-    m_rpc->requestSend(procId, argv);
+    m_device->P_rpc_request_2_koef_r();
 }
 
-void MainWindow::P_rpc_reqest_3_koef_w(bool)
+void MainWindow::P_button_rpc_request_3_koef_w(bool)
 {
-    uint8_t procId = RPC_FUNC_03_KOEF_W;
-    QVector<uint16_t> argv;
-    argv.append(1);
-    argv.append(0);
-    argv.append(2);
-    argv.append(0);
-    argv.append(3);
-    argv.append(0);
-    m_rpc->requestSend(procId, argv);
+    m_device->P_rpc_request_3_koef_w(true);
 }
 
-void MainWindow::P_rpc_reqest_4_speed_SP_r(bool)
+void MainWindow::P_button_rpc_request_4_speed_SP_r(bool)
 {
-    uint8_t procId = RPC_FUNC_04_SPEED_SP_R;
-    QVector<uint16_t> argv;
-    m_rpc->requestSend(procId, argv);
+    m_device->P_rpc_request_4_speed_SP_r();
 }
 
-void MainWindow::P_rpc_reqest_5_speed_SP_w(bool)
+void MainWindow::P_button_rpc_request_5_speed_SP_w(bool)
 {
-    uint8_t procId = RPC_FUNC_05_SPEED_SP_W;
-    QVector<uint16_t> argv;
-    argv.append(33);
-    m_rpc->requestSend(procId, argv);
+    m_device->speedSetpointSet(33.0);
 }
 
-void MainWindow::P_rpc_reqest_6_speed_PV_r(bool)
+void MainWindow::P_button_rpc_request_6_speed_PV_r(bool)
 {
-    uint8_t procId = RPC_FUNC_06_SPEED_PV_R;
-    QVector<uint16_t> argv;
-    m_rpc->requestSend(procId, argv);
+    m_device->P_rpc_request_6_speed_PV_r();
 }
 
-void MainWindow::P_rpc_reqest_7_process_start(bool)
+void MainWindow::P_button_rpc_request_7_process_start(bool)
 {
-    uint8_t procId = RPC_FUNC_07_PROCESS_START;
-    QVector<uint16_t> argv;
-    m_rpc->requestSend(procId, argv);
+    m_device->P_rpc_request_7_process_start();
 }
 
-void MainWindow::P_rpc_reqest_8_process_stop(bool)
+void MainWindow::P_button_rpc_request_8_process_stop(bool)
 {
-    uint8_t procId = RPC_FUNC_08_PROCESS_STOP;
-    QVector<uint16_t> argv;
-    m_rpc->requestSend(procId, argv);
+    m_device->P_rpc_request_8_process_stop();
 }
 
 void MainWindow::pidK_changed(double Kp, double Ki, double Kd)
@@ -551,7 +552,7 @@ void MainWindow::P_mainEvent()
 
     int len_max = (AXIS_X_MAX - AXIS_X_MIN) * 1000 / INTERVAL_MS;
 
-    bool autoScale = (m_ui->cplotAutoScale->checkState() != Qt::Unchecked);
+    bool autoScale = (m_ui->mainMenu.actionAutoscale->isChecked());
 
     if(!m_setpoint_manual)
     {
@@ -665,4 +666,22 @@ void MainWindow::P_mainEvent()
     plotSetpoint->updatePlotValues(valuesSetpoint);
     plotMain->updatePlotValues(valuesMain);
 #endif
+}
+
+const QString MainWindow::P_device_mode_string_get(Device::Mode mode) const
+{
+    static const QMap<Device::Mode, QString> modes
+    {
+        { Device::Mode::UNKNOWN, QStringLiteral("Unknown") },
+        { Device::Mode::NORMAL_STOPPED, QStringLiteral("Stopped") },
+        { Device::Mode::NORMAL_STARTED_AUTO, QStringLiteral("Started auto") },
+        { Device::Mode::NORMAL_STARTED_MANUAL, QStringLiteral("Started manual") },
+        { Device::Mode::SERVICE_MODE1_STOPPED, QStringLiteral("Service Mode #1: stopped") },
+        { Device::Mode::SERVICE_MODE1_STARTED, QStringLiteral("Service Mode #1: started") },
+        { Device::Mode::SERVICE_MODE2_STOPPED, QStringLiteral("Service Mode #2: stopped") },
+        { Device::Mode::SERVICE_MODE2_STARTED, QStringLiteral("Service Mode #2: started") },
+        { Device::Mode::SERVICE_MODE3_STOPPED, QStringLiteral("Service Mode #3: stopped") },
+        { Device::Mode::SERVICE_MODE3_STARTED, QStringLiteral("Service Mode #3: started") },
+    };
+    return modes[mode];
 }

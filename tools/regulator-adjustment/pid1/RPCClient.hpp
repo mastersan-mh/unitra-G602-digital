@@ -13,18 +13,26 @@ public:
 
     explicit RPCClient(QObject *parent = 0);
 
-    void requestSend(uint8_t funcId, QVector<uint16_t> argv);
+    void timeoutSet(int timeout);
+    void requestSend(uint8_t funcId, const QVector<uint16_t> &argv);
 signals:
-    void readyDataToSend(const QByteArray & request);
-    void packetRuidSended(unsigned ruid);
-    void packetRuidReceived(unsigned ruid);
+    void dataReadyToSend(const QByteArray & request);
+    void requestSended(uint16_t ruid, uint8_t funcId, const QVector<uint16_t> &argv);
+    void replyReceived(uint16_t ruid, uint8_t funcId, uint8_t err, const QVector<uint16_t> &resv);
+    void eventReceived(uint8_t eventId, const QVector<uint16_t> &resv);
     /** @brief Time is out since sent the request. */
-    void timedout(unsigned ruid);
+    void timedout(uint16_t ruid);
 public slots:
-    void replyReceived(const QByteArray & reply);
+    void dataReplyReceive(const QByteArray & reply);
 private slots:
     void P_timeoutEvent();
 private:
+
+    struct awaiting_request
+    {
+        uint8_t funcId;
+        QTimer * timer;
+    };
 
     class IncomingMsg;
 
@@ -32,8 +40,8 @@ private:
 
     int m_timeout; /**< msec */
 
-    typedef QMap<uint16_t, QTimer*> request_t;
-    request_t m_requests; /**< sended requests */
+    typedef QMap<uint16_t, struct awaiting_request> request_t;
+    request_t m_awaiting_requests; /**< sended requests */
 
     int P_encode(
             uint16_t ruid,
@@ -43,7 +51,7 @@ private:
             );
     int P_decode(const QByteArray & data, IncomingMsg &msg);
 
-    void P_request_pop(uint16_t ruid);
+    bool P_awaiting_request_pop(uint16_t ruid, uint8_t & funcId);
 
     /** @brief Get first timedout timer */
     long P_request_timedout_get() const;
@@ -51,42 +59,26 @@ private:
     class IncomingMsg
     {
     public:
-        enum class Error
-        {
-        INVALID_MSG_TYPE
-        };
-
-        enum class Type
-        {
-            REPLY,
-            EVENT,
-        };
-
         IncomingMsg();
         ~IncomingMsg();
-        Type typeGet() const;
-        uint8_t errorGet() const;
-        uint16_t ruidGet() const;
-        const QVector<uint16_t> & resvGet() const;
-    private:
-        Type m_type;
+
+        uint8_t type;
 
         union
         {
             struct
             {
-                uint8_t m_error;
-                uint16_t m_ruid;
+                uint8_t error;
+                uint16_t ruid;
             };
             struct
             {
-                uint8_t m_eventId;
+                uint8_t eventId;
             };
         };
 
-        QVector<uint16_t> m_resv;
+        QVector<uint16_t> resv;
 
-        friend int RPCClient::P_decode(const QByteArray & data, IncomingMsg &msg);
     };
 
 };

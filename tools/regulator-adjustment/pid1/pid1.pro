@@ -33,7 +33,8 @@ SOURCES  += main.cpp\
             pid/fan.cpp \
             GClasses/GCommBase.cpp \
             comm.cpp \
-            RPCClient.cpp
+            RPCClient.cpp \
+            Device.cpp
 
 HEADERS  += mainwindow.h \
             mainwindow_ui.h \
@@ -51,6 +52,7 @@ HEADERS  += mainwindow.h \
             GClasses/GCommBase.hpp \
             GClasses/GRPCDefs.hpp \
             comm.hpp \
-            RPCClient.hpp
+            RPCClient.hpp \
+            Device.hpp
 
 FORMS    +=
