@@ -165,7 +165,7 @@ public:
         m_value = DOUBLE_TO_FIXED(Tfixed_t, Tfracbits, val);
     }
 
-    FIXEDPOINT_INLINE void set(int val)
+    FIXEDPOINT_INLINE void set(int val) noexcept
     {
         m_value = INT_TO_FIXED(Tfixed_t, Tfracbits, Tenclosingtype_t, val);
     }

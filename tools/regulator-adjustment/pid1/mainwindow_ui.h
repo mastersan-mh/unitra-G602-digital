@@ -36,6 +36,9 @@
 #include <QWidget>
 #include <QLabel>
 
+#include <QListView>
+#include <QStandardItemModel>
+
 #define UI_LEVEL_BEGIN(xlayout) do
 #define UI_LEVEL_END(xlayout) while(0)
 
@@ -161,61 +164,82 @@ private:
     QDoubleSpinBox * Kd_spinBox;
 };
 
+class DeviceReqStatModel: public QAbstractItemModel
+{
+public:
+    DeviceReqStatModel(QObject * parent = 0)
+        : QAbstractItemModel(parent)
+    {
+
+    }
+};
+
 class TabDataSourceSerail : public QWidget
 {
     Q_OBJECT
 
 public:
-    QLabel * deviceStatusLabel;
-    Console *console;
-    QPushButton * buttonReq0;
-    QPushButton * buttonReq1;
-    QPushButton * buttonReq2;
-    QPushButton * buttonReq3;
-    QPushButton * buttonReq4;
-    QPushButton * buttonReq5;
-    QPushButton * buttonReq6;
-    QPushButton * buttonReq7;
-    QPushButton * buttonReq8;
+    QLabel * m_deviceStatusLabel;
+    Console *m_console;
+    QPushButton * m_buttonReq0;
+    QPushButton * m_buttonReq1;
+    QPushButton * m_buttonReq2;
+    QPushButton * m_buttonReq3;
+    QPushButton * m_buttonReq4;
+    QPushButton * m_buttonReq5;
+    QPushButton * m_buttonReq6;
+    QPushButton * m_buttonReq7;
+    QPushButton * m_buttonReq8;
 
     TabDataSourceSerail(QWidget *parent)
         : QWidget(parent)
     {
 
-        deviceStatusLabel = new QLabel(this);
-        deviceStatusLabel->setText("Device state");
+        m_deviceStatusLabel = new QLabel(this);
+        m_deviceStatusLabel->setText("Device state");
 
-        console = new Console(this);
-        console->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
-        console->setEnabled(false);
+        m_console = new Console(this);
+        m_console->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
+        m_console->setEnabled(false);
 
-        buttonReq0 = new QPushButton("00_PULSES_R", this);
-        buttonReq1 = new QPushButton("01_MODE_CURRENT_R", this);
-        buttonReq2 = new QPushButton("02_KOEF_R", this);
-        buttonReq3 = new QPushButton("03_KOEF_W", this);
-        buttonReq4 = new QPushButton("04_SPEED_SP_R", this);
-        buttonReq5 = new QPushButton("05_SPEED_SP_W", this);
-        buttonReq6 = new QPushButton("06_SPEED_PV_R", this);
-        buttonReq7 = new QPushButton("07_PROCESS_START", this);
-        buttonReq8 = new QPushButton("08_PROCESS_STOP", this);
+        m_buttonReq0 = new QPushButton("00_PULSES_R", this);
+        m_buttonReq1 = new QPushButton("01_MODE_CURRENT_R", this);
+        m_buttonReq2 = new QPushButton("02_KOEF_R", this);
+        m_buttonReq3 = new QPushButton("03_KOEF_W", this);
+        m_buttonReq4 = new QPushButton("04_SPEED_SP_R", this);
+        m_buttonReq5 = new QPushButton("05_SPEED_SP_W", this);
+        m_buttonReq6 = new QPushButton("06_SPEED_PV_R", this);
+        m_buttonReq7 = new QPushButton("07_PROCESS_START", this);
+        m_buttonReq8 = new QPushButton("08_PROCESS_STOP", this);
+
+        m_reqstat_model = new QStandardItemModel(this);
+        m_reqstat = new QListView(this);
+
+        m_reqstat->setModel(m_reqstat_model);
+        m_reqstat_model->appendRow(new QStandardItem(QIcon("images/shield-280x280.png"), "xxx"));
 
         QGridLayout *mainLayout = new QGridLayout;
 
-        mainLayout->addWidget(deviceStatusLabel, 0, 0, 1, 1);
-        mainLayout->addWidget(console          , 1, 0, 9, 1);
+        mainLayout->addWidget(m_deviceStatusLabel, 0, 0, 1, 1);
+        mainLayout->addWidget(m_console          , 1, 0, 9, 1);
 
-        mainLayout->addWidget(buttonReq0, 0, 1, 1, 1);
-        mainLayout->addWidget(buttonReq1, 1, 1, 1, 1);
-        mainLayout->addWidget(buttonReq2, 2, 1, 1, 1);
-        mainLayout->addWidget(buttonReq3, 3, 1, 1, 1);
-        mainLayout->addWidget(buttonReq4, 4, 1, 1, 1);
-        mainLayout->addWidget(buttonReq5, 5, 1, 1, 1);
-        mainLayout->addWidget(buttonReq6, 6, 1, 1, 1);
-        mainLayout->addWidget(buttonReq7, 7, 1, 1, 1);
-        mainLayout->addWidget(buttonReq8, 8, 1, 1, 1);
+        mainLayout->addWidget(m_buttonReq0, 0, 1, 1, 1);
+        mainLayout->addWidget(m_buttonReq1, 1, 1, 1, 1);
+        mainLayout->addWidget(m_buttonReq2, 2, 1, 1, 1);
+        mainLayout->addWidget(m_buttonReq3, 3, 1, 1, 1);
+        mainLayout->addWidget(m_buttonReq4, 4, 1, 1, 1);
+        mainLayout->addWidget(m_buttonReq5, 5, 1, 1, 1);
+        mainLayout->addWidget(m_buttonReq6, 6, 1, 1, 1);
+        mainLayout->addWidget(m_buttonReq7, 7, 1, 1, 1);
+        mainLayout->addWidget(m_buttonReq8, 8, 1, 1, 1);
+
+        mainLayout->addWidget(m_reqstat, 0, 2, 9, 1);
 
         setLayout(mainLayout);
     }
+private:
+    QStandardItemModel *m_reqstat_model;
+    QListView *m_reqstat;
 };
 
 class TabDataSourceSimulation : public QWidget
@@ -247,6 +271,7 @@ public:
     }
 
 private:
+
     QGroupBox *init_UI_setpointMode(QWidget * parent)
     {
         QGroupBox *groupBox = new QGroupBox(QStringLiteral("Setpoint"), parent);

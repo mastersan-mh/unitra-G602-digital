@@ -14,14 +14,19 @@ public:
     explicit RPCClient(QObject *parent = 0);
 
     void timeoutSet(int timeout);
-    void requestSend(uint8_t funcId, const QVector<uint16_t> &argv);
+    /**
+     * @brief Send request to call the function
+     * @param funcId        Function Id
+     * @param argv          Arguments vector
+     * @return ruid
+     */
+    uint16_t requestSend(uint8_t funcId, const QVector<uint16_t> &argv);
 signals:
-    void dataReadyToSend(const QByteArray & request);
-    void requestSended(uint16_t ruid, uint8_t funcId, const QVector<uint16_t> &argv);
+    void ready_dataToSend(const QByteArray & request);
     void replyReceived(uint16_t ruid, uint8_t funcId, uint8_t err, const QVector<uint16_t> &resv);
     void eventReceived(uint8_t eventId, const QVector<uint16_t> &resv);
     /** @brief Time is out since sent the request. */
-    void timedout(uint16_t ruid);
+    void replyTimeout(uint16_t ruid, uint8_t funcId);
 public slots:
     void dataReplyReceive(const QByteArray & reply);
 private slots:
@@ -45,16 +50,14 @@ private:
 
     int P_encode(
             uint16_t ruid,
-            uint8_t procId,
+            uint8_t funcId,
             const QVector<uint16_t> & argv,
             QByteArray & data
-            );
-    int P_decode(const QByteArray & data, IncomingMsg &msg);
+            ) const;
+    int P_decode(const QByteArray & data, IncomingMsg &msg) const;
 
     bool P_awaiting_request_pop(uint16_t ruid, uint8_t & funcId);
-
-    /** @brief Get first timedout timer */
-    long P_request_timedout_get() const;
+    void P_awaiting_request_delete(struct awaiting_request & req);
 
     class IncomingMsg
     {

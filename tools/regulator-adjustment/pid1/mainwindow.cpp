@@ -21,6 +21,9 @@ https://www.bookasutp.ru/Chapter5_5.aspx
 http://lazysmart.ru/osnovy-avtomatiki/nastrojka-pid-regulyatora/
 */
 
+//    QMessageBox::critical(this, tr("Error"), QString("Request timed out of RUID %1").arg(ruid));
+//    m_ui->statusBar->showMessage(tr("Request timed out"));
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , m_ui(new MainWindow_Ui)
@@ -102,14 +105,23 @@ MainWindow::MainWindow(QWidget *parent)
     QObject::connect(m_ui->mainMenu.actionDisconnect, SIGNAL(triggered()), this, SLOT(P_closeSerialPort()));
     QObject::connect(m_ui->mainMenu.actionQuit      , SIGNAL(triggered()), this, SLOT(close()));
     QObject::connect(m_ui->mainMenu.actionConfigure , SIGNAL(triggered()), m_settings, SLOT(show()));
-    QObject::connect(m_ui->mainMenu.actionClear     , SIGNAL(triggered()), m_ui->tab.serial->console , SLOT(clear()));
+    QObject::connect(m_ui->mainMenu.actionClear     , SIGNAL(triggered()), m_ui->tab.serial->m_console , SLOT(clear()));
     QObject::connect(m_ui->mainMenu.actionRunMode   , SIGNAL(toggled(bool)), this , SLOT(P_runModeChange(bool)));
 
     QObject::connect(m_serial, SIGNAL(readyRead()), this, SLOT(P_appendRawData()));
-    QObject::connect(m_ui->tab.serial->console, SIGNAL(getData(const QByteArray &)), this, SLOT(P_writeRawData(const QByteArray &)));
+    QObject::connect(m_ui->tab.serial->m_console, SIGNAL(getData(const QByteArray &)), this, SLOT(P_writeRawData(const QByteArray &)));
     QObject::connect(m_comm, SIGNAL(readyFrameToRead()), this, SLOT(P_readFrame()));
     QObject::connect(m_comm, SIGNAL(readyOutputStream(const QByteArray &)), this, SLOT(P_writeRawData(const QByteArray &)));
-    QObject::connect(m_device, SIGNAL(dataReadyToSend(const QByteArray &)), m_comm, SLOT(writeFrame(const QByteArray&)));
+    QObject::connect(m_device, SIGNAL(ready_dataToSend(const QByteArray &)), m_comm, SLOT(writeFrame(const QByteArray&)));
+    QObject::connect(m_device, SIGNAL(ready_toDisconnect(bool)                       ), this, SLOT(P_dev_ready_toDisconnect(bool)                       ));
+    QObject::connect(m_device, SIGNAL(ready_runModeChanged(Device::RunMode)          ), this, SLOT(P_dev_ready_runModeChanged(Device::RunMode)          ));
+    QObject::connect(m_device, SIGNAL(ready_SPPV(unsigned long, double, double)      ), this, SLOT(P_dev_ready_SPPV(unsigned long, double, double )     ));
+    QObject::connect(m_device, SIGNAL(ready_runModeRead(bool, Device::RunMode)       ), this, SLOT(P_dev_ready_runModeRead(bool, Device::RunMode)       ));
+    QObject::connect(m_device, SIGNAL(ready_pidKoefRead(bool, double, double, double)), this, SLOT(P_dev_ready_pidKoefRead(bool, double, double, double)));
+    QObject::connect(m_device, SIGNAL(ready_pidKoefWrite(bool)                       ), this, SLOT(P_dev_ready_pidKoefWrite(bool)                       ));
+    QObject::connect(m_device, SIGNAL(ready_speedSetpointRead(bool, double)          ), this, SLOT(P_dev_ready_speedSetpointRead(bool, double)          ));
+    QObject::connect(m_device, SIGNAL(ready_speedSetpointWrite(bool)                 ), this, SLOT(P_dev_ready_speedSetpointWrite(bool)                 ));
+    QObject::connect(m_device, SIGNAL(ready_speedPVRead(bool, double)                ), this, SLOT(P_dev_ready_speedPVRead(bool, double)                ));
 
     QObject::connect(
                 m_ui->selection.leftValue, SIGNAL(valueChanged(double)),
@@ -152,39 +164,39 @@ MainWindow::MainWindow(QWidget *parent)
                 );
 
     QObject::connect(
-                m_ui->tab.serial->buttonReq0, SIGNAL(clicked(bool)),
+                m_ui->tab.serial->m_buttonReq0, SIGNAL(clicked(bool)),
                 this, SLOT(P_button_rpc_request_0_pulses_r(bool))
                 );
     QObject::connect(
-                m_ui->tab.serial->buttonReq1, SIGNAL(clicked(bool)),
-                this, SLOT(P_button_rpc_request_1_mode_current_r(bool))
+                m_ui->tab.serial->m_buttonReq1, SIGNAL(clicked(bool)),
+                this, SLOT(P_button_rpc_request_1_mode_r(bool))
                 );
     QObject::connect(
-                m_ui->tab.serial->buttonReq2, SIGNAL(clicked(bool)),
+                m_ui->tab.serial->m_buttonReq2, SIGNAL(clicked(bool)),
                 this, SLOT(P_button_rpc_request_2_koef_r(bool))
                 );
     QObject::connect(
-                m_ui->tab.serial->buttonReq3, SIGNAL(clicked(bool)),
+                m_ui->tab.serial->m_buttonReq3, SIGNAL(clicked(bool)),
                 this, SLOT(P_button_rpc_request_3_koef_w(bool))
                 );
     QObject::connect(
-                m_ui->tab.serial->buttonReq4, SIGNAL(clicked(bool)),
+                m_ui->tab.serial->m_buttonReq4, SIGNAL(clicked(bool)),
                 this, SLOT(P_button_rpc_request_4_speed_SP_r(bool))
                 );
     QObject::connect(
-                m_ui->tab.serial->buttonReq5, SIGNAL(clicked(bool)),
+                m_ui->tab.serial->m_buttonReq5, SIGNAL(clicked(bool)),
                 this, SLOT(P_button_rpc_request_5_speed_SP_w(bool))
                 );
     QObject::connect(
-                m_ui->tab.serial->buttonReq6, SIGNAL(clicked(bool)),
+                m_ui->tab.serial->m_buttonReq6, SIGNAL(clicked(bool)),
                 this, SLOT(P_button_rpc_request_6_speed_PV_r(bool))
                 );
     QObject::connect(
-                m_ui->tab.serial->buttonReq7, SIGNAL(clicked(bool)),
+                m_ui->tab.serial->m_buttonReq7, SIGNAL(clicked(bool)),
                 this, SLOT(P_button_rpc_request_7_process_start(bool))
                 );
     QObject::connect(
-                m_ui->tab.serial->buttonReq8, SIGNAL(clicked(bool)),
+                m_ui->tab.serial->m_buttonReq8, SIGNAL(clicked(bool)),
                 this, SLOT(P_button_rpc_request_8_process_stop(bool))
                 );
 
@@ -227,7 +239,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_ui->mainMenu.actionRunMode->setChecked(false);
     m_ui->mainMenu.actionAutoscale->setChecked(false);
 
-    P_device_status_update();
+    P_device_status_update(Device::RunMode::UNKNOWN);
 
     setpointFuncSetValue(MANUAL_SETPOINT_INITIAL_VALUE);
     m_ui->selection.leftValue->setValue(PIDK_SELECTION_RANGE_MIN);
@@ -267,8 +279,8 @@ void MainWindow::P_openSerialPort()
     m_serial->setFlowControl(p.flowControl);
     if (m_serial->open(QIODevice::ReadWrite))
     {
-            m_ui->tab.serial->console->setEnabled(true);
-            m_ui->tab.serial->console->setLocalEchoEnabled(p.localEchoEnabled);
+            m_ui->tab.serial->m_console->setEnabled(true);
+            m_ui->tab.serial->m_console->setLocalEchoEnabled(p.localEchoEnabled);
             m_ui->mainMenu.actionConnect->setEnabled(false);
             m_ui->mainMenu.actionDisconnect->setEnabled(true);
             m_ui->mainMenu.actionConfigure->setEnabled(false);
@@ -276,8 +288,6 @@ void MainWindow::P_openSerialPort()
                                        .arg(p.name).arg(p.stringBaudRate).arg(p.stringDataBits)
                                        .arg(p.stringParity).arg(p.stringStopBits).arg(p.stringFlowControl));
             m_device->devConnect();
-
-            P_device_status_update();
     }
     else
     {
@@ -293,11 +303,17 @@ void MainWindow::P_closeSerialPort()
         m_serial->close();
     }
     m_device->devDisconnect();
-    m_ui->tab.serial->console->setEnabled(false);
+    m_ui->tab.serial->m_console->setEnabled(false);
     m_ui->mainMenu.actionConnect->setEnabled(true);
     m_ui->mainMenu.actionDisconnect->setEnabled(false);
     m_ui->mainMenu.actionConfigure->setEnabled(true);
     m_ui->statusBar->showMessage(tr("Disconnected"));
+}
+
+void MainWindow::P_device_reqstats_update()
+{
+    QMap<uint16_t, struct Device::req_status> stats = m_device->requestsStatGet();
+
 }
 
 void MainWindow::P_runModeChange(bool simulation)
@@ -306,7 +322,7 @@ void MainWindow::P_runModeChange(bool simulation)
     m_ui->tab.simulation->setEnabled(simulation);
 }
 
-void MainWindow::P_device_status_update() const
+void MainWindow::P_device_status_update(Device::RunMode mode) const
 {
     bool connected = m_serial->isOpen();
     QString modeStr;
@@ -316,10 +332,10 @@ void MainWindow::P_device_status_update() const
     }
     else
     {
-        modeStr = P_device_mode_string_get(m_device->modeGet());
+        modeStr = P_device_mode_string_get(mode);
     }
 
-    m_ui->tab.serial->deviceStatusLabel->setText(modeStr);
+    m_ui->tab.serial->m_deviceStatusLabel->setText(modeStr);
 }
 
 void MainWindow::P_writeRawData(const QByteArray &data)
@@ -333,7 +349,7 @@ void MainWindow::P_appendRawData()
     while(m_serial->bytesAvailable() > 0)
     {
         data = m_serial->readAll();
-        m_ui->tab.serial->console->putData(data);
+        m_ui->tab.serial->m_console->putData(data);
         m_comm->appendInputStream(data);
     }
 }
@@ -347,49 +363,101 @@ void MainWindow::P_readFrame()
     }
 }
 
-void MainWindow::P_button_rpc_request_0_pulses_r(bool)
+void MainWindow::P_dev_ready_toDisconnect(bool timedout)
 {
-    m_device->P_rpc_request_0_ppr_r();
+    if(timedout) return;
 }
 
-void MainWindow::P_button_rpc_request_1_mode_current_r(bool)
+void MainWindow::P_dev_ready_runModeChanged(Device::RunMode mode)
 {
-    m_device->P_rpc_request_1_mode_current_r();
+    P_device_reqstats_update();
+    P_device_status_update(mode);
+}
+
+void MainWindow::P_dev_ready_SPPV(unsigned long time_ms, double sp, double pv)
+{
+
+}
+
+void MainWindow::P_dev_ready_runModeRead(bool timedout, Device::RunMode mode)
+{
+    P_device_reqstats_update();
+    P_device_status_update(timedout ? Device::RunMode::UNKNOWN : mode);
+}
+
+void MainWindow::P_dev_ready_pidKoefRead(bool timedout, double Kp, double Ki, double Kd)
+{
+    if(timedout) return;
+    m_ui->pidK->setValueKp(Kp);
+    m_ui->pidK->setValueKi(Ki);
+    m_ui->pidK->setValueKd(Kd);
+}
+
+void MainWindow::P_dev_ready_pidKoefWrite(bool timedout)
+{
+    if(timedout) return;
+}
+
+void MainWindow::P_dev_ready_speedSetpointRead(bool timedout, double sp)
+{
+    if(timedout) return;
+}
+
+void MainWindow::P_dev_ready_speedSetpointWrite(bool timedout)
+{
+    if(timedout) return;
+
+}
+
+void MainWindow::P_dev_ready_speedPVRead(bool timedout, double pv)
+{
+    if(timedout) return;
+
+}
+
+void MainWindow::P_button_rpc_request_0_pulses_r(bool)
+{
+    m_device->request_00_ppr_r();
+}
+
+void MainWindow::P_button_rpc_request_1_mode_r(bool)
+{
+    m_device->runModeRead();
 }
 
 void MainWindow::P_button_rpc_request_2_koef_r(bool)
 {
-    m_device->P_rpc_request_2_koef_r();
+    m_device->pidKoefRead();
 }
 
 void MainWindow::P_button_rpc_request_3_koef_w(bool)
 {
-    m_device->P_rpc_request_3_koef_w(true);
+    m_device->pidKoefWrite(1.2, 3.4, 5.6);
 }
 
 void MainWindow::P_button_rpc_request_4_speed_SP_r(bool)
 {
-    m_device->P_rpc_request_4_speed_SP_r();
+    m_device->speedSetpointRead();
 }
 
 void MainWindow::P_button_rpc_request_5_speed_SP_w(bool)
 {
-    m_device->speedSetpointSet(33.0);
+    m_device->speedSetpointWrite(33.0);
 }
 
 void MainWindow::P_button_rpc_request_6_speed_PV_r(bool)
 {
-    m_device->P_rpc_request_6_speed_PV_r();
+    m_device->speedPVRead();
 }
 
 void MainWindow::P_button_rpc_request_7_process_start(bool)
 {
-    m_device->P_rpc_request_7_process_start();
+    m_device->request_07_process_start();
 }
 
 void MainWindow::P_button_rpc_request_8_process_stop(bool)
 {
-    m_device->P_rpc_request_8_process_stop();
+    m_device->request_08_process_stop();
 }
 
 void MainWindow::pidK_changed(double Kp, double Ki, double Kd)
@@ -668,20 +736,20 @@ void MainWindow::P_mainEvent()
 #endif
 }
 
-const QString MainWindow::P_device_mode_string_get(Device::Mode mode) const
+const QString MainWindow::P_device_mode_string_get(Device::RunMode mode) const
 {
-    static const QMap<Device::Mode, QString> modes
+    static const QMap<Device::RunMode, QString> modes
     {
-        { Device::Mode::UNKNOWN, QStringLiteral("Unknown") },
-        { Device::Mode::NORMAL_STOPPED, QStringLiteral("Stopped") },
-        { Device::Mode::NORMAL_STARTED_AUTO, QStringLiteral("Started auto") },
-        { Device::Mode::NORMAL_STARTED_MANUAL, QStringLiteral("Started manual") },
-        { Device::Mode::SERVICE_MODE1_STOPPED, QStringLiteral("Service Mode #1: stopped") },
-        { Device::Mode::SERVICE_MODE1_STARTED, QStringLiteral("Service Mode #1: started") },
-        { Device::Mode::SERVICE_MODE2_STOPPED, QStringLiteral("Service Mode #2: stopped") },
-        { Device::Mode::SERVICE_MODE2_STARTED, QStringLiteral("Service Mode #2: started") },
-        { Device::Mode::SERVICE_MODE3_STOPPED, QStringLiteral("Service Mode #3: stopped") },
-        { Device::Mode::SERVICE_MODE3_STARTED, QStringLiteral("Service Mode #3: started") },
+        { Device::RunMode::UNKNOWN, QStringLiteral("Unknown") },
+        { Device::RunMode::NORMAL_STOPPED, QStringLiteral("Stopped") },
+        { Device::RunMode::NORMAL_STARTED_AUTO, QStringLiteral("Started auto") },
+        { Device::RunMode::NORMAL_STARTED_MANUAL, QStringLiteral("Started manual") },
+        { Device::RunMode::SERVICE_MODE1_STOPPED, QStringLiteral("Service Mode #1: stopped") },
+        { Device::RunMode::SERVICE_MODE1_STARTED, QStringLiteral("Service Mode #1: started") },
+        { Device::RunMode::SERVICE_MODE2_STOPPED, QStringLiteral("Service Mode #2: stopped") },
+        { Device::RunMode::SERVICE_MODE2_STARTED, QStringLiteral("Service Mode #2: started") },
+        { Device::RunMode::SERVICE_MODE3_STOPPED, QStringLiteral("Service Mode #3: stopped") },
+        { Device::RunMode::SERVICE_MODE3_STARTED, QStringLiteral("Service Mode #3: started") },
     };
     return modes[mode];
 }

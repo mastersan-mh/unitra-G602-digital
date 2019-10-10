@@ -7,6 +7,8 @@
 
 #include <QObject>
 
+#include <QMap>
+
 class Device : public QObject
 {
     Q_OBJECT
@@ -16,7 +18,28 @@ public:
         InvalidDescr, /**< Invalid device descriptior */
     };
 
-    enum class Mode
+    enum class ReqMode
+    {
+        AUTO, /**< Запрос был выполнен в автоматическом режиме */
+        MANUAL, /**< Запрос был выполнен в ручном режиме */
+    };
+
+    enum class ReqResult
+    {
+        AWAITING, /**< Ожидание */
+        SUCCESS,  /**< Успешно */
+        TIMEOUT,  /**< Таймаут */
+    };
+
+    struct req_status
+    {
+        uint8_t funcId;
+        ReqMode reqmode;
+        ReqResult res;
+    };
+
+    /** @brief Device run mode */
+    enum class RunMode
     {
         UNKNOWN,
         NORMAL_STOPPED,
@@ -31,49 +54,65 @@ public:
     };
     explicit Device(QObject *parent = 0);
 
-    Mode modeGet() const;
-
-    void speedSetpointSet(double rpm);
-
-    void P_rpc_request_0_ppr_r();
-    void P_rpc_request_1_mode_current_r();
-    void P_rpc_request_2_koef_r();
-    void P_rpc_request_3_koef_w(bool);
-    void P_rpc_request_4_speed_SP_r();
-private:
+    void requestsStatClearAll();
     /**
-     * @param speed     speed, pulses/minute
+     * @brief Erase the SUCCESS statuses
      */
-    void P_rpc_request_5_speed_SP_w(uint16_t speed);
-public:
-    void P_rpc_request_6_speed_PV_r();
-    void P_rpc_request_7_process_start();
-    void P_rpc_request_8_process_stop();
+    void requestsStatClearSuccess();
+    /**
+     * @brief Get the statuses of the requests
+     * @return ruid:stat
+     */
+    QMap<uint16_t, struct req_status> requestsStatGet() const;
+
+    RunMode runModeGet() const;
+
+    /* Manual requests */
+    void request_00_ppr_r();
+    void runModeRead();
+    void runModeGet(RunMode &mode) const;
+    void pidKoefRead();
+    bool pidKoefGet(double &Kp, double &Ki, double &Kd) const;
+    void pidKoefWrite(double Kp, double Ki, double Kd);
+    void speedSetpointRead();
+    void speedSetpointWrite(double rpm);
+    void speedPVRead();
+    void request_07_process_start();
+    void request_08_process_stop();
 
 signals:
-    void dataReadyToSend(const QByteArray &);
-    void SPPVUpdated(unsigned long time_ms, double sp, double pv);
+    void ready_dataToSend(const QByteArray &);
+    void ready_toDisconnect(bool timedout);
+    void ready_runModeChanged(Device::RunMode mode);
+    void ready_SPPV(unsigned long time_ms, double sp, double pv);
+
+    void ready_runModeRead(bool timedout, Device::RunMode mode);
+    void ready_pidKoefRead(bool timedout, double Kp, double Ki, double Kd);
+    void ready_pidKoefWrite(bool timedout);
+    void ready_speedSetpointRead(bool timedout, double sp);
+    void ready_speedSetpointWrite(bool timedout);
+    void ready_speedPVRead(bool timedout, double pv);
 public slots:
     void devConnect();
     void devDisconnect();
     void dataReplyReceive(const QByteArray & reply);
 private slots:
-    void P_rpc_requestSended(uint16_t ruid, uint8_t funcId, const QVector<uint16_t> &argv);
     void P_rpc_replyReceived(uint16_t ruid, uint8_t funcId, uint8_t err, const QVector<uint16_t> &resv);
     void P_rpc_eventReceived(uint8_t eventId, const QVector<uint16_t> &resv);
     /** @brief Time is out since sent the request. */
-    void P_rpc_request_timedout(uint16_t ruid);
+    void P_rpc_request_timedout(uint16_t ruid, uint8_t funcId);
 
 private:
     RPCClient m_rpc;
 
+    /** @brief pulses per revolution */
     struct
     {
-        bool valid; /**< Характеристики устройства верны */
-        unsigned value; /**< pulses per revolution */
+        bool valid;
+        unsigned value;
     } m_ppr;
 
-    Mode m_mode;
+    RunMode m_mode;
 
     struct
     {
@@ -85,13 +124,33 @@ private:
 
     bool m_prosess_started;
 
-    bool P_allow_process_to_start();
-    void P_invalidate_all();
-    bool P_need_to_reload();
-    void P_reload();
+    QMap<uint16_t, struct req_status> m_statuses;
 
-    void P_device_init();
-    void P_device_done();
+    QMap<uint16_t /* ruid */ , uint8_t /* funcId, unused */ > m_autoqueue; /**< Очередь из автоматических запросов */
+
+    void P_rpc_request_common(uint8_t funcId, const QVector<uint16_t> & argv, ReqMode reqmode);
+
+    void P_rpc_request_00_ppr_r(ReqMode reqmode);
+    void P_rpc_request_01_mode_r(ReqMode reqmode);
+    void P_rpc_request_02_koef_r(ReqMode reqmode);
+    void P_rpc_request_03_koef_w(double Kp, double Ki, double Kd, ReqMode reqmode);
+    void P_rpc_request_04_speed_SP_r(ReqMode reqmode);
+    /**
+     * @param speed     speed, pulses/minute
+     */
+    void P_rpc_request_05_speed_SP_w(uint16_t speed, ReqMode reqmode);
+    void P_rpc_request_06_speed_PV_r(ReqMode reqmode);
+    void P_rpc_request_07_process_start(ReqMode reqmode);
+    void P_rpc_request_08_process_stop(ReqMode reqmode);
+
+    bool P_enabled_runMode_service3();
+    void P_invalidate_all();
+    void P_allowToDisconnect(bool timedout);
+
+    void P_reload_00_ppr_r();
+    void P_reload_01_mode_r();
+    void P_reload_02_koef_r();
+    void P_reload_07_process_start();
 
 };
 

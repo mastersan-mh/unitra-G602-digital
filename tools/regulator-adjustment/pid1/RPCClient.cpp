@@ -9,26 +9,29 @@
 
 static int P_u8_get(QByteArray::const_iterator &it, const QByteArray & data, uint8_t * value)
 {
-    uint16_t v;
+    uint8_t v8;
 
     if(it == data.cend()) return -1;
-    v = (*it);
+    v8 = (*it);
     ++it;
-    (*value) = v;
+    (*value) = v8;
     return 0;
 }
 
 static int P_u16_get(QByteArray::const_iterator &it, const QByteArray & data, uint16_t * value)
 {
-    uint16_t v;
+    uint8_t v8;
+    uint16_t v16;
 
     if(it == data.cend()) return -1;
-    v = ((uint16_t)(*it) << 8);
+    v8 = (*it);
+    v16 = ((uint16_t)v8 << 8);
     ++it;
     if(it == data.cend()) return -1;
-    v = v | (uint16_t)(*it);
+    v8 = (*it);
+    v16 = v16 | (uint16_t)v8;
     ++it;
-    (*value) = v;
+    (*value) = v16;
     return 0;
 }
 
@@ -56,10 +59,11 @@ void RPCClient::timeoutSet(int timeout)
     m_timeout = timeout;
 }
 
-void RPCClient::requestSend(uint8_t funcId, const QVector<uint16_t> & argv)
+uint16_t RPCClient::requestSend(uint8_t funcId, const QVector<uint16_t> & argv)
 {
     QByteArray data;
-    P_encode(m_ruid_last, funcId, argv, data);
+    uint16_t ruid = m_ruid_last;
+    P_encode(ruid, funcId, argv, data);
 
     QTimer * timer = new QTimer();
     QObject::connect(timer, SIGNAL(timeout()), this, SLOT(P_timeoutEvent()));
@@ -69,19 +73,13 @@ void RPCClient::requestSend(uint8_t funcId, const QVector<uint16_t> & argv)
     struct awaiting_request req;
     req.funcId = funcId;
     req.timer = timer;
-    m_awaiting_requests[m_ruid_last] = req;
+    m_awaiting_requests[ruid] = req;
 
-    emit dataReadyToSend(data);
-    emit requestSended(m_ruid_last, funcId, argv);
+    emit ready_dataToSend(data);
 
-    if(m_ruid_last == 0xFFFF)
-    {
-        m_ruid_last = 0;
-    }
-    else
-    {
-        ++m_ruid_last;
-    }
+    m_ruid_last = (m_ruid_last == 0xFFFF ? 0 : m_ruid_last + 1);
+
+    return ruid;
 }
 
 void RPCClient::dataReplyReceive(const QByteArray & reply)
@@ -123,15 +121,15 @@ void RPCClient::dataReplyReceive(const QByteArray & reply)
 
 int RPCClient::P_encode(
         uint16_t ruid,
-        uint8_t procId,
+        uint8_t funcId,
         const QVector<uint16_t> & argv,
         QByteArray & data
-        )
+        ) const
 {
     int argc = argv.size();
     if(argc > 255) return -1;
     P_u16_append(ruid, data);
-    P_u8_append(procId, data);
+    P_u8_append(funcId, data);
     P_u8_append(argc, data);
     for(QVector<uint16_t>::const_iterator it = argv.cbegin(); it != argv.cend(); ++it)
     {
@@ -140,7 +138,7 @@ int RPCClient::P_encode(
     return 0;
 }
 
-int RPCClient::P_decode(const QByteArray & data, IncomingMsg &msg)
+int RPCClient::P_decode(const QByteArray & data, IncomingMsg &msg) const
 {
     QByteArray::const_iterator it = data.cbegin();
 
@@ -183,29 +181,20 @@ int RPCClient::P_decode(const QByteArray & data, IncomingMsg &msg)
     return 0;
 }
 
-long RPCClient::P_request_timedout_get() const
-{
-    for(request_t::const_iterator it = m_awaiting_requests.cbegin(); it != m_awaiting_requests.cend(); ++it)
-    {
-        if(!it.value().timer->isActive()) return it.key();
-    }
-    return -1;
-}
-
 void RPCClient::P_timeoutEvent()
 {
-    while(1)
+    for(request_t::iterator it = m_awaiting_requests.begin(); it != m_awaiting_requests.end(); )
     {
-        long ruid = P_request_timedout_get();
-        if(ruid < 0)
+        struct awaiting_request & req = it.value();
+        if(req.timer->isActive())
         {
-            break;
+            ++it;
         }
         else
         {
-            uint8_t funcId;
-            P_awaiting_request_pop(ruid, funcId);
-            emit timedout(ruid);
+            emit replyTimeout(it.key(), req.funcId);
+            P_awaiting_request_delete(req);
+            it = m_awaiting_requests.erase(it);
         }
     }
 }
@@ -215,18 +204,22 @@ void RPCClient::P_timeoutEvent()
  */
 bool RPCClient::P_awaiting_request_pop(uint16_t ruid, uint8_t & funcId)
 {
-    if(m_awaiting_requests.count(ruid) > 0)
+    if(m_awaiting_requests.contains(ruid))
     {
         struct awaiting_request req = m_awaiting_requests.take(ruid);
-        QTimer * timer = req.timer;
-        QObject::disconnect(timer, SIGNAL(timeout()), this, SLOT(P_timeoutEvent()));
-        delete timer;
+        P_awaiting_request_delete(req);
         funcId = req.funcId;
         return true;
     }
     return false;
 }
 
+void RPCClient::P_awaiting_request_delete(struct awaiting_request & req)
+{
+    QTimer * timer = req.timer;
+    QObject::disconnect(timer, SIGNAL(timeout()), this, SLOT(P_timeoutEvent()));
+    delete timer;
+}
 
 RPCClient::IncomingMsg::IncomingMsg()
     : type()
