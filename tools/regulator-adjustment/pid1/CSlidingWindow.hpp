@@ -8,13 +8,14 @@ class CSlidingWindow
 public:
     CSlidingWindow(int capacity);
     ~CSlidingWindow();
-    void capacitySet(int capacity);
+    void sizeSet(int size);
+    int sizeGet() const;
     bool append(double val);
-    bool isFull();
+    bool isFull() const;
     void clear();
     const QVector <double> &get();
 private:
-    int m_capacity;
+    int m_size;
     QVector <double> m_vec;
 };
 

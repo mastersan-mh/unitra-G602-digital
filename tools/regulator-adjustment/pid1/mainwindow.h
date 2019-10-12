@@ -74,7 +74,7 @@ private:
     double m_processVariable;
     bool m_setpoint_manual;
     int m_accumulated_values;
-    double m_axis_x_shift;
+    double m_simulatuion_value;
 
     QTimer * m_timer;
     unsigned long m_time;
@@ -94,6 +94,9 @@ private:
     CSlidingWindow m_axis_x;
     CSlidingWindow m_valuesSetpoint;
     CSlidingWindow m_valuesPV;
+    double m_plot_start;
+    double m_plot_end;
+
 
 #ifdef APP_USE_CGRAPH
     QList<double> m_valuesSetpoint;

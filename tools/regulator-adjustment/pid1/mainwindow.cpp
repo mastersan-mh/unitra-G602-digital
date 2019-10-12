@@ -71,8 +71,6 @@ MainWindow::MainWindow(QWidget *parent)
     plotMain = graph->addPlot(QColor(Qt::yellow));
 #endif
 
-    m_axis_x_shift = 0.0;
-
     QColor axisColor(Qt::green);
     QPen axisPen(axisColor);
     axisPen.setColor(axisColor);
@@ -325,20 +323,26 @@ void MainWindow::P_runModeChange(bool simulation)
     m_axis_x.clear();
     m_valuesSetpoint.clear();
     m_valuesPV.clear();
-    m_axis_x_shift = 0.0;
     m_processVariable = 0.0;
 
     int len_max;
-
     if(simulation)
     {
         m_runMode = RunMode::SIMULATION;
 
         len_max = (AXIS_X_MAX - AXIS_X_MIN) * 1000 / INTERVAL_MS;
-        m_axis_x.capacitySet(len_max);
-        m_valuesSetpoint.capacitySet(len_max);
-        m_valuesPV.capacitySet(len_max);
 
+        m_axis_x.sizeSet(len_max);
+        m_valuesSetpoint.sizeSet(len_max);
+        m_valuesPV.sizeSet(len_max);
+
+        m_valuesSetpoint.clear();
+        m_valuesSetpoint.clear();
+        m_valuesPV.clear();
+
+        m_plot_start = AXIS_X_MIN;
+        m_plot_end = AXIS_X_MAX;
+        m_simulatuion_value = AXIS_X_MIN;
         m_timer->start(INTERVAL_MS);
     }
     else
@@ -346,10 +350,10 @@ void MainWindow::P_runModeChange(bool simulation)
         m_timer->stop();
         m_runMode = RunMode::DEVICE;
 
-        len_max = 20;//(AXIS_X_MAX - AXIS_X_MIN) * 1000 / INTERVAL_MS;
-        m_axis_x.capacitySet(len_max);
-        m_valuesSetpoint.capacitySet(len_max);
-        m_valuesPV.capacitySet(len_max);
+        len_max = 20;
+        m_axis_x.sizeSet(len_max);
+        m_valuesSetpoint.sizeSet(len_max);
+        m_valuesPV.sizeSet(len_max);
 
     }
 
@@ -412,14 +416,24 @@ void MainWindow::P_dev_ready_SPPV(unsigned long time_ms, double sp, double pv)
     m_processVariable = pv;
     m_ui->indication.PID_power->setText(QString("PID output = %1").arg(power));
 
+
+    m_plot_start = AXIS_X_MIN;
+    m_plot_end = AXIS_X_MAX;
+
     m_axis_x.append((double)time_ms / 1000.0);
     m_valuesSetpoint.append(m_setpoint);
     m_valuesPV.append(m_processVariable);
 
-    m_time = time_ms;
-    /* shift the axis-X */
-    m_axis_x_shift = m_axis_x.get()[0];
+    const QVector <double> &axis_x_vals = m_axis_x.get();
 
+    int size = axis_x_vals.size();
+    double begin = axis_x_vals[0];
+    double end   = axis_x_vals[size > 0 ? size - 1 : 0];
+
+    m_time = time_ms;
+
+    m_plot_start = begin;
+    m_plot_end   = end;
     P_tickEventCommon();
 }
 
@@ -719,24 +733,19 @@ void MainWindow::P_tickEventSimulation()
         m_processVariable = m_engine->process(power);
         m_ui->indication.PID_power->setText(QString("PID output = %1").arg(power));
 
-        double next_value_sec = 0.0;
-        m_axis_x.clear();
-        int len_max = (AXIS_X_MAX - AXIS_X_MIN) * 1000 / INTERVAL_MS;
-        for (int i = 0; i < len_max; ++i)
+
+        if(m_axis_x.isFull())
         {
-            m_axis_x.append(m_axis_x_shift + next_value_sec);
-            next_value_sec += (INTERVAL_MS / 1000.0);
+            m_plot_start += (INTERVAL_MS / 1000.0);
+            m_plot_end += (INTERVAL_MS / 1000.0);
         }
 
-        bool full = m_valuesSetpoint.append(m_setpoint);
+        m_axis_x.append(m_simulatuion_value);
+        m_valuesSetpoint.append(m_setpoint);
         m_valuesPV.append(m_processVariable);
+        m_simulatuion_value += (INTERVAL_MS / 1000.0);
         m_time += INTERVAL_MS;
 
-        if(full)
-        {
-            /* shift the axis-X */
-            m_axis_x_shift += (INTERVAL_MS / 1000.0);
-        }
     }
 
     P_tickEventCommon();
@@ -823,7 +832,7 @@ void MainWindow::P_replot(
     {
         m_ui->cplot->yAxis->setRange(AXIS_Y_MIN, AXIS_Y_MAX);
     }
-    m_ui->cplot->xAxis->setRange(AXIS_X_MIN + m_axis_x_shift, AXIS_X_MAX + m_axis_x_shift);
+    m_ui->cplot->xAxis->setRange(m_plot_start, m_plot_end);
 
     m_ui->cplot->replot();
 
