@@ -31,12 +31,33 @@ public:
         TIMEOUT,  /**< Таймаут */
     };
 
+    enum FuncId
+    {
+        FUNC_00_PULSES_R      = 0x00,
+        FUNC_01_MODE_R        = 0x01,
+        FUNC_02_KOEF_R        = 0x02,
+        FUNC_03_KOEF_W        = 0x03,
+        FUNC_04_SPEED_SP_R    = 0x04,
+        FUNC_05_SPEED_SP_W    = 0x05,
+        FUNC_06_SPEED_PV_R    = 0x06,
+        FUNC_07_PROCESS_START = 0x07,
+        FUNC_08_PROCESS_STOP  = 0x08,
+    };
+
+    enum
+    {
+        EVENT_MODE_CHANGED = 0x00,
+        EVENT_SPPV         = 0x01,
+    };
+
     struct req_status
     {
-        uint8_t funcId;
+        FuncId funcId;
         ReqMode reqmode;
         ReqResult res;
     };
+
+    typedef QMap<uint16_t, struct req_status> ReqStatuses;
 
     /** @brief Device run mode */
     enum class RunMode
@@ -58,17 +79,16 @@ public:
     /**
      * @brief Erase the SUCCESS statuses
      */
-    void requestsStatClearSuccess();
+    void requestsStatClear(ReqResult reqResult);
     /**
      * @brief Get the statuses of the requests
      * @return ruid:stat
      */
-    QMap<uint16_t, struct req_status> requestsStatGet() const;
+    ReqStatuses requestsStatGet() const;
 
     RunMode runModeGet() const;
 
     /* Manual requests */
-    void request_00_ppr_r();
     void runModeRead();
     void runModeGet(RunMode &mode) const;
     void pidKoefRead();
@@ -82,7 +102,6 @@ public:
 
 signals:
     void ready_dataToSend(const QByteArray &);
-    void ready_toDisconnect(bool timedout);
     void ready_runModeChanged(Device::RunMode mode);
     void ready_SPPV(unsigned long time_ms, double sp, double pv);
 
@@ -92,6 +111,8 @@ signals:
     void ready_speedSetpointRead(bool timedout, double sp);
     void ready_speedSetpointWrite(bool timedout);
     void ready_speedPVRead(bool timedout, double pv);
+    void ready_processStart(bool timedout);
+    void ready_processStop(bool timedout);
 public slots:
     void devConnect();
     void devDisconnect();
@@ -124,9 +145,9 @@ private:
 
     bool m_prosess_started;
 
-    QMap<uint16_t, struct req_status> m_statuses;
+    ReqStatuses m_statuses;
 
-    QMap<uint16_t /* ruid */ , uint8_t /* funcId, unused */ > m_autoqueue; /**< Очередь из автоматических запросов */
+    QMap<uint16_t /* ruid */ , uint8_t /* funcId, unused */ > m_autoqueue; /**< Очередь из ожидающих автоматических запросов */
 
     void P_rpc_request_common(uint8_t funcId, const QVector<uint16_t> & argv, ReqMode reqmode);
 
@@ -145,7 +166,6 @@ private:
 
     bool P_enabled_runMode_service3();
     void P_invalidate_all();
-    void P_allowToDisconnect(bool timedout);
 
     void P_reload_00_ppr_r();
     void P_reload_01_mode_r();

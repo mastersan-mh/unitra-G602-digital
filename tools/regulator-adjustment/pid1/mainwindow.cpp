@@ -21,13 +21,13 @@ https://www.bookasutp.ru/Chapter5_5.aspx
 http://lazysmart.ru/osnovy-avtomatiki/nastrojka-pid-regulyatora/
 */
 
-//    QMessageBox::critical(this, tr("Error"), QString("Request timed out of RUID %1").arg(ruid));
-//    m_ui->statusBar->showMessage(tr("Request timed out"));
-
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , m_ui(new MainWindow_Ui)
     , m_device(new Device)
+    , m_axis_x(1)
+    , m_valuesSetpoint(1)
+    , m_valuesPV(1)
 {
     m_ui->init_UI(this);
 
@@ -56,8 +56,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_timer = new QTimer();
     m_timer->setSingleShot(false);
     //timer->setTimerType(Qt::PreciseTimer);
-    QObject::connect(m_timer, SIGNAL(timeout()), this, SLOT(P_mainEvent()));
-    m_timer->start(INTERVAL_MS);
+    QObject::connect(m_timer, SIGNAL(timeout()), this, SLOT(P_tickEventSimulation()));
 
     m_time = 0;
 
@@ -113,7 +112,6 @@ MainWindow::MainWindow(QWidget *parent)
     QObject::connect(m_comm, SIGNAL(readyFrameToRead()), this, SLOT(P_readFrame()));
     QObject::connect(m_comm, SIGNAL(readyOutputStream(const QByteArray &)), this, SLOT(P_writeRawData(const QByteArray &)));
     QObject::connect(m_device, SIGNAL(ready_dataToSend(const QByteArray &)), m_comm, SLOT(writeFrame(const QByteArray&)));
-    QObject::connect(m_device, SIGNAL(ready_toDisconnect(bool)                       ), this, SLOT(P_dev_ready_toDisconnect(bool)                       ));
     QObject::connect(m_device, SIGNAL(ready_runModeChanged(Device::RunMode)          ), this, SLOT(P_dev_ready_runModeChanged(Device::RunMode)          ));
     QObject::connect(m_device, SIGNAL(ready_SPPV(unsigned long, double, double)      ), this, SLOT(P_dev_ready_SPPV(unsigned long, double, double )     ));
     QObject::connect(m_device, SIGNAL(ready_runModeRead(bool, Device::RunMode)       ), this, SLOT(P_dev_ready_runModeRead(bool, Device::RunMode)       ));
@@ -122,6 +120,8 @@ MainWindow::MainWindow(QWidget *parent)
     QObject::connect(m_device, SIGNAL(ready_speedSetpointRead(bool, double)          ), this, SLOT(P_dev_ready_speedSetpointRead(bool, double)          ));
     QObject::connect(m_device, SIGNAL(ready_speedSetpointWrite(bool)                 ), this, SLOT(P_dev_ready_speedSetpointWrite(bool)                 ));
     QObject::connect(m_device, SIGNAL(ready_speedPVRead(bool, double)                ), this, SLOT(P_dev_ready_speedPVRead(bool, double)                ));
+    QObject::connect(m_device, SIGNAL(ready_processStart(bool)                       ), this, SLOT(P_dev_ready_processStart(bool)                       ));
+    QObject::connect(m_device, SIGNAL(ready_processStop(bool)                        ), this, SLOT(P_dev_ready_processStop(bool)                       ));
 
     QObject::connect(
                 m_ui->selection.leftValue, SIGNAL(valueChanged(double)),
@@ -164,10 +164,6 @@ MainWindow::MainWindow(QWidget *parent)
                 );
 
     QObject::connect(
-                m_ui->tab.serial->m_buttonReq0, SIGNAL(clicked(bool)),
-                this, SLOT(P_button_rpc_request_0_pulses_r(bool))
-                );
-    QObject::connect(
                 m_ui->tab.serial->m_buttonReq1, SIGNAL(clicked(bool)),
                 this, SLOT(P_button_rpc_request_1_mode_r(bool))
                 );
@@ -201,6 +197,16 @@ MainWindow::MainWindow(QWidget *parent)
                 );
 
     QObject::connect(
+                m_ui->tab.serial->m_buttonClearBad, SIGNAL(clicked(bool)),
+                this, SLOT(P_button_driveReqstat_clearBad(bool))
+                );
+
+    QObject::connect(
+                m_ui->tab.serial->m_buttonClearAll, SIGNAL(clicked(bool)),
+                this, SLOT(P_button_driveReqstat_clearAll(bool))
+                );
+
+    QObject::connect(
                 m_ui->tab.simulation->setpointMode_radio1, SIGNAL(toggled(bool)),
                 this, SLOT(setpoint_ManualModeSelected(bool))
                 );
@@ -228,14 +234,11 @@ MainWindow::MainWindow(QWidget *parent)
                 );
 
     QObject::connect(
-                m_ui->setpoint_slider, SIGNAL(valueChanged(int)),
-                this, SLOT(setpoint_sliderChangeValue(int))
-                );
-    QObject::connect(
-                m_ui->setpoint_spinBox, SIGNAL(valueChanged(int)),
-                this, SLOT(setpoint_spinBoxChangeValue(int))
+                m_ui->m_setpoint, SIGNAL(valueChanged(int)),
+                this, SLOT(P_setpointValueChanged(int))
                 );
 
+    m_ui->mainMenu.actionRunMode->setChecked(true); /* to able to emit signal */
     m_ui->mainMenu.actionRunMode->setChecked(false);
     m_ui->mainMenu.actionAutoscale->setChecked(false);
 
@@ -244,8 +247,7 @@ MainWindow::MainWindow(QWidget *parent)
     setpointFuncSetValue(MANUAL_SETPOINT_INITIAL_VALUE);
     m_ui->selection.leftValue->setValue(PIDK_SELECTION_RANGE_MIN);
     m_ui->selection.rightValue->setValue(PIDK_SELECTION_RANGE_MAX);
-    m_ui->setpoint_slider->setValue(MANUAL_SETPOINT_INITIAL_VALUE);
-    m_ui->setpoint_spinBox->setValue(MANUAL_SETPOINT_INITIAL_VALUE);
+    m_ui->m_setpoint->setValue(MANUAL_SETPOINT_INITIAL_VALUE);
     m_ui->tab.simulation->setpointMode_radio1->setChecked(true);
     m_ui->Kselector_radio1_Kp->setChecked(true);
     m_ui->pidK->setValueKp(PID_Kp);
@@ -320,6 +322,40 @@ void MainWindow::P_runModeChange(bool simulation)
 {
     m_ui->tab.serial->setEnabled(!simulation);
     m_ui->tab.simulation->setEnabled(simulation);
+    m_axis_x.clear();
+    m_valuesSetpoint.clear();
+    m_valuesPV.clear();
+    m_axis_x_shift = 0.0;
+    m_processVariable = 0.0;
+
+    int len_max;
+
+    if(simulation)
+    {
+        m_runMode = RunMode::SIMULATION;
+
+        len_max = (AXIS_X_MAX - AXIS_X_MIN) * 1000 / INTERVAL_MS;
+        m_axis_x.capacitySet(len_max);
+        m_valuesSetpoint.capacitySet(len_max);
+        m_valuesPV.capacitySet(len_max);
+
+        m_timer->start(INTERVAL_MS);
+    }
+    else
+    {
+        m_timer->stop();
+        m_runMode = RunMode::DEVICE;
+
+        len_max = 20;//(AXIS_X_MAX - AXIS_X_MIN) * 1000 / INTERVAL_MS;
+        m_axis_x.capacitySet(len_max);
+        m_valuesSetpoint.capacitySet(len_max);
+        m_valuesPV.capacitySet(len_max);
+
+    }
+
+
+    P_tickEventCommon();
+
 }
 
 void MainWindow::P_device_status_update(Device::RunMode mode) const
@@ -363,11 +399,6 @@ void MainWindow::P_readFrame()
     }
 }
 
-void MainWindow::P_dev_ready_toDisconnect(bool timedout)
-{
-    if(timedout) return;
-}
-
 void MainWindow::P_dev_ready_runModeChanged(Device::RunMode mode)
 {
     P_device_reqstats_update();
@@ -376,17 +407,32 @@ void MainWindow::P_dev_ready_runModeChanged(Device::RunMode mode)
 
 void MainWindow::P_dev_ready_SPPV(unsigned long time_ms, double sp, double pv)
 {
+    double power = 666.666;
 
+    m_processVariable = pv;
+    m_ui->indication.PID_power->setText(QString("PID output = %1").arg(power));
+
+    m_axis_x.append((double)time_ms / 1000.0);
+    m_valuesSetpoint.append(m_setpoint);
+    m_valuesPV.append(m_processVariable);
+
+    m_time = time_ms;
+    /* shift the axis-X */
+    m_axis_x_shift = m_axis_x.get()[0];
+
+    P_tickEventCommon();
 }
 
 void MainWindow::P_dev_ready_runModeRead(bool timedout, Device::RunMode mode)
 {
+    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
     P_device_reqstats_update();
     P_device_status_update(timedout ? Device::RunMode::UNKNOWN : mode);
 }
 
 void MainWindow::P_dev_ready_pidKoefRead(bool timedout, double Kp, double Ki, double Kd)
 {
+    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
     m_ui->pidK->setValueKp(Kp);
     m_ui->pidK->setValueKi(Ki);
@@ -395,69 +441,109 @@ void MainWindow::P_dev_ready_pidKoefRead(bool timedout, double Kp, double Ki, do
 
 void MainWindow::P_dev_ready_pidKoefWrite(bool timedout)
 {
+    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
 }
 
 void MainWindow::P_dev_ready_speedSetpointRead(bool timedout, double sp)
 {
+    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
 }
 
 void MainWindow::P_dev_ready_speedSetpointWrite(bool timedout)
 {
+    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
 
 }
 
 void MainWindow::P_dev_ready_speedPVRead(bool timedout, double pv)
 {
+    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
 
 }
 
-void MainWindow::P_button_rpc_request_0_pulses_r(bool)
+void MainWindow::P_dev_ready_processStart(bool timedout)
 {
-    m_device->request_00_ppr_r();
+    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
+    if(timedout) return;
+}
+
+void MainWindow::P_dev_ready_processStop(bool timedout)
+{
+    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
+    if(timedout) return;
 }
 
 void MainWindow::P_button_rpc_request_1_mode_r(bool)
 {
     m_device->runModeRead();
+    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
 }
 
 void MainWindow::P_button_rpc_request_2_koef_r(bool)
 {
     m_device->pidKoefRead();
+    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
 }
 
 void MainWindow::P_button_rpc_request_3_koef_w(bool)
 {
     m_device->pidKoefWrite(1.2, 3.4, 5.6);
+    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
 }
 
 void MainWindow::P_button_rpc_request_4_speed_SP_r(bool)
 {
     m_device->speedSetpointRead();
+    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
 }
 
 void MainWindow::P_button_rpc_request_5_speed_SP_w(bool)
 {
-    m_device->speedSetpointWrite(33.0);
+    try
+    {
+        m_device->speedSetpointWrite(33.0);
+    }
+    catch(...)
+    {
+        QMessageBox::critical(this, tr("Error"), QString("Device info not ready"));
+        m_ui->statusBar->showMessage(tr("Device info not ready"));
+    }
+
+    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
 }
 
 void MainWindow::P_button_rpc_request_6_speed_PV_r(bool)
 {
     m_device->speedPVRead();
+    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
 }
 
 void MainWindow::P_button_rpc_request_7_process_start(bool)
 {
     m_device->request_07_process_start();
+    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
 }
 
 void MainWindow::P_button_rpc_request_8_process_stop(bool)
 {
     m_device->request_08_process_stop();
+    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
+}
+
+void MainWindow::P_button_driveReqstat_clearBad(bool)
+{
+    m_device->requestsStatClear(Device::ReqResult::TIMEOUT);
+    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
+}
+
+void MainWindow::P_button_driveReqstat_clearAll(bool)
+{
+    m_device->requestsStatClearAll();
+    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
 }
 
 void MainWindow::pidK_changed(double Kp, double Ki, double Kd)
@@ -495,18 +581,11 @@ void MainWindow::setpoint_AutoModeSelected(bool toggled)
 
 void MainWindow::setpoint_valueSet(int value)
 {
-    m_ui->setpoint_slider->setValue(value);
+    m_ui->m_setpoint->setValue(value);
 }
 
-void MainWindow::setpoint_sliderChangeValue(int value)
+void MainWindow::P_setpointValueChanged(int value)
 {
-    m_ui->setpoint_spinBox->setValue(value);
-    setpointFuncSetValue(value);
-}
-
-void MainWindow::setpoint_spinBoxChangeValue(int value)
-{
-    m_ui->setpoint_slider->setValue(value);
     setpointFuncSetValue(value);
 }
 
@@ -614,22 +693,16 @@ double MainWindow::map_integer_to_double(
 }
 
 
-void MainWindow::P_mainEvent()
+void MainWindow::P_tickEventSimulation()
 {
-    fan::FuncDescr fdescr;
-
-    int len_max = (AXIS_X_MAX - AXIS_X_MIN) * 1000 / INTERVAL_MS;
-
-    bool autoScale = (m_ui->mainMenu.actionAutoscale->isChecked());
-
-    if(!m_setpoint_manual)
-    {
-        int sp_auto = 50;
-        setpoint_valueSet(sp_auto);
-    }
-
     if(!m_paused)
     {
+
+        if(!m_setpoint_manual)
+        {
+            int sp_auto = 50;
+            setpoint_valueSet(sp_auto);
+        }
 
 #if defined(PID_DISCRETE)
         double power = pid->calculate(setpoint, processVariable);
@@ -640,81 +713,101 @@ void MainWindow::P_mainEvent()
 #endif
 
         m_processVariable = m_engine->process(power);
+        m_ui->indication.PID_power->setText(QString("PID output = %1").arg(power));
 
-        m_valuesSetpoint.push_back(m_setpoint);
-        m_valuesPV.push_back(m_processVariable);
+        double next_value_sec = 0.0;
+        m_axis_x.clear();
+        int len_max = (AXIS_X_MAX - AXIS_X_MIN) * 1000 / INTERVAL_MS;
+        for (int i = 0; i < len_max; ++i)
+        {
+            m_axis_x.append(m_axis_x_shift + next_value_sec);
+            next_value_sec += (INTERVAL_MS / 1000.0);
+        }
+
+        bool full = m_valuesSetpoint.append(m_setpoint);
+        m_valuesPV.append(m_processVariable);
         m_time += INTERVAL_MS;
 
-        if(m_valuesSetpoint.size() > len_max)
+        if(full)
         {
-            /* erase old values */
-            m_valuesSetpoint.pop_front();
-            m_valuesPV.pop_front();
-
             /* shift the axis-X */
             m_axis_x_shift += (INTERVAL_MS / 1000.0);
         }
-
-        fan::FuncDescr::PointsDescr::const_iterator PV_index_min;
-        fan::FuncDescr::PointsDescr::const_iterator PV_index_max;
-
-        fan::functionAnalysis(m_valuesPV, fdescr);
-        const fan::FuncDescr::PointsDescr & pdescr = fdescr.pointsDescrGet();
-        fan::functionExtremumsGet(pdescr, PV_index_min, PV_index_max);
-
-        double PV_min = (PV_index_min != pdescr.constEnd() ? m_valuesPV[PV_index_min.key()] : 0);
-        double PV_max = (PV_index_max != pdescr.constEnd() ? m_valuesPV[PV_index_max.key()] : 0);
-
-        double PV_amplitude = PV_max - PV_min;
-
-        double sp_pv_diff = (double)((double)m_setpoint - m_processVariable);
-        double sp_pv_diff_abs = fabs(sp_pv_diff);
-        m_ui->indication.processVariable->setText(QString("process variable = %1").arg(m_processVariable));
-        m_ui->indication.PV_amplitude->setText(QString("PV amplitude = %1").arg(PV_amplitude));
-        m_ui->indication.diff_SP_PV->setText(QString("SP - PV = %1 (%2% SP) (SP %3 PV)")
-                                     .arg(sp_pv_diff_abs, 0, 'g', 9)
-                                     .arg(100.0 * (sp_pv_diff_abs / (double)m_setpoint) , 0, 'g', 2)
-                                     .arg(
-                                         (sp_pv_diff < 0.0) ? "<" :
-                                                            (sp_pv_diff > 0.0) ? ">" :
-                                                                               "="
-                                                                               )
-                                     );
-        m_ui->indication.PID_power->setText(QString("PID output = %1").arg(power));
-
     }
 
+    P_tickEventCommon();
+}
 
+void MainWindow::P_tickEventCommon()
+{
+    fan::FuncDescr fdescr;
 
+    fan::FuncDescr::PointsDescr::const_iterator PV_index_min;
+    fan::FuncDescr::PointsDescr::const_iterator PV_index_max;
+
+    fan::functionAnalysis(m_valuesPV.get(), fdescr);
+    const fan::FuncDescr::PointsDescr & pdescr = fdescr.pointsDescrGet();
+    fan::functionExtremumsGet(pdescr, PV_index_min, PV_index_max);
+
+    double PV_min = (PV_index_min != pdescr.constEnd() ? m_valuesPV.get()[PV_index_min.key()] : 0);
+    double PV_max = (PV_index_max != pdescr.constEnd() ? m_valuesPV.get()[PV_index_max.key()] : 0);
+
+    double PV_amplitude = PV_max - PV_min;
+
+    P_indication_update(m_setpoint, m_processVariable, PV_amplitude);
+
+    P_replot(
+                m_axis_x.get(),
+                m_valuesSetpoint.get(),
+                m_valuesPV.get()
+                );
+
+}
+
+void MainWindow::P_indication_update(double setpoint, double processVariable, double PV_amplitude)
+{
+    double sp_pv_diff = (double)((double)setpoint - processVariable);
+    double sp_pv_diff_abs = fabs(sp_pv_diff);
+
+    m_ui->indication.processVariable->setText(QString("process variable = %1").arg(processVariable));
+    m_ui->indication.PV_amplitude->setText(QString("PV amplitude = %1").arg(PV_amplitude));
+    m_ui->indication.diff_SP_PV->setText(QString("SP - PV = %1 (%2% SP) (SP %3 PV)")
+                                         .arg(sp_pv_diff_abs, 0, 'g', 9)
+                                         .arg(100.0 * (sp_pv_diff_abs / (double)setpoint) , 0, 'g', 2)
+                                         .arg(
+                                             (sp_pv_diff < 0.0) ? "<" :
+                                                                  ((sp_pv_diff > 0.0) ? ">" : "=")
+                                                                  )
+                                         );
+}
+
+void MainWindow::P_replot(
+        const QVector<double> &axis_x,
+        const QVector<double> &vSetpoint,
+        const QVector<double> &vPV
+        )
+{
     /* fill the axis-X values */
-    QVector<double> axis_x(len_max);
 
-    double idx = 0.0;
-    for (int i = 0; i < len_max; ++i)
-    {
-        axis_x[i] = m_axis_x_shift + idx;
-        idx += (INTERVAL_MS / 1000.0);
-    }
-
-    QVector<double> mins =
-    {
-        *std::min_element(m_valuesSetpoint.begin(), m_valuesSetpoint.end()),
-        *std::min_element(m_valuesPV.begin(), m_valuesPV.end())
-    };
-    QVector<double> maxs =
-    {
-        *std::max_element(m_valuesSetpoint.begin(), m_valuesSetpoint.end()),
-        *std::max_element(m_valuesPV.begin(), m_valuesPV.end())
-    };
-    double min = *std::min_element(mins.begin(), mins.end());
-    double max = *std::max_element(maxs.begin(), maxs.end());
-
-    m_ui->plotSetpoint->setData(axis_x, m_valuesSetpoint);
-    m_ui->plotPV->setData(axis_x, m_valuesPV);
+    m_ui->plotSetpoint->setData(axis_x, vSetpoint);
+    m_ui->plotPV->setData(axis_x, vPV);
 
     /* scale setup */
+    bool autoScale = (m_ui->mainMenu.actionAutoscale->isChecked());
     if(autoScale)
     {
+        QVector<double> mins =
+        {
+            *std::min_element(vSetpoint.begin(), vSetpoint.end()),
+            *std::min_element(vPV.begin(), vPV.end())
+        };
+        QVector<double> maxs =
+        {
+            *std::max_element(vSetpoint.begin(), vSetpoint.end()),
+            *std::max_element(vPV.begin(), vPV.end())
+        };
+        double min = *std::min_element(mins.begin(), mins.end());
+        double max = *std::max_element(maxs.begin(), maxs.end());
         double half = (max - min) / 2.0;
         double mid = (max + min) / 2.0;
 

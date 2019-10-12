@@ -59,7 +59,7 @@ public:
     /** @brief Update the actual speed */
     void actualSpeedUpdate(int speed);
     void eventModeChanged(app::Ctrl::RunMode runMode);
-    void eventSPPV(uint16_t speed);
+    void eventSPPV(GTime_t time, uint16_t speed);
 private:
     void (*m_event_strober)(bool on);
     void (*m_event_lift_up)();
@@ -85,7 +85,22 @@ private:
     GComm m_comm;
     GRPCServer m_rpc;
 
+    /* buffer to recieve request */
+#define CAPACITY 32
+    uint8_t m_buf_frame[CAPACITY];
+
     bool m_permanent_process_send;
+
+    nostd::Fixed32 m_Kp;
+    nostd::Fixed32 m_Ki;
+    nostd::Fixed32 m_Kd;
+
+    typedef nostd::PidRecurrent<nostd::Fixed32> PID;
+
+    PID m_pid;
+
+    void P_koef_store();
+    void P_koef_load();
 
     unsigned long P_rtcNextTimeGet() const;
     void P_blinker_start(GBlinker::BlinkType type);

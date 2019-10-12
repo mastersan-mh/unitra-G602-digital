@@ -60,4 +60,11 @@ extern bool debug_inited;
 #   define DEBUG_PRINTLN(x) do{ if(debug_inited) Serial.println(x); }while(0)
 #endif
 
+
+#define UNUSED __attribute__((unused))
+
+void dump_u8(const uint8_t * data, unsigned size);
+void dump_u16(const uint16_t * data, unsigned size);
+
+
 #endif /* CONFIG_H_ */

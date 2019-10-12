@@ -27,7 +27,7 @@ GRPCServer::~GRPCServer()
 
 }
 
-void GRPCServer::funcs_register(const func_t funcs[])
+void GRPCServer::funcs_register(const func_t *funcs[])
 {
     m_funcs = funcs;
     m_func_num = 0;
@@ -44,7 +44,7 @@ int GRPCServer::P_u8_get(const uint8_t * data, unsigned size, uint8_t * value)
 int GRPCServer::P_u16_get(const uint8_t * data, unsigned size, uint16_t * value)
 {
     if(size < 2) return -1;
-    (*value) = (data[1] | (data[0] << 8));
+    (*value) = (uint16_t)((uint16_t)data[1] | (((uint16_t)data[0]) << 8));
     return 0;
 }
 
@@ -58,12 +58,12 @@ int GRPCServer::P_u8_set(uint8_t value, uint8_t * data, unsigned size)
 int GRPCServer::P_u16_set(uint16_t value, uint8_t * data, unsigned size)
 {
     if(size < 2) return -1;
-    data[0] = (value >> 8);
-    data[1] = (value & 0x00ff);
+    data[0] = (uint8_t)(value >> 8);
+    data[1] = (uint8_t)(value & 0x00ff);
     return 0;
 }
 
-GRPCServer::Error GRPCServer::handle(const uint8_t * data, unsigned size)
+GRPCServer::Error GRPCServer::handle(const uint8_t * req, unsigned req_size)
 {
 
     int res;
@@ -73,24 +73,30 @@ GRPCServer::Error GRPCServer::handle(const uint8_t * data, unsigned size)
     uint8_t argc;
     unsigned resc = 0;
 
+    //DEBUG_PRINTLN("GRPCServer::handle(): req:");
+    //dump_u8(req, req_size);
+
     res = P_decode(
-            data,
-            size,
+            req,
+            req_size,
             &ruid,
             &funcid,
             &argc,
             m_argv
     );
-
     if(res)
     {
         return Error::DECODE;
     }
 
-    func_t func = m_funcs[funcid];
-    uint8_t err = func(argc, m_argv, &resc, m_resv, m_extraargs);
+    DEBUG_PRINTLN("GRPCServer::handle(): m_argv:");
+    dump_u16(m_argv, argc);
 
-    uint8_t reply[GRPCSERVER_SENDBUF_SIZE];
+    uint8_t err = (*m_funcs[funcid])(argc, m_argv, &resc, m_resv, m_extraargs);
+
+    //DEBUG_PRINTLN("GRPCServer::handle(): m_resv:");
+    //dump_u16(m_resv, resc);
+
     unsigned reply_size;
 
     res = P_encode_reply(
@@ -98,7 +104,7 @@ GRPCServer::Error GRPCServer::handle(const uint8_t * data, unsigned size)
             ruid,
             resc,
             m_resv,
-            reply,
+            m_buf_reply,
             GRPCSERVER_SENDBUF_SIZE,
             &reply_size
     );
@@ -108,7 +114,10 @@ GRPCServer::Error GRPCServer::handle(const uint8_t * data, unsigned size)
         return Error::ENCODE;
     }
 
-    m_send(reply, reply_size, m_extraargs);
+    //DEBUG_PRINTLN("GRPCServer::handle(): reply:");
+    //dump_u8(m_buf_reply, reply_size);
+
+    m_send(m_buf_reply, reply_size, m_extraargs);
 
     return Error::OK;
 }
@@ -244,7 +253,7 @@ int GRPCServer::P_encode_reply(
     size += 1;
     outmsg_capacity -= 1;
 
-    res = P_u8_set(resc, &outmsg[size], outmsg_capacity);
+    res = P_u8_set((uint8_t)resc, &outmsg[size], outmsg_capacity);
     if(res)
     {
         return -1;
@@ -302,7 +311,7 @@ int GRPCServer::P_encode_event(
     size += 1;
     outmsg_capacity -= 1;
 
-    res = P_u8_set(resc, &outmsg[size], outmsg_capacity);
+    res = P_u8_set((uint8_t)resc, &outmsg[size], outmsg_capacity);
     if(res)
     {
         return -1;

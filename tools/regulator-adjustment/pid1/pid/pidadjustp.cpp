@@ -4,7 +4,7 @@ PIDAdjustP::PIDAdjustP(unsigned len_max)
     : m_len_max(len_max)
     , m_state(State::INIT)
     , m_measure_start_time(0.0)
-    , m_time(0.0)
+    , m_time(0)
     , m_accumulated_values(0)
 {
     P_fsm(Command::INIT, nullptr);

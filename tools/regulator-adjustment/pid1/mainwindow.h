@@ -3,7 +3,7 @@
 
 #include "mainwindow_ui.h"
 #include "settingsdialog.h"
-
+#include "CSlidingWindow.hpp"
 #include "ctestmotor.h"
 
 #include "pid/pid.h"
@@ -39,12 +39,31 @@ private slots:
     void pause_unpause(bool);
 
     /* установить значение функции уставки */
-    void setpoint_sliderChangeValue(int value);
-    void setpoint_spinBoxChangeValue(int value);
+    void P_setpointValueChanged(int value);
 
-    void P_mainEvent();
+    void P_tickEventSimulation();
+    void P_tickEventCommon();
+    void P_indication_update(double setpoint, double processVariable, double PV_amplitude);
+
+
+    /**
+     * @param intervalx     Интервал между значениями по оси X, мс
+     */
+    void P_replot(
+            const QVector<double> &axis_x,
+            const QVector<double> &vSetpoint,
+            const QVector<double> &vPV
+            );
 
 private:
+
+    enum class RunMode
+    {
+        SIMULATION,
+        DEVICE
+    };
+
+    RunMode m_runMode;
 
     MainWindow_Ui * m_ui;
     SettingsDialog *m_settings;
@@ -58,7 +77,7 @@ private:
     double m_axis_x_shift;
 
     QTimer * m_timer;
-    long m_time;
+    unsigned long m_time;
     bool m_paused;
 
     CTestMotor *m_engine;
@@ -72,10 +91,9 @@ private:
     PID_recurrent_Fixed32 * m_pid;
 #endif
 
-
-
-    QVector<double> m_valuesSetpoint;
-    QVector<double> m_valuesPV;
+    CSlidingWindow m_axis_x;
+    CSlidingWindow m_valuesSetpoint;
+    CSlidingWindow m_valuesPV;
 
 #ifdef APP_USE_CGRAPH
     QList<double> m_valuesSetpoint;
@@ -117,7 +135,6 @@ private slots:
     void P_appendRawData();
     /** @brief Прочитать кадр данных для Device */
     void P_readFrame();
-    void P_dev_ready_toDisconnect(bool timedout);
     void P_dev_ready_runModeChanged(Device::RunMode mode);
     void P_dev_ready_SPPV(unsigned long time_ms, double sp, double pv);
     void P_dev_ready_runModeRead(bool timedout, Device::RunMode mode);
@@ -126,9 +143,10 @@ private slots:
     void P_dev_ready_speedSetpointRead(bool timedout, double sp);
     void P_dev_ready_speedSetpointWrite(bool timedout);
     void P_dev_ready_speedPVRead(bool timedout, double pv);
+    void P_dev_ready_processStart(bool timedout);
+    void P_dev_ready_processStop(bool timedout);
 
     void P_writeRawData(const QByteArray &data);
-    void P_button_rpc_request_0_pulses_r(bool);
     void P_button_rpc_request_1_mode_r(bool);
     void P_button_rpc_request_2_koef_r(bool);
     void P_button_rpc_request_3_koef_w(bool);
@@ -137,6 +155,9 @@ private slots:
     void P_button_rpc_request_6_speed_PV_r(bool);
     void P_button_rpc_request_7_process_start(bool);
     void P_button_rpc_request_8_process_stop(bool);
+
+    void P_button_driveReqstat_clearBad(bool);
+    void P_button_driveReqstat_clearAll(bool);
 
     void P_device_status_update(Device::RunMode mode) const;
     const QString P_device_mode_string_get(Device::RunMode mode) const;

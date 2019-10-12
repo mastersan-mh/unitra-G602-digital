@@ -21,6 +21,10 @@ public:
      * @return ruid
      */
     uint16_t requestSend(uint8_t funcId, const QVector<uint16_t> &argv);
+    /**
+     * @brief reset queue of awaiting requests
+     */
+    void flush();
 signals:
     void ready_dataToSend(const QByteArray & request);
     void replyReceived(uint16_t ruid, uint8_t funcId, uint8_t err, const QVector<uint16_t> &resv);

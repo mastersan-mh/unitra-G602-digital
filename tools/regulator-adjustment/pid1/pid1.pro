@@ -34,7 +34,9 @@ SOURCES  += main.cpp\
             GClasses/GCommBase.cpp \
             comm.cpp \
             RPCClient.cpp \
-            Device.cpp
+            Device.cpp \
+    DeviceViewModel.cpp \
+    CSlidingWindow.cpp
 
 HEADERS  += mainwindow.h \
             mainwindow_ui.h \
@@ -53,6 +55,11 @@ HEADERS  += mainwindow.h \
             GClasses/GRPCDefs.hpp \
             comm.hpp \
             RPCClient.hpp \
-            Device.hpp
+            Device.hpp \
+    DeviceViewModel.hpp \
+    CSlidingWindow.hpp
 
 FORMS    +=
+
+RESOURCES += \
+    res.qrc

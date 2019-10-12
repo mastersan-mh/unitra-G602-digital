@@ -38,6 +38,7 @@
 
 #include <QListView>
 #include <QStandardItemModel>
+#include <DeviceViewModel.hpp>
 
 #define UI_LEVEL_BEGIN(xlayout) do
 #define UI_LEVEL_END(xlayout) while(0)
@@ -164,24 +165,14 @@ private:
     QDoubleSpinBox * Kd_spinBox;
 };
 
-class DeviceReqStatModel: public QAbstractItemModel
-{
-public:
-    DeviceReqStatModel(QObject * parent = 0)
-        : QAbstractItemModel(parent)
-    {
-
-    }
-};
-
 class TabDataSourceSerail : public QWidget
 {
     Q_OBJECT
 
 public:
+    QLabel * m_devicePPR;
     QLabel * m_deviceStatusLabel;
     Console *m_console;
-    QPushButton * m_buttonReq0;
     QPushButton * m_buttonReq1;
     QPushButton * m_buttonReq2;
     QPushButton * m_buttonReq3;
@@ -191,18 +182,28 @@ public:
     QPushButton * m_buttonReq7;
     QPushButton * m_buttonReq8;
 
+    DeviceViewModel *m_reqstat_model;
+    QPushButton * m_buttonClearBad;
+    QPushButton * m_buttonClearAll;
+
     TabDataSourceSerail(QWidget *parent)
         : QWidget(parent)
     {
 
+        m_devicePPR = new QLabel(this);
+        m_devicePPR->setText("0");
+        m_devicePPR->setToolTip("Pulses Per Revolution");
+        m_devicePPR->setFrameStyle(QFrame::Box | QFrame::Sunken);
+
         m_deviceStatusLabel = new QLabel(this);
-        m_deviceStatusLabel->setText("Device state");
+        m_deviceStatusLabel->setText("");
+        m_deviceStatusLabel->setToolTip("Device state");
+        m_deviceStatusLabel->setFrameStyle(QFrame::Box | QFrame::Sunken);
 
         m_console = new Console(this);
         m_console->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
         m_console->setEnabled(false);
 
-        m_buttonReq0 = new QPushButton("00_PULSES_R", this);
         m_buttonReq1 = new QPushButton("01_MODE_CURRENT_R", this);
         m_buttonReq2 = new QPushButton("02_KOEF_R", this);
         m_buttonReq3 = new QPushButton("03_KOEF_W", this);
@@ -212,34 +213,39 @@ public:
         m_buttonReq7 = new QPushButton("07_PROCESS_START", this);
         m_buttonReq8 = new QPushButton("08_PROCESS_STOP", this);
 
-        m_reqstat_model = new QStandardItemModel(this);
         m_reqstat = new QListView(this);
 
+        m_reqstat_model = new DeviceViewModel(this);
         m_reqstat->setModel(m_reqstat_model);
-        m_reqstat_model->appendRow(new QStandardItem(QIcon("images/shield-280x280.png"), "xxx"));
+
+        m_buttonClearBad = new QPushButton("Clear bad", this);
+        m_buttonClearAll = new QPushButton("Clear all", this);
 
         QGridLayout *mainLayout = new QGridLayout;
 
-        mainLayout->addWidget(m_deviceStatusLabel, 0, 0, 1, 1);
-        mainLayout->addWidget(m_console          , 1, 0, 9, 1);
+        mainLayout->addWidget(m_devicePPR        , 0, 0, 1, 1);
+        mainLayout->addWidget(m_deviceStatusLabel, 0, 1, 1, 1);
+        mainLayout->addWidget(m_console          , 1, 0, 8, 2);
 
-        mainLayout->addWidget(m_buttonReq0, 0, 1, 1, 1);
-        mainLayout->addWidget(m_buttonReq1, 1, 1, 1, 1);
-        mainLayout->addWidget(m_buttonReq2, 2, 1, 1, 1);
-        mainLayout->addWidget(m_buttonReq3, 3, 1, 1, 1);
-        mainLayout->addWidget(m_buttonReq4, 4, 1, 1, 1);
-        mainLayout->addWidget(m_buttonReq5, 5, 1, 1, 1);
-        mainLayout->addWidget(m_buttonReq6, 6, 1, 1, 1);
-        mainLayout->addWidget(m_buttonReq7, 7, 1, 1, 1);
-        mainLayout->addWidget(m_buttonReq8, 8, 1, 1, 1);
+        mainLayout->addWidget(m_buttonReq1, 0, 2, 1, 1);
+        mainLayout->addWidget(m_buttonReq2, 1, 2, 1, 1);
+        mainLayout->addWidget(m_buttonReq3, 2, 2, 1, 1);
+        mainLayout->addWidget(m_buttonReq4, 3, 2, 1, 1);
+        mainLayout->addWidget(m_buttonReq5, 4, 2, 1, 1);
+        mainLayout->addWidget(m_buttonReq6, 5, 2, 1, 1);
+        mainLayout->addWidget(m_buttonReq7, 6, 2, 1, 1);
+        mainLayout->addWidget(m_buttonReq8, 7, 2, 1, 1);
 
-        mainLayout->addWidget(m_reqstat, 0, 2, 9, 1);
+        mainLayout->addWidget(m_reqstat       , 0, 3, 7, 2);
+        mainLayout->addWidget(m_buttonClearBad, 7, 3, 1, 1);
+        mainLayout->addWidget(m_buttonClearAll, 7, 4, 1, 1);
 
         setLayout(mainLayout);
     }
+
 private:
-    QStandardItemModel *m_reqstat_model;
     QListView *m_reqstat;
+
 };
 
 class TabDataSourceSimulation : public QWidget
@@ -274,12 +280,13 @@ private:
 
     QGroupBox *init_UI_setpointMode(QWidget * parent)
     {
-        QGroupBox *groupBox = new QGroupBox(QStringLiteral("Setpoint"), parent);
+        Q_UNUSED(parent);
+        QGroupBox *groupBox = new QGroupBox(QStringLiteral("Setpoint"), this);
 
-        setpointMode_radio1 = new QRadioButton(QStringLiteral("&Manual"), parent);
-        setpointMode_radio2 = new QRadioButton(QStringLiteral("&Auto"), parent);
+        setpointMode_radio1 = new QRadioButton(QStringLiteral("&Manual"), this);
+        setpointMode_radio2 = new QRadioButton(QStringLiteral("&Auto"), this);
 
-        QVBoxLayout *vbox = new QVBoxLayout(parent);
+        QVBoxLayout *vbox = new QVBoxLayout(this);
         vbox->addWidget(setpointMode_radio1);
         vbox->addWidget(setpointMode_radio2);
         vbox->addStretch(1);
@@ -287,6 +294,76 @@ private:
 
         groupBox->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
         return groupBox;
+    }
+
+};
+
+class CSetpointWidget: public QWidget
+{
+    Q_OBJECT
+public:
+    CSetpointWidget(QWidget * parent = 0)
+        : m_layout(this)
+        , m_slider(Qt::Vertical, this)
+        , m_spinBox(this)
+    {
+        Q_UNUSED(parent);
+
+        m_slider.setTickPosition(QSlider::TicksRight);
+        m_spinBox.setMaximumWidth(18*3);
+
+        m_layout.addWidget(&m_slider);
+        m_layout.addWidget(&m_spinBox);
+
+        m_spinBox.setMinimum(m_slider.minimum());
+        m_spinBox.setMaximum(m_slider.maximum());
+
+        setLayout(&m_layout);
+
+        QObject::connect(&m_slider, SIGNAL(valueChanged(int)), this, SLOT(P_sliderChangeValue(int)));
+        QObject::connect(&m_spinBox, SIGNAL(valueChanged(int)), this, SLOT(P_spinBoxChangeValue(int)));
+    }
+    virtual ~CSetpointWidget()
+    {
+
+    }
+
+    void setValue(int value)
+    {
+        m_slider.setValue(value);
+        m_spinBox.setValue(value);
+    }
+
+    void setMinimum(int value)
+    {
+        m_slider.setMinimum(value);
+        m_spinBox.setMinimum(value);
+    }
+
+    void setMaximum(int value)
+    {
+        m_slider.setMaximum(value);
+        m_spinBox.setMaximum(value);
+    }
+
+signals:
+    void valueChanged(int);
+private:
+    QVBoxLayout m_layout;
+    QSlider m_slider;
+    QSpinBox m_spinBox;
+
+private slots:
+    void P_sliderChangeValue(int value)
+    {
+        m_spinBox.setValue(value);
+        emit valueChanged(value);
+    }
+
+    void P_spinBoxChangeValue(int value)
+    {
+        m_slider.setValue(value);
+        emit valueChanged(value);
     }
 
 };
@@ -361,9 +438,7 @@ public:
     QRadioButton *Kselector_radio2_Ki;
     QRadioButton *Kselector_radio3_Kd;
 
-    QVBoxLayout * setpoint_Layout;
-    QSlider * setpoint_slider;
-    QSpinBox * setpoint_spinBox;
+    CSetpointWidget * m_setpoint;
 
 #ifdef APP_USE_CGRAPH
     CGraph * graph;
@@ -604,25 +679,16 @@ public:
             } UI_LEVEL_END(ctrl1_Layout);
 
             /* setpoint */
-            setpoint_Layout = new QVBoxLayout(central);
-            centralWLayout->addLayout(setpoint_Layout);
-            UI_LEVEL_BEGIN(setpoint_Layout)
-            {
-                setpoint_slider = new QSlider(Qt::Vertical, central);
-                setpoint_Layout->addWidget(setpoint_slider);
-                setpoint_slider->setMinimum(MANUAL_SETPOINT_MIN);
-                setpoint_slider->setMaximum(MANUAL_SETPOINT_MAX);
-                setpoint_slider->setTickPosition(QSlider::TicksRight);
+            m_setpoint = new CSetpointWidget(MainWindow);
+            centralWLayout->addWidget(m_setpoint);
 
-                setpoint_spinBox = new QSpinBox(central);
-                setpoint_Layout->addWidget(setpoint_spinBox);
-                setpoint_spinBox->setMinimum(MANUAL_SETPOINT_MIN);
-                setpoint_spinBox->setMaximum(MANUAL_SETPOINT_MAX);
-                setpoint_spinBox->setMaximumWidth(18*3);
-            } UI_LEVEL_END(setpoint_Layout);
+            m_setpoint->setMinimum(MANUAL_SETPOINT_MIN);
+            m_setpoint->setMaximum(MANUAL_SETPOINT_MAX);
+
 
             /* cplot widget */
             cplot = new QCustomPlot(central);
+            cplot->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
             centralWLayout->addWidget(cplot);
 
         } UI_LEVEL_END(m_central);

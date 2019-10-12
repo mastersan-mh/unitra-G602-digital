@@ -82,6 +82,15 @@ uint16_t RPCClient::requestSend(uint8_t funcId, const QVector<uint16_t> & argv)
     return ruid;
 }
 
+void RPCClient::flush()
+{
+    for(request_t::iterator it = m_awaiting_requests.begin(); it != m_awaiting_requests.end();)
+    {
+        P_awaiting_request_delete(it.value());
+        it = m_awaiting_requests.erase(it);
+    }
+}
+
 void RPCClient::dataReplyReceive(const QByteArray & reply)
 {
     int res;
@@ -217,6 +226,8 @@ bool RPCClient::P_awaiting_request_pop(uint16_t ruid, uint8_t & funcId)
 void RPCClient::P_awaiting_request_delete(struct awaiting_request & req)
 {
     QTimer * timer = req.timer;
+    req.timer = nullptr;
+    timer->stop();
     QObject::disconnect(timer, SIGNAL(timeout()), this, SLOT(P_timeoutEvent()));
     delete timer;
 }

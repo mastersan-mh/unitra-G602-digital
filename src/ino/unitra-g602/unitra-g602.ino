@@ -56,9 +56,6 @@ DEBUG_INIT_GLOBAL();
 #define BOOL_TO_STR(xval) (xval ? "true" : "false")
 
 typedef nostd::Fixed32 Fixed;
-typedef nostd::PidRecurrent<Fixed> PID;
-
-PID pid;
 
 typedef struct
 {
@@ -76,6 +73,34 @@ static global_t global = {};
 
 //#define rotate_pulse_counter_t unsigned int
 typedef unsigned int rotate_pulse_counter_t;
+
+void dump_u8(const uint8_t * data, unsigned size)
+{
+    unsigned i;
+    DEBUG_PRINT("  size8 = ");
+    DEBUG_PRINTLN(size);
+    for(i = 0; i < size; ++i)
+    {
+        DEBUG_PRINT("  data8[");
+        DEBUG_PRINT(i);
+        DEBUG_PRINT("]=");
+        DEBUG_PRINTLN(data[i]);
+    }
+}
+
+void dump_u16(const uint16_t * data, unsigned size)
+{
+    unsigned i;
+    DEBUG_PRINT("  size16 = ");
+    DEBUG_PRINTLN(size);
+    for(i = 0; i < size; ++i)
+    {
+        DEBUG_PRINT("  data16[");
+        DEBUG_PRINT(i);
+        DEBUG_PRINT("]=");
+        DEBUG_PRINTLN(data[i]);
+    }
+}
 
 static void terminate_handler(const char * file, unsigned int line, int error)
 {
@@ -121,12 +146,10 @@ static void P_event_lift_down()
 
 void P_motor_update(bool state, int setpoint)
 {
-    DEBUG_PRINT("setpoint = " ); DEBUG_PRINTLN(setpoint);
-
     if(state)
     {
         /* [0; 255] */
-        int value = map(setpoint, G602_SPEED_MIN, G602_SPEED_MAX, 0, 255);
+        int value = (int)map(setpoint, G602_SPEED_MIN, G602_SPEED_MAX, 0, 200);
         analogWrite(PIN_DO_ENGINE, value);
     }
     else
@@ -260,7 +283,13 @@ typedef struct
 
 static tmp_measure_t measures[G602_ROTATE_MEASURES__NUM] = {};
 
-void G602::P_task_rotator_handler(size_t id, GTime_t time, GTime_t now, G602Scheduler & sched, void * args)
+void G602::P_task_rotator_handler(
+        size_t id,
+        GTime_t time,
+        UNUSED GTime_t now,
+        G602Scheduler & sched,
+        void * args
+)
 {
     G602_DEFINE_SELF();
 
@@ -280,10 +309,6 @@ void G602::P_task_rotator_handler(size_t id, GTime_t time, GTime_t now, G602Sche
     rotate_pulse_counter_t table_pulses_diff;
 
     unsigned long time_delta = rotate_measurer_handler_times[rid];
-
-//    DEBUG_PRINT("SPEED MEASURE: ");
-//    DEBUG_PRINT("T = ");
-//    DEBUG_PRINT((unsigned long)time_delta);
 
     bool speed_valid;
 
@@ -325,24 +350,24 @@ void G602::P_task_rotator_handler(size_t id, GTime_t time, GTime_t now, G602Sche
 
     if(speed_valid)
     {
-        /* speed, pulses/m */
-        unsigned long speed =
+        /* speed, rev/m */
+        int speed = (int)(
                 ((unsigned long)table_pulses_diff * 1000 * 60) /
-                ((unsigned long)time_delta * G602_TABLE_PULSES_PER_REV);
+                ((unsigned long)time_delta * G602_TABLE_PULSES_PER_REV));
 
+        //DEBUG_PRINT("pv(rpm) = ");
+        //DEBUG_PRINTLN(speed);
+
+        int speed_ppm = (int)(
+                ((unsigned long)table_pulses_diff * 1000 * 60) /
+                ((unsigned long)time_delta));
+
+        g602.actualSpeedUpdate(speed_ppm);
         if(self->m_permanent_process_send)
         {
-            self->eventSPPV(speed);
+            self->eventSPPV(time, (uint16_t)speed_ppm);
         }
 
-
-        int speed_actual = map(speed, 33, 45, G602_SPEED_BASELINE_LOW, G602_SPEED_BASELINE_HIGH);
-        g602.actualSpeedUpdate(speed_actual);
-
-        /*
-        DEBUG_PRINT("speed = " ); DEBUG_PRINTLN(speed);
-        DEBUG_PRINT("speed_actual = " ); DEBUG_PRINTLN(speed_actual);
-*/
         /*
             Fixed ctrl;
             Fixed sp;
@@ -489,7 +514,7 @@ void loop()
     potentiometer_avg.appendValue(val);
     int avg = potentiometer_avg.averageGet();
 #define POTENTIOMETER_TO_MANUAL_SPEED(xval) \
-        map( \
+        (int)map( \
             xval - G602_POTENTIOMETER_HALF, \
             G602_POTENTIOMETER_MIN, G602_POTENTIOMETER_MAX, \
             G602_SPEED_RANGE_MIN, G602_SPEED_RANGE_MAX \

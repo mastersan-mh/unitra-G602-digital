@@ -13,7 +13,7 @@
 #define min(a,b) ((a)<(b)?(a):(b))
 
 #define BUILD_16(hi, lo) \
-        (((uint16_t)(hi) << 8)| (uint16_t)(lo));
+        ((uint16_t)(((uint16_t)(hi) << 8)| (uint16_t)(lo)))
 
 struct crc_ctx
 {
@@ -27,17 +27,18 @@ static void P_crc_16_ibm_reversive_init(struct crc_ctx * ctx)
 
 static void P_crc_16_ibm_reversive_byte_add(struct crc_ctx * ctx, uint8_t byte)
 {
-    ctx->reg_crc ^= byte;
+    uint16_t tmp = (uint16_t)byte;
+    ctx->reg_crc ^= tmp;
     int i;
     for(i = 0; i < 8; i++)
     {
         if(ctx->reg_crc & 0x01)
         {
-            ctx->reg_crc = (ctx->reg_crc >> 1) ^ 0xA001;
+            ctx->reg_crc = (uint16_t)((ctx->reg_crc >> 1) ^ 0xA001);
         }
         else
         {
-            ctx->reg_crc = ctx->reg_crc >> 1;
+            ctx->reg_crc = (uint16_t)(ctx->reg_crc >> 1);
         }
     }
 }
@@ -111,7 +112,7 @@ GCommBase::Error GCommBase::readFrame(uint8_t * data, unsigned capacity, unsigne
     while((avail = bytesRawAvailable()) > 0)
     {
         int ch = byteReadRaw();
-        fsmResult res = P_fsm(ch);
+        fsmResult res = P_fsm((char)ch);
         switch(res)
         {
             case fsmResult::SUCCESS:
@@ -247,8 +248,8 @@ GCommBase::fsmResult GCommBase::P_fsm(char ch)
 
 void GCommBase::P_writeByte(uint8_t value)
 {
-    uint8_t hi4 = (value >> 4);
-    uint8_t lo4 = (value & 0x0F);
+    uint8_t hi4 = (uint8_t)(value >> 4);
+    uint8_t lo4 = (uint8_t)(value & 0x0F);
     byteWriteRaw(P_digit_to_char(hi4));
     byteWriteRaw(P_digit_to_char(lo4));
 }
