@@ -89,8 +89,8 @@ GRPCServer::Error GRPCServer::handle(const uint8_t * req, unsigned req_size)
         return Error::DECODE;
     }
 
-    DEBUG_PRINTLN("GRPCServer::handle(): m_argv:");
-    dump_u16(m_argv, argc);
+    //DEBUG_PRINTLN("GRPCServer::handle(): m_argv:");
+    //dump_u16(m_argv, argc);
 
     uint8_t err = (*m_funcs[funcid])(argc, m_argv, &resc, m_resv, m_extraargs);
 

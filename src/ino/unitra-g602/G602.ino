@@ -612,13 +612,21 @@ uint8_t G602::P_rpc_func_02_koef_r(
 uint8_t G602::P_rpc_func_03_koef_w(
         unsigned argc,
         uint16_t * argv,
-        unsigned * resc,
+        UNUSED unsigned * resc,
         UNUSED uint16_t * resv,
         void * args
 )
 {
     G602_DEFINE_SELF();
-    (*resc) = 0;
+    app::Ctrl::RunMode runMode = self->m_ctrl.runModeGet();
+    if(!(
+            runMode == app::Ctrl::RunMode::SERVICE_MODE3_STOPPED ||
+            runMode == app::Ctrl::RunMode::SERVICE_MODE3_STARTED
+    ))
+    {
+        return GRPC_REPLY_ERR_INVALID_MODE;
+    }
+
     if(argc != 6) return GRPC_REPLY_ERR_INVALID_ARGUMENTS_AMOUNT;
 
     uint32_t Kp_raw;
@@ -671,13 +679,12 @@ uint8_t G602::P_rpc_func_04_speed_SP_r(
 uint8_t G602::P_rpc_func_05_speed_SP_w(
         unsigned argc,
         uint16_t * argv,
-        unsigned * resc,
+        UNUSED unsigned * resc,
         UNUSED uint16_t * resv,
         void * args
 )
 {
     G602_DEFINE_SELF();
-    (*resc) = 0;
     app::Ctrl::RunMode runMode = self->m_ctrl.runModeGet();
     if(!(
             runMode == app::Ctrl::RunMode::SERVICE_MODE3_STOPPED ||

@@ -29,6 +29,7 @@ public:
         AWAITING, /**< Ожидание */
         SUCCESS,  /**< Успешно */
         TIMEOUT,  /**< Таймаут */
+        ERROR,  /**< Ошибка */
     };
 
     enum FuncId
@@ -105,14 +106,14 @@ signals:
     void ready_runModeChanged(Device::RunMode mode);
     void ready_SPPV(unsigned long time_ms, double sp, double pv);
 
-    void ready_runModeRead(bool timedout, Device::RunMode mode);
-    void ready_pidKoefRead(bool timedout, double Kp, double Ki, double Kd);
-    void ready_pidKoefWrite(bool timedout);
-    void ready_speedSetpointRead(bool timedout, double sp);
-    void ready_speedSetpointWrite(bool timedout);
-    void ready_speedPVRead(bool timedout, double pv);
-    void ready_processStart(bool timedout);
-    void ready_processStop(bool timedout);
+    void ready_runModeRead(bool timedout, unsigned err, Device::RunMode mode);
+    void ready_pidKoefRead(bool timedout, unsigned err, double Kp, double Ki, double Kd);
+    void ready_pidKoefWrite(bool timedout, unsigned err);
+    void ready_speedSetpointRead(bool timedout, unsigned err, double sp);
+    void ready_speedSetpointWrite(bool timedout, unsigned err);
+    void ready_speedPVRead(bool timedout, unsigned err, double pv);
+    void ready_processStart(bool timedout, unsigned err);
+    void ready_processStop(bool timedout, unsigned err);
 public slots:
     void devConnect();
     void devDisconnect();

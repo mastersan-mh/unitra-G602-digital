@@ -164,7 +164,14 @@ void Device::P_rpc_replyReceived(uint16_t ruid, uint8_t funcId, uint8_t err, con
     if(m_statuses.contains(ruid))
     {
         struct req_status & stat = m_statuses[ruid];
-        stat.res = ReqResult::SUCCESS;
+        if(err == 0)
+        {
+            stat.res = ReqResult::SUCCESS;
+        }
+        else
+        {
+            stat.res = ReqResult::ERROR;
+        }
         reqmode = stat.reqmode;
     }
 
@@ -174,91 +181,106 @@ void Device::P_rpc_replyReceived(uint16_t ruid, uint8_t funcId, uint8_t err, con
     }
 
     bool good = false;
-    if(err == 0)
+    switch(funcId)
     {
-        switch(funcId)
+        case FUNC_00_PULSES_R:
         {
-            case FUNC_00_PULSES_R:
+            if(resv.size() != 1)break;
+            m_ppr.value = resv[0];
+            m_ppr.valid = true;
+            good = true;
+            break;
+        }
+        case FUNC_01_MODE_R:
+        {
+            if(resv.size() != 1)
             {
-                if(resv.size() != 1)break;
-                m_ppr.value = resv[0];
-                m_ppr.valid = true;
-                good = true;
-                break;
+                m_mode = RunMode::UNKNOWN;
             }
-            case FUNC_01_MODE_R:
+            else
             {
-                if(resv.size() != 1) break;
                 m_mode = P_convert_device_mode(resv[0]);
-                emit ready_runModeRead(false, m_mode);
                 good = true;
-                break;
             }
-            case FUNC_02_KOEF_R:
-            {
-                if(resv.size() != 6) break;
+            emit ready_runModeRead(false, err, m_mode);
+            break;
+        }
+        case FUNC_02_KOEF_R:
+        {
+            double Kp;
+            double Ki;
+            double Kd;
 
+            if(resv.size() != 6)
+            {
+                 Kp = 0.0;
+                 Ki = 0.0;
+                 Kd = 0.0;
+            }
+            else
+            {
                 nostd::Fixed32 f32_Kp((fixed32_t)BUILD32(resv[0], resv[1]));
                 nostd::Fixed32 f32_Ki((fixed32_t)BUILD32(resv[2], resv[3]));
                 nostd::Fixed32 f32_Kd((fixed32_t)BUILD32(resv[4], resv[5]));
-                double Kp = f32_Kp.toDouble();
-                double Ki = f32_Ki.toDouble();
-                double Kd = f32_Kd.toDouble();
-                emit ready_pidKoefRead(false, Kp, Ki, Kd);
-                good = true;
-                break;
+                Kp = f32_Kp.toDouble();
+                Ki = f32_Ki.toDouble();
+                Kd = f32_Kd.toDouble();
             }
-            case FUNC_03_KOEF_W:
-            {
-                emit ready_pidKoefWrite(false);
-                good = true;
-                break;
-            }
-            case FUNC_04_SPEED_SP_R:
-            {
-                if(resv.size() != 1) break;
-                if(m_ppr.valid)
-                {
-                    double sp = resv[0] / m_ppr.value;
-                    emit ready_speedSetpointRead(false, sp);
-                }
-                good = true;
-                break;
-            }
-            case FUNC_05_SPEED_SP_W:
-            {
-                emit ready_speedSetpointWrite(false);
-                good = true;
-                break;
-            }
-            case FUNC_06_SPEED_PV_R:
-            {
-                if(resv.size() != 1) break;
-                if(m_ppr.valid)
-                {
-                    double pv = resv[0] / m_ppr.value;
-                    emit ready_speedPVRead(false, pv);
-                }
-                good = true;
-                break;
-            }
-            case FUNC_07_PROCESS_START:
-            {
-                if(resv.size() != 0) break;
-                m_prosess_started = true;
-                emit ready_processStart(false);
-                good = true;
-                break;
-            }
-            case FUNC_08_PROCESS_STOP:
-            {
-                if(resv.size() != 0) break;
-                emit ready_processStop(false);
-                good = true;
-                break;
-            }
-            default: good = true;
+            emit ready_pidKoefRead(false, err, Kp, Ki, Kd);
+            good = true;
+            break;
         }
+        case FUNC_03_KOEF_W:
+        {
+            emit ready_pidKoefWrite(false, err);
+            good = true;
+            break;
+        }
+        case FUNC_04_SPEED_SP_R:
+        {
+            if(resv.size() != 1) break;
+            if(m_ppr.valid)
+            {
+                double sp = resv[0] / m_ppr.value;
+                emit ready_speedSetpointRead(false, err, sp);
+            }
+            good = true;
+            break;
+        }
+        case FUNC_05_SPEED_SP_W:
+        {
+            emit ready_speedSetpointWrite(false, err);
+            good = true;
+            break;
+        }
+        case FUNC_06_SPEED_PV_R:
+        {
+            if(resv.size() != 1) break;
+            if(m_ppr.valid)
+            {
+                double pv = resv[0] / m_ppr.value;
+                emit ready_speedPVRead(false, err, pv);
+            }
+            good = true;
+            break;
+        }
+        case FUNC_07_PROCESS_START:
+        {
+            if(resv.size() == 0)
+            {
+                m_prosess_started = true;
+            }
+            emit ready_processStart(false, err);
+            good = true;
+            break;
+        }
+        case FUNC_08_PROCESS_STOP:
+        {
+            emit ready_processStop(false, err);
+            good = true;
+            break;
+        }
+        default: good = true;
     }
 
     if(!good && reqmode == ReqMode::AUTO)
@@ -313,14 +335,14 @@ void Device::P_rpc_request_timedout(uint16_t ruid, uint8_t funcId)
         switch(funcId)
         {
             case FUNC_00_PULSES_R     : break;
-            case FUNC_01_MODE_R       : emit ready_runModeRead(true, RunMode::UNKNOWN); break;
-            case FUNC_02_KOEF_R       : emit ready_pidKoefRead(true, 0.0, 0.0, 0.0); break;
-            case FUNC_03_KOEF_W       : emit ready_pidKoefWrite(true); break;
-            case FUNC_04_SPEED_SP_R   : emit ready_speedSetpointRead(true, 0.0); break;
-            case FUNC_05_SPEED_SP_W   : emit ready_speedSetpointWrite(true); break;
-            case FUNC_06_SPEED_PV_R   : emit ready_speedPVRead(true, 0.0); break;
-            case FUNC_07_PROCESS_START: emit ready_processStart(true); break;
-            case FUNC_08_PROCESS_STOP : emit ready_processStop(true); break;
+            case FUNC_01_MODE_R       : emit ready_runModeRead(true, 0, RunMode::UNKNOWN); break;
+            case FUNC_02_KOEF_R       : emit ready_pidKoefRead(true, 0, 0.0, 0.0, 0.0); break;
+            case FUNC_03_KOEF_W       : emit ready_pidKoefWrite(true, 0); break;
+            case FUNC_04_SPEED_SP_R   : emit ready_speedSetpointRead(true, 0, 0.0); break;
+            case FUNC_05_SPEED_SP_W   : emit ready_speedSetpointWrite(true, 0); break;
+            case FUNC_06_SPEED_PV_R   : emit ready_speedPVRead(true, 0, 0.0); break;
+            case FUNC_07_PROCESS_START: emit ready_processStart(true, 0); break;
+            case FUNC_08_PROCESS_STOP : emit ready_processStop(true, 0); break;
             default: ;
         }
     }

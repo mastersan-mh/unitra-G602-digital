@@ -97,6 +97,7 @@ QVariant DeviceViewModel::data(const QModelIndex &index, int role) const
                 case Device::ReqResult::AWAITING: name = ":/images/uploading.png"; break;
                 case Device::ReqResult::SUCCESS : name = ":/images/success.png"; break;
                 case Device::ReqResult::TIMEOUT : name = ":/images/timeout.png"; break;
+                case Device::ReqResult::ERROR   : name = ":/images/error.png"; break;
             }
             return QIcon(name);
         }

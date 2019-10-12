@@ -114,14 +114,14 @@ MainWindow::MainWindow(QWidget *parent)
     QObject::connect(m_device, SIGNAL(ready_dataToSend(const QByteArray &)), m_comm, SLOT(writeFrame(const QByteArray&)));
     QObject::connect(m_device, SIGNAL(ready_runModeChanged(Device::RunMode)          ), this, SLOT(P_dev_ready_runModeChanged(Device::RunMode)          ));
     QObject::connect(m_device, SIGNAL(ready_SPPV(unsigned long, double, double)      ), this, SLOT(P_dev_ready_SPPV(unsigned long, double, double )     ));
-    QObject::connect(m_device, SIGNAL(ready_runModeRead(bool, Device::RunMode)       ), this, SLOT(P_dev_ready_runModeRead(bool, Device::RunMode)       ));
-    QObject::connect(m_device, SIGNAL(ready_pidKoefRead(bool, double, double, double)), this, SLOT(P_dev_ready_pidKoefRead(bool, double, double, double)));
-    QObject::connect(m_device, SIGNAL(ready_pidKoefWrite(bool)                       ), this, SLOT(P_dev_ready_pidKoefWrite(bool)                       ));
-    QObject::connect(m_device, SIGNAL(ready_speedSetpointRead(bool, double)          ), this, SLOT(P_dev_ready_speedSetpointRead(bool, double)          ));
-    QObject::connect(m_device, SIGNAL(ready_speedSetpointWrite(bool)                 ), this, SLOT(P_dev_ready_speedSetpointWrite(bool)                 ));
-    QObject::connect(m_device, SIGNAL(ready_speedPVRead(bool, double)                ), this, SLOT(P_dev_ready_speedPVRead(bool, double)                ));
-    QObject::connect(m_device, SIGNAL(ready_processStart(bool)                       ), this, SLOT(P_dev_ready_processStart(bool)                       ));
-    QObject::connect(m_device, SIGNAL(ready_processStop(bool)                        ), this, SLOT(P_dev_ready_processStop(bool)                       ));
+    QObject::connect(m_device, SIGNAL(ready_runModeRead(bool, unsigned, Device::RunMode)       ), this, SLOT(P_dev_ready_runModeRead(bool, unsigned, Device::RunMode)       ));
+    QObject::connect(m_device, SIGNAL(ready_pidKoefRead(bool, unsigned, double, double, double)), this, SLOT(P_dev_ready_pidKoefRead(bool, unsigned, double, double, double)));
+    QObject::connect(m_device, SIGNAL(ready_pidKoefWrite(bool, unsigned)                       ), this, SLOT(P_dev_ready_pidKoefWrite(bool, unsigned)                       ));
+    QObject::connect(m_device, SIGNAL(ready_speedSetpointRead(bool, unsigned, double)          ), this, SLOT(P_dev_ready_speedSetpointRead(bool, unsigned, double)          ));
+    QObject::connect(m_device, SIGNAL(ready_speedSetpointWrite(bool, unsigned)                 ), this, SLOT(P_dev_ready_speedSetpointWrite(bool, unsigned)                 ));
+    QObject::connect(m_device, SIGNAL(ready_speedPVRead(bool, unsigned, double)                ), this, SLOT(P_dev_ready_speedPVRead(bool, unsigned, double)                ));
+    QObject::connect(m_device, SIGNAL(ready_processStart(bool, unsigned)                       ), this, SLOT(P_dev_ready_processStart(bool, unsigned)                       ));
+    QObject::connect(m_device, SIGNAL(ready_processStop(bool, unsigned)                        ), this, SLOT(P_dev_ready_processStop(bool, unsigned)                       ));
 
     QObject::connect(
                 m_ui->selection.leftValue, SIGNAL(valueChanged(double)),
@@ -423,14 +423,14 @@ void MainWindow::P_dev_ready_SPPV(unsigned long time_ms, double sp, double pv)
     P_tickEventCommon();
 }
 
-void MainWindow::P_dev_ready_runModeRead(bool timedout, Device::RunMode mode)
+void MainWindow::P_dev_ready_runModeRead(bool timedout, unsigned err, Device::RunMode mode)
 {
     m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
     P_device_reqstats_update();
     P_device_status_update(timedout ? Device::RunMode::UNKNOWN : mode);
 }
 
-void MainWindow::P_dev_ready_pidKoefRead(bool timedout, double Kp, double Ki, double Kd)
+void MainWindow::P_dev_ready_pidKoefRead(bool timedout, unsigned err, double Kp, double Ki, double Kd)
 {
     m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
@@ -439,39 +439,39 @@ void MainWindow::P_dev_ready_pidKoefRead(bool timedout, double Kp, double Ki, do
     m_ui->pidK->setValueKd(Kd);
 }
 
-void MainWindow::P_dev_ready_pidKoefWrite(bool timedout)
+void MainWindow::P_dev_ready_pidKoefWrite(bool timedout, unsigned err)
 {
     m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
 }
 
-void MainWindow::P_dev_ready_speedSetpointRead(bool timedout, double sp)
+void MainWindow::P_dev_ready_speedSetpointRead(bool timedout, unsigned err, double sp)
 {
     m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
 }
 
-void MainWindow::P_dev_ready_speedSetpointWrite(bool timedout)
-{
-    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
-    if(timedout) return;
-
-}
-
-void MainWindow::P_dev_ready_speedPVRead(bool timedout, double pv)
+void MainWindow::P_dev_ready_speedSetpointWrite(bool timedout, unsigned err)
 {
     m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
 
 }
 
-void MainWindow::P_dev_ready_processStart(bool timedout)
+void MainWindow::P_dev_ready_speedPVRead(bool timedout, unsigned err, double pv)
+{
+    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
+    if(timedout) return;
+
+}
+
+void MainWindow::P_dev_ready_processStart(bool timedout, unsigned err)
 {
     m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
 }
 
-void MainWindow::P_dev_ready_processStop(bool timedout)
+void MainWindow::P_dev_ready_processStop(bool timedout, unsigned err)
 {
     m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
@@ -491,7 +491,11 @@ void MainWindow::P_button_rpc_request_2_koef_r(bool)
 
 void MainWindow::P_button_rpc_request_3_koef_w(bool)
 {
-    m_device->pidKoefWrite(1.2, 3.4, 5.6);
+    m_device->pidKoefWrite(
+                m_ui->pidK->valueKp(),
+                m_ui->pidK->valueKi(),
+                m_ui->pidK->valueKd()
+                );
     m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
 }
 

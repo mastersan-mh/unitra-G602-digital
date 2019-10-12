@@ -137,14 +137,14 @@ private slots:
     void P_readFrame();
     void P_dev_ready_runModeChanged(Device::RunMode mode);
     void P_dev_ready_SPPV(unsigned long time_ms, double sp, double pv);
-    void P_dev_ready_runModeRead(bool timedout, Device::RunMode mode);
-    void P_dev_ready_pidKoefRead(bool timedout, double Kp, double Ki, double Kd);
-    void P_dev_ready_pidKoefWrite(bool timedout);
-    void P_dev_ready_speedSetpointRead(bool timedout, double sp);
-    void P_dev_ready_speedSetpointWrite(bool timedout);
-    void P_dev_ready_speedPVRead(bool timedout, double pv);
-    void P_dev_ready_processStart(bool timedout);
-    void P_dev_ready_processStop(bool timedout);
+    void P_dev_ready_runModeRead(bool timedout, unsigned err, Device::RunMode mode);
+    void P_dev_ready_pidKoefRead(bool timedout, unsigned err, double Kp, double Ki, double Kd);
+    void P_dev_ready_pidKoefWrite(bool timedout, unsigned err);
+    void P_dev_ready_speedSetpointRead(bool timedout, unsigned err, double sp);
+    void P_dev_ready_speedSetpointWrite(bool timedout, unsigned err);
+    void P_dev_ready_speedPVRead(bool timedout, unsigned err, double pv);
+    void P_dev_ready_processStart(bool timedout, unsigned err);
+    void P_dev_ready_processStop(bool timedout, unsigned err);
 
     void P_writeRawData(const QByteArray &data);
     void P_button_rpc_request_1_mode_r(bool);
