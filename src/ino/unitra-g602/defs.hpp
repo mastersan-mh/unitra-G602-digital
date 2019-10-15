@@ -4,6 +4,9 @@
 /* button debounce time, ms */
 #define DI_DEBOUNCE_TIME (100UL)
 
+#define DI_MOTOR_DEBOUNCE_TIME (2U)
+#define DI_TABLE_DEBOUNCE_TIME (50U)
+
 /* irq 0 (digital pin 2) */
 #define PIN_DI_2_INTERRUPT (0U)
 /* irq 1 (digital pin 3) */

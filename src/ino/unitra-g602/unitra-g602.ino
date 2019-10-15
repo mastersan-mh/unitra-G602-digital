@@ -202,9 +202,6 @@ struct pulse
 static volatile struct pulse P_motor_rotate;
 static volatile struct pulse P_table_rotate;
 
-#define G602_MOTOR_BOUNCE_TIME 2U
-#define G602_TABLE_BOUNCE_TIME 10U
-
 void P_pulses_init(volatile struct pulse * pulse)
 {
     pulse->change_time = time;
@@ -244,12 +241,12 @@ static void P_pulse_get(
 
 void drive_rotate_pulse_update(void)
 {
-    P_pulse_update(&P_motor_rotate, G602_MOTOR_BOUNCE_TIME);
+    P_pulse_update(&P_motor_rotate, DI_MOTOR_DEBOUNCE_TIME);
 }
 
 void table_rotate_pulse_update(void)
 {
-    P_pulse_update(&P_table_rotate, G602_TABLE_BOUNCE_TIME);
+    P_pulse_update(&P_table_rotate, DI_TABLE_DEBOUNCE_TIME);
 }
 
 void P_pulses_all_get(
@@ -278,10 +275,10 @@ static const unsigned rotate_measurer_sheduler_id[G602_ROTATE_MEASURES__NUM] =
 
 static const unsigned long rotate_measurer_handler_times[G602_ROTATE_MEASURES__NUM] =
 {
-        3000,
-        7000,
-        15000,
-        30000,
+        G602_MINIMAL_TIME_OF_MINIMAL_SPEED,
+        G602_MINIMAL_TIME_OF_MINIMAL_SPEED * 2UL,
+        G602_MINIMAL_TIME_OF_MINIMAL_SPEED * 3UL,
+        G602_MINIMAL_TIME_OF_MINIMAL_SPEED * 4UL,
         60000,
 };
 
