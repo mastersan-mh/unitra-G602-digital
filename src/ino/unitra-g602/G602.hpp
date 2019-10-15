@@ -72,9 +72,6 @@ private:
     unsigned long m_time_now;
     unsigned long m_time_next;
 
-    bool m_motor_on_prev;
-    bool m_motor_on;
-
 public:
     G602Scheduler sched;
 private:

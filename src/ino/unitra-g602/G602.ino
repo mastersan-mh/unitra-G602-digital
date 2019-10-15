@@ -37,8 +37,6 @@ G602::G602(
 , m_event_motor_update(event_motor_update)
 , m_time_now(0)
 , m_time_next(0)
-, m_motor_on_prev(false)
-, m_motor_on(false)
 , sched()
 , m_blinker()
 , m_ctrl(baselineSpeedLow, baselineSpeedHigh, P_ctrl_event, this)
@@ -264,12 +262,9 @@ void G602::P_task_awaiting_service_mode(
 
 void G602::P_motor_update()
 {
-    if(m_motor_on != m_motor_on_prev)
-    {
-        /* reset the measure and control tasks */
-        P_measures_stop();
-        P_measures_start();
-    }
+    /* reset the measure and control tasks */
+    P_measures_stop();
+    P_measures_start();
 }
 
 void G602::P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& data, void * args)
@@ -310,21 +305,18 @@ void G602::P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& data
 
         case app::Ctrl::Event::MOTOR_ON:
         {
-            self->m_motor_on = true;
             self->P_motor_update();
             break;
         }
 
         case app::Ctrl::Event::MOTOR_OFF:
         {
-            self->m_motor_on = false;
             self->P_motor_update();
             break;
         }
 
         case app::Ctrl::Event::MOTOR_SETPOINT_UPDATE:
         {
-            self->P_motor_update();
             break;
         }
 

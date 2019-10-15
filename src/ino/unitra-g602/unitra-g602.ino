@@ -420,7 +420,7 @@ void G602::P_task_rotator_handler(
         if(!motor_state) motor_output = 0;
 #endif
 
-        self->m_event_motor_update(self->m_motor_on, motor_output);
+        self->m_event_motor_update(motor_state, motor_output);
 
         if(self->m_permanent_process_send)
         {
