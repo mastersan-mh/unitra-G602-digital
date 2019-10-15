@@ -638,14 +638,14 @@ uint8_t G602::P_rpc_func_03_koef_w(
 
     if(argc != 6) return GRPC_REPLY_ERR_INVALID_ARGUMENTS_AMOUNT;
 
-    uint32_t Kp_raw;
-    uint32_t Ki_raw;
-    uint32_t Kd_raw;
+    fixed32_t Kp_raw;
+    fixed32_t Ki_raw;
+    fixed32_t Kd_raw;
 #define BUILD_32(hi, lo) (((uint32_t)(hi) << 16) | (uint32_t)(lo))
 
-    Kp_raw = BUILD_32(argv[0], argv[1]);
-    Ki_raw = BUILD_32(argv[2], argv[3]);
-    Kd_raw = BUILD_32(argv[4], argv[5]);
+    Kp_raw = (fixed32_t)BUILD_32(argv[0], argv[1]);
+    Ki_raw = (fixed32_t)BUILD_32(argv[2], argv[3]);
+    Kd_raw = (fixed32_t)BUILD_32(argv[4], argv[5]);
 
     self->m_Kp.setRawFixed(Kp_raw);
     self->m_Ki.setRawFixed(Ki_raw);

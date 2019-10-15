@@ -132,6 +132,8 @@ private slots:
 
     void P_device_reqstats_update();
 
+    void P_runMode_device_plot_clear();
+    void P_runMode_simulatin_plot_clear();
     void P_runModeChange(bool simulation);
 
     /** @brief Добавить сырые данные из m_serial в консоль и m_comm*/

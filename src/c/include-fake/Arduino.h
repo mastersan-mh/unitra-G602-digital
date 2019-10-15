@@ -35,6 +35,7 @@ void pinMode(uint8_t pin, uint8_t);
 long map(long value, long fromLow, long fromHigh, long toLow, long toHigh);
 
 #define min(a,b) ((a)<(b)?(a):(b))
+#define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
 
 class CSerial
 {

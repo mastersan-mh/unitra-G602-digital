@@ -93,6 +93,21 @@ public:
         m_Kd_discr = value;
     }
 
+    inline value_type KpGet()
+    {
+        return m_Kp;
+    }
+
+    inline value_type KiGet()
+    {
+        return m_Ki_discr;
+    }
+
+    inline value_type KdGet()
+    {
+        return m_Kd_discr;
+    }
+
 private:
 
     value_type m_Kp;

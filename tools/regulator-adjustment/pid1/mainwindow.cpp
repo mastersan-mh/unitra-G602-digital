@@ -243,8 +243,8 @@ MainWindow::MainWindow(QWidget *parent)
     P_device_status_update(Device::RunMode::UNKNOWN);
 
     P_setpointFuncSetValue(MANUAL_SETPOINT_INITIAL_VALUE);
-    m_ui->selection.leftValue->setValue(PIDK_SELECTION_RANGE_MIN);
-    m_ui->selection.rightValue->setValue(PIDK_SELECTION_RANGE_MAX);
+    m_ui->selection.leftValue->setValue(PIDK_SELECTION_VALUE_DEFAULT_MIN);
+    m_ui->selection.rightValue->setValue(PIDK_SELECTION_VALUE_DEFAULT_MAX);
     m_ui->m_setpoint->setValue(MANUAL_SETPOINT_INITIAL_VALUE);
     m_ui->tab.simulation->setpointMode_radio1->setChecked(true);
     m_ui->Kselector_radio1_Kp->setChecked(true);
@@ -288,6 +288,12 @@ void MainWindow::P_openSerialPort()
                                        .arg(p.name).arg(p.stringBaudRate).arg(p.stringDataBits)
                                        .arg(p.stringParity).arg(p.stringStopBits).arg(p.stringFlowControl));
             m_device->devConnect();
+
+            if(m_runMode == RunMode::DEVICE)
+            {
+                P_runMode_device_plot_clear();
+            }
+
     }
     else
     {
@@ -316,6 +322,41 @@ void MainWindow::P_device_reqstats_update()
 
 }
 
+
+void MainWindow::P_runMode_device_plot_clear()
+{
+    int len_max;
+    len_max = 20;
+    m_axis_x.sizeSet(len_max);
+    m_valuesSetpoint.sizeSet(len_max);
+    m_valuesPV.sizeSet(len_max);
+
+    m_axis_x.clear();
+    m_valuesSetpoint.clear();
+    m_valuesPV.clear();
+
+}
+
+void MainWindow::P_runMode_simulatin_plot_clear()
+{
+    int len_max;
+    len_max = (AXIS_X_MAX - AXIS_X_MIN) * 1000 / INTERVAL_MS;
+
+    m_axis_x.sizeSet(len_max);
+    m_valuesSetpoint.sizeSet(len_max);
+    m_valuesPV.sizeSet(len_max);
+
+    m_axis_x.clear();
+    m_valuesSetpoint.clear();
+    m_valuesPV.clear();
+
+    m_plot_start = AXIS_X_MIN;
+    m_plot_end = AXIS_X_MAX;
+    m_simulatuion_value = AXIS_X_MIN;
+
+}
+
+
 void MainWindow::P_runModeChange(bool simulation)
 {
     m_ui->tab.serial->setEnabled(!simulation);
@@ -329,32 +370,14 @@ void MainWindow::P_runModeChange(bool simulation)
     if(simulation)
     {
         m_runMode = RunMode::SIMULATION;
-
-        len_max = (AXIS_X_MAX - AXIS_X_MIN) * 1000 / INTERVAL_MS;
-
-        m_axis_x.sizeSet(len_max);
-        m_valuesSetpoint.sizeSet(len_max);
-        m_valuesPV.sizeSet(len_max);
-
-        m_valuesSetpoint.clear();
-        m_valuesSetpoint.clear();
-        m_valuesPV.clear();
-
-        m_plot_start = AXIS_X_MIN;
-        m_plot_end = AXIS_X_MAX;
-        m_simulatuion_value = AXIS_X_MIN;
+        P_runMode_simulatin_plot_clear();
         m_timer->start(INTERVAL_MS);
     }
     else
     {
         m_timer->stop();
         m_runMode = RunMode::DEVICE;
-
-        len_max = 20;
-        m_axis_x.sizeSet(len_max);
-        m_valuesSetpoint.sizeSet(len_max);
-        m_valuesPV.sizeSet(len_max);
-
+        P_runMode_device_plot_clear();
     }
 
 
@@ -439,6 +462,7 @@ void MainWindow::P_dev_ready_SPPV(unsigned long time_ms, double sp, double pv)
 
 void MainWindow::P_dev_ready_runModeRead(bool timedout, unsigned err, Device::RunMode mode)
 {
+    if(err) return;
     m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
     P_device_reqstats_update();
     P_device_status_update(timedout ? Device::RunMode::UNKNOWN : mode);
@@ -448,6 +472,7 @@ void MainWindow::P_dev_ready_pidKoefRead(bool timedout, unsigned err, double Kp,
 {
     m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
+    if(err) return;
     m_ui->pidK->setValueKp(Kp);
     m_ui->pidK->setValueKi(Ki);
     m_ui->pidK->setValueKd(Kd);
@@ -457,38 +482,42 @@ void MainWindow::P_dev_ready_pidKoefWrite(bool timedout, unsigned err)
 {
     m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
+    if(err) return;
 }
 
 void MainWindow::P_dev_ready_speedSetpointRead(bool timedout, unsigned err, double sp)
 {
     m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
+    if(err) return;
 }
 
 void MainWindow::P_dev_ready_speedSetpointWrite(bool timedout, unsigned err)
 {
     m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
-
+    if(err) return;
 }
 
 void MainWindow::P_dev_ready_speedPVRead(bool timedout, unsigned err, double pv)
 {
     m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
-
+    if(err) return;
 }
 
 void MainWindow::P_dev_ready_processStart(bool timedout, unsigned err)
 {
     m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
+    if(err) return;
 }
 
 void MainWindow::P_dev_ready_processStop(bool timedout, unsigned err)
 {
     m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
+    if(err) return;
 }
 
 void MainWindow::P_button_rpc_request_1_mode_r(bool)

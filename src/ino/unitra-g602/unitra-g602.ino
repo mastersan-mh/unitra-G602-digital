@@ -391,9 +391,6 @@ void G602::P_task_rotator_handler(
         self->m_ctrl.motorGet(&motor_state, &table_setpoint);
         app::Ctrl::speed_t speed_sp = (motor_state ? table_setpoint : 0);
 
-        DEBUG_PRINT("motor_state = "); DEBUG_PRINTLN(motor_state ? "ON" : "OFF");
-        DEBUG_PRINT("speed_sp = "); DEBUG_PRINTLN(speed_sp);
-
         Fixed sp;
         Fixed pv;
         Fixed ctrl;
@@ -406,7 +403,13 @@ void G602::P_task_rotator_handler(
 
         DEBUG_PRINT("ctrl_raw = "); DEBUG_PRINTLN(ctrl_raw);
 
-        int motor_output = (int)map((uint32_t)ctrl_raw + 0x7FFFFFFF, 0, 0xFFFFFFFF , 0, 255);
+        long ctrl_constrained = constrain(ctrl_raw, 0, 255 * 65536);
+
+        DEBUG_PRINT("ctrl_constrained = "); DEBUG_PRINTLN(ctrl_constrained);
+
+        // long motor_output = map(ctrl_constrained, 0, 255 * 65536 , 0, 255);
+
+        long motor_output = ctrl_constrained >> 16;
 
         DEBUG_PRINT("motor_output = "); DEBUG_PRINTLN(motor_output);
 
@@ -486,6 +489,7 @@ void G602::P_measures_start()
                 this
         );
     }
+    m_pid.reset();
     m_time_next = P_rtcNextTimeGet();
 }
 
