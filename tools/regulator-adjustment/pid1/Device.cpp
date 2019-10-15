@@ -75,9 +75,10 @@ Device::ReqStatuses Device::requestsStatGet() const
     return m_statuses;
 }
 
-Device::RunMode Device::runModeGet() const
+unsigned Device::pulsesGet() const
 {
-    return m_mode;
+    if(!m_ppr.valid) throw Error::InvalidValue;
+    return m_ppr.value;
 }
 
 void Device::runModeRead()
@@ -85,9 +86,9 @@ void Device::runModeRead()
     P_rpc_request_01_mode_r(ReqMode::MANUAL);
 }
 
-void Device::runModeGet(RunMode &mode) const
+Device::RunMode Device::runModeGet() const
 {
-    mode = m_mode;
+    return m_mode;
 }
 
 void Device::pidKoefRead()
@@ -95,12 +96,12 @@ void Device::pidKoefRead()
     P_rpc_request_02_koef_r(ReqMode::MANUAL);
 }
 
-bool Device::pidKoefGet(double &Kp, double &Ki, double &Kd) const
+void Device::pidKoefGet(double &Kp, double &Ki, double &Kd) const
 {
+    if(!m_koef.valid) throw Error::InvalidValue;
     Kp = m_koef.Kp;
     Ki = m_koef.Ki;
     Kd = m_koef.Kd;
-    return m_koef.valid;
 }
 
 void Device::pidKoefWrite(double Kp, double Ki, double Kd)
@@ -115,7 +116,7 @@ void Device::speedSetpointRead()
 
 void Device::speedSetpointWrite(double rpm)
 {
-    if(!m_ppr.valid) throw Error::InvalidDescr;
+    if(!m_ppr.valid) throw Error::InvalidValue;
 
     P_rpc_request_05_speed_SP_w(rpm * m_ppr.value, ReqMode::MANUAL);
 }
@@ -188,6 +189,7 @@ void Device::P_rpc_replyReceived(uint16_t ruid, uint8_t funcId, uint8_t err, con
             if(resv.size() != 1)break;
             m_ppr.value = resv[0];
             m_ppr.valid = true;
+            emit ready_pulsesRead(false, err, m_ppr.value);
             good = true;
             break;
         }
@@ -334,7 +336,7 @@ void Device::P_rpc_request_timedout(uint16_t ruid, uint8_t funcId)
 
         switch(funcId)
         {
-            case FUNC_00_PULSES_R     : break;
+            case FUNC_00_PULSES_R     : emit ready_pulsesRead(true, 0, 0); break;
             case FUNC_01_MODE_R       : emit ready_runModeRead(true, 0, RunMode::UNKNOWN); break;
             case FUNC_02_KOEF_R       : emit ready_pidKoefRead(true, 0, 0.0, 0.0, 0.0); break;
             case FUNC_03_KOEF_W       : emit ready_pidKoefWrite(true, 0); break;

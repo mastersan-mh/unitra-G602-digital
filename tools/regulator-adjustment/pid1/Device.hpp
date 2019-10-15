@@ -15,7 +15,7 @@ class Device : public QObject
 public:
     enum class Error
     {
-        InvalidDescr, /**< Invalid device descriptior */
+        InvalidValue, /**< Invalid device descriptior */
     };
 
     enum class ReqMode
@@ -87,13 +87,13 @@ public:
      */
     ReqStatuses requestsStatGet() const;
 
-    RunMode runModeGet() const;
 
     /* Manual requests */
+    unsigned pulsesGet() const;
     void runModeRead();
-    void runModeGet(RunMode &mode) const;
+    RunMode runModeGet() const;
     void pidKoefRead();
-    bool pidKoefGet(double &Kp, double &Ki, double &Kd) const;
+    void pidKoefGet(double &Kp, double &Ki, double &Kd) const;
     void pidKoefWrite(double Kp, double Ki, double Kd);
     void speedSetpointRead();
     void speedSetpointWrite(double rpm);
@@ -106,6 +106,7 @@ signals:
     void ready_runModeChanged(Device::RunMode mode);
     void ready_SPPV(unsigned long time_ms, double sp, double pv);
 
+    void ready_pulsesRead(bool timedout, unsigned err, unsigned ppr);
     void ready_runModeRead(bool timedout, unsigned err, Device::RunMode mode);
     void ready_pidKoefRead(bool timedout, unsigned err, double Kp, double Ki, double Kd);
     void ready_pidKoefWrite(bool timedout, unsigned err);
