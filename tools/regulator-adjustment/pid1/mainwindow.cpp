@@ -112,6 +112,8 @@ MainWindow::MainWindow(QWidget *parent)
     QObject::connect(m_device, SIGNAL(ready_dataToSend(const QByteArray &)), m_comm, SLOT(writeFrame(const QByteArray&)));
     QObject::connect(m_device, SIGNAL(ready_runModeChanged(Device::RunMode)          ), this, SLOT(P_dev_ready_runModeChanged(Device::RunMode)          ));
     QObject::connect(m_device, SIGNAL(ready_SPPV(unsigned long, double, double)      ), this, SLOT(P_dev_ready_SPPV(unsigned long, double, double )     ));
+
+    QObject::connect(m_device, SIGNAL(ready_pulsesRead(bool, unsigned, unsigned)               ), this, SLOT(P_dev_ready_pulsesRead(bool, unsigned, unsigned)               ));
     QObject::connect(m_device, SIGNAL(ready_runModeRead(bool, unsigned, Device::RunMode)       ), this, SLOT(P_dev_ready_runModeRead(bool, unsigned, Device::RunMode)       ));
     QObject::connect(m_device, SIGNAL(ready_pidKoefRead(bool, unsigned, double, double, double)), this, SLOT(P_dev_ready_pidKoefRead(bool, unsigned, double, double, double)));
     QObject::connect(m_device, SIGNAL(ready_pidKoefWrite(bool, unsigned)                       ), this, SLOT(P_dev_ready_pidKoefWrite(bool, unsigned)                       ));
@@ -460,8 +462,16 @@ void MainWindow::P_dev_ready_SPPV(unsigned long time_ms, double sp, double pv)
     P_tickEventCommon();
 }
 
+void MainWindow::P_dev_ready_pulsesRead(bool timedout, unsigned err, unsigned ppr)
+{
+    if(timedout) return;
+    if(err) return;
+    m_ui->tab.serial->m_devicePPR->setText(QString("%1").arg(ppr));
+}
+
 void MainWindow::P_dev_ready_runModeRead(bool timedout, unsigned err, Device::RunMode mode)
 {
+    if(timedout) return;
     if(err) return;
     m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
     P_device_reqstats_update();

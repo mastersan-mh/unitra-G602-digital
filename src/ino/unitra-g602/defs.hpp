@@ -35,7 +35,7 @@
 
 /* Amount of impulses per revolution */
 #define G602_ENGINE_PULSES_PER_REV 6
-#define G602_TABLE_PULSES_PER_REV 4
+#define G602_TABLE_PULSES_PER_REV 8
 
 /** @brief Speeds of table, rpm */
 #define G602_TABLE_SPEED_LOW_RPM  (33)

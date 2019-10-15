@@ -142,6 +142,7 @@ private slots:
     void P_readFrame();
     void P_dev_ready_runModeChanged(Device::RunMode mode);
     void P_dev_ready_SPPV(unsigned long time_ms, double sp, double pv);
+    void P_dev_ready_pulsesRead(bool timedout, unsigned err, unsigned ppr);
     void P_dev_ready_runModeRead(bool timedout, unsigned err, Device::RunMode mode);
     void P_dev_ready_pidKoefRead(bool timedout, unsigned err, double Kp, double Ki, double Kd);
     void P_dev_ready_pidKoefWrite(bool timedout, unsigned err);
