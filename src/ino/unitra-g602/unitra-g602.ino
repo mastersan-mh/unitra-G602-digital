@@ -1,4 +1,5 @@
 #include <util/atomic.h>
+#include <EEPROM.h>
 
 #include <nostd-main.h>
 #include <nostd.h>
@@ -54,8 +55,6 @@ DEBUG_INIT_GLOBAL();
 */
 
 #define BOOL_TO_STR(xval) (xval ? "true" : "false")
-
-typedef nostd::Fixed32 Fixed;
 
 typedef struct
 {
@@ -127,6 +126,27 @@ static void terminate_handler(const char * file, unsigned int line, int error)
     }
 }
 
+void P_config_store(const uint8_t * conf, size_t size)
+{
+    unsigned i;
+    for(i = 0; i < size; ++i)
+    {
+        EEPROM.write(i, conf[i]);
+    }
+}
+
+void P_config_load(uint8_t * conf, size_t size)
+{
+    unsigned i;
+    for(i = 0; i < size; ++i)
+    {
+        for(i = 0; i < size; ++i)
+        {
+            conf[i] = EEPROM.read(i);
+        }
+    }
+}
+
 static void P_event_strober(bool on)
 {
     digitalWrite(PIN_DO_STROBE_ERROR, (on ? HIGH : LOW));
@@ -144,13 +164,11 @@ static void P_event_lift_down()
     digitalWrite(PIN_DO_AUDIO_DENY, HIGH);
 }
 
-void P_motor_update(bool state, int setpoint)
+void P_motor_update(bool state, int output)
 {
     if(state)
     {
-        /* [0; 255] */
-        int value = (int)map(setpoint, G602_SPEED_MIN, G602_SPEED_MAX, 0, 200);
-        analogWrite(PIN_DO_ENGINE, value);
+        analogWrite(PIN_DO_ENGINE, output);
     }
     else
     {
@@ -165,10 +183,13 @@ static unsigned long cycletime = 0;
 static G602 g602(
     G602_SPEED_BASELINE_LOW,
     G602_SPEED_BASELINE_HIGH,
+    P_config_store,
+    P_config_load,
     P_event_strober,
     P_event_lift_up,
     P_event_lift_down,
     P_motor_update
+
 );
 
 struct pulse
@@ -351,36 +372,54 @@ void G602::P_task_rotator_handler(
     if(speed_valid)
     {
         /* speed, rev/m */
-        int speed = (int)(
+        int speed_pv_rpm = (int)(
                 ((unsigned long)table_pulses_diff * 1000 * 60) /
                 ((unsigned long)time_delta * G602_TABLE_PULSES_PER_REV));
 
         //DEBUG_PRINT("pv(rpm) = ");
         //DEBUG_PRINTLN(speed);
 
-        int speed_ppm = (int)(
+        int speed_pv_ppm = (int)(
                 ((unsigned long)table_pulses_diff * 1000 * 60) /
                 ((unsigned long)time_delta));
 
-        g602.actualSpeedUpdate(speed_ppm);
+        self->m_ctrl.actualSpeedUpdate(speed_pv_ppm, self);
+
+
+        bool motor_state;
+        app::Ctrl::speed_t table_setpoint;
+        self->m_ctrl.motorGet(&motor_state, &table_setpoint);
+        app::Ctrl::speed_t speed_sp = (motor_state ? table_setpoint : 0);
+
+        DEBUG_PRINT("motor_state = "); DEBUG_PRINTLN(motor_state ? "ON" : "OFF");
+        DEBUG_PRINT("speed_sp = "); DEBUG_PRINTLN(speed_sp);
+
+        Fixed sp;
+        Fixed pv;
+        Fixed ctrl;
+        sp.set(speed_sp);
+        pv.set(speed_pv_ppm);
+
+        ctrl = self->m_pid.calculate(sp, pv);
+
+        fixed32_t ctrl_raw = ctrl.toRawFixed();
+
+        DEBUG_PRINT("ctrl_raw = "); DEBUG_PRINTLN(ctrl_raw);
+
+        int motor_output = (int)map((uint32_t)ctrl_raw + 0x7FFFFFFF, 0, 0xFFFFFFFF , 0, 255);
+
+        DEBUG_PRINT("motor_output = "); DEBUG_PRINTLN(motor_output);
+
+        self->m_event_motor_update(self->m_motor_on, motor_output);
+
         if(self->m_permanent_process_send)
         {
-            self->eventSPPV(time, (uint16_t)speed_ppm);
+            self->eventSPPV(time, (uint16_t)speed_sp, (uint16_t)speed_pv_ppm);
         }
-
-        /*
-            Fixed ctrl;
-            Fixed sp;
-            Fixed pv;
-            pv.set(speed_actual);
-
-            ctrl = pid.calculate(sp, pv);
-        */
-
 
         meas->m_pulses = motor_pulses_diff;
         meas->t_pulses = table_pulses_diff;
-        meas->rpm = speed;
+        meas->rpm = speed_pv_rpm;
 
 //        DEBUG_PRINT("; m_pulses_d = " ); DEBUG_PRINT((int)motor_pulses_diff);
 //        DEBUG_PRINT("; t_pulses_d = " ); DEBUG_PRINT((int)table_pulses_diff);
@@ -446,6 +485,20 @@ void G602::P_measures_start()
                 P_task_rotator_handler,
                 this
         );
+    }
+    m_time_next = P_rtcNextTimeGet();
+}
+
+void G602::P_measures_stop()
+{
+    struct pulse m_pulse;
+    struct pulse t_pulse;
+    P_pulses_all_get(&m_pulse, &t_pulse, true); /* reset */
+
+    unsigned i;
+    for(i = 0; i < G602_ROTATE_MEASURES__NUM; ++i)
+    {
+        sched.unshedule(rotate_measurer_sheduler_id[i]);
     }
     m_time_next = P_rtcNextTimeGet();
 }

@@ -242,7 +242,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     P_device_status_update(Device::RunMode::UNKNOWN);
 
-    setpointFuncSetValue(MANUAL_SETPOINT_INITIAL_VALUE);
+    P_setpointFuncSetValue(MANUAL_SETPOINT_INITIAL_VALUE);
     m_ui->selection.leftValue->setValue(PIDK_SELECTION_RANGE_MIN);
     m_ui->selection.rightValue->setValue(PIDK_SELECTION_RANGE_MAX);
     m_ui->m_setpoint->setValue(MANUAL_SETPOINT_INITIAL_VALUE);
@@ -421,7 +421,7 @@ void MainWindow::P_dev_ready_SPPV(unsigned long time_ms, double sp, double pv)
     m_plot_end = AXIS_X_MAX;
 
     m_axis_x.append((double)time_ms / 1000.0);
-    m_valuesSetpoint.append(m_setpoint);
+    m_valuesSetpoint.append(sp);
     m_valuesPV.append(m_processVariable);
 
     const QVector <double> &axis_x_vals = m_axis_x.get();
@@ -604,13 +604,32 @@ void MainWindow::setpoint_valueSet(int value)
 
 void MainWindow::P_setpointValueChanged(int value)
 {
-    setpointFuncSetValue(value);
+    switch(m_runMode)
+    {
+        case RunMode::DEVICE:
+        {
+            try
+            {
+                m_device->speedSetpointWrite(value);
+            }
+            catch(...)
+            {
+                m_ui->statusBar->showMessage(tr("Device info not ready"));
+            }
+            break;
+        }
+        case RunMode::SIMULATION:
+        {
+            P_setpointFuncSetValue(value);
+            break;
+        }
+    }
 }
 
-void MainWindow::setpointFuncSetValue(int value_)
+void MainWindow::P_setpointFuncSetValue(int value)
 {
-    m_setpoint = map_integer_to_double(
-                value_,
+    m_sim_setpoint = map_integer_to_double(
+                value,
                 MANUAL_SETPOINT_MIN,
                 MANUAL_SETPOINT_MAX,
                 MANUAL_SETPOINT_MIN,
@@ -727,7 +746,7 @@ void MainWindow::P_tickEventSimulation()
 #elif defined(PID_RECURRENT)
         double power = pid->calculate(setpoint, processVariable);
 #elif defined(PID_RECURRENT_FIXED32)
-        double power = m_pid->calculate(nostd::Fixed32(m_setpoint), nostd::Fixed32(m_processVariable)).toDouble();
+        double power = m_pid->calculate(nostd::Fixed32(m_sim_setpoint), nostd::Fixed32(m_processVariable)).toDouble();
 #endif
 
         m_processVariable = m_engine->process(power);
@@ -741,7 +760,7 @@ void MainWindow::P_tickEventSimulation()
         }
 
         m_axis_x.append(m_simulatuion_value);
-        m_valuesSetpoint.append(m_setpoint);
+        m_valuesSetpoint.append(m_sim_setpoint);
         m_valuesPV.append(m_processVariable);
         m_simulatuion_value += (INTERVAL_MS / 1000.0);
         m_time += INTERVAL_MS;
@@ -767,12 +786,18 @@ void MainWindow::P_tickEventCommon()
 
     double PV_amplitude = PV_max - PV_min;
 
-    P_indication_update(m_setpoint, m_processVariable, PV_amplitude);
+    const QVector<double> & vec_sp = m_valuesSetpoint.get();
+    const QVector<double> & vec_pv = m_valuesPV.get();
+
+    double sp = (vec_sp.isEmpty() ? 0.0 : vec_sp.last());
+    double pv = (vec_pv.isEmpty() ? 0.0 : vec_pv.last());
+
+    P_indication_update(sp, pv, PV_amplitude);
 
     P_replot(
                 m_axis_x.get(),
-                m_valuesSetpoint.get(),
-                m_valuesPV.get()
+                vec_sp,
+                vec_pv
                 );
 
 }

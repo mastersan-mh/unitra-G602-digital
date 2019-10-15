@@ -35,10 +35,12 @@ public:
     G602(
         int baselineSpeedLow,
         int baselineSpeedHigh,
+        void (*event_config_store)(const uint8_t * conf, size_t size),
+        void (*event_config_load)(uint8_t * conf, size_t size),
         void (*event_strober)(bool on),
         void (*event_lift_up)(),
         void (*event_lift_down)(),
-        void (*event_motorUpdate)(bool state, int setpoint)
+        void (*event_motor_update)(bool state, int setpoint)
     );
     ~G602();
     G602(const G602 &) = delete;
@@ -57,24 +59,28 @@ public:
     /** @brief Set manual speed relative to base speed */
     void manualSpeedSet(int speed);
     /** @brief Update the actual speed */
-    void actualSpeedUpdate(int speed);
     void eventModeChanged(app::Ctrl::RunMode runMode);
-    void eventSPPV(GTime_t time, uint16_t speed);
+    void eventSPPV(GTime_t time, uint16_t sp, uint16_t pv);
 private:
+    void (*m_event_config_store)(const uint8_t * conf, size_t size);
+    void (*m_event_config_load)(uint8_t * conf, size_t size);
     void (*m_event_strober)(bool on);
     void (*m_event_lift_up)();
     void (*m_event_lift_down)();
-    void (*m_event_motor_update)(bool state, int setpoint);
+    void (*m_event_motor_update)(bool state, int output);
 
     unsigned long m_time_now;
     unsigned long m_time_next;
 
+    bool m_motor_on_prev;
     bool m_motor_on;
-    int m_motor_setpoint;
 
 public:
     G602Scheduler sched;
 private:
+    typedef nostd::Fixed32 Fixed;
+    typedef nostd::PidRecurrent<Fixed> PID;
+
     GBlinker m_blinker;
     app::Ctrl m_ctrl;
     GDInputDebounced m_di_gauge_stop;
@@ -91,16 +97,14 @@ private:
 
     bool m_permanent_process_send;
 
-    nostd::Fixed32 m_Kp;
-    nostd::Fixed32 m_Ki;
-    nostd::Fixed32 m_Kd;
-
-    typedef nostd::PidRecurrent<nostd::Fixed32> PID;
+    Fixed m_Kp;
+    Fixed m_Ki;
+    Fixed m_Kd;
 
     PID m_pid;
 
-    void P_koef_store();
-    void P_koef_load();
+    void P_config_store();
+    void P_config_load();
 
     unsigned long P_rtcNextTimeGet() const;
     void P_blinker_start(GBlinker::BlinkType type);
@@ -109,6 +113,7 @@ private:
     static void P_task_awaiting_service_mode(nostd::size_t id, GTime_t time, GTime_t now, G602Scheduler & sched, void * args);
     static void P_task_rotator_handler(nostd::size_t id, GTime_t time, GTime_t now, G602Scheduler & sched, void * args);
     void P_measures_start();
+    void P_measures_stop();
 
     void P_motor_update();
     static void P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& data, void * args);
@@ -134,6 +139,7 @@ private:
     static uint8_t P_rpc_func_06_speed_PV_r(unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args);
     static uint8_t P_rpc_func_07_process_start(unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args);
     static uint8_t P_rpc_func_08_process_stop(unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args);
+    static uint8_t P_rpc_func_09_conf_store(unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args);
 
 };
 

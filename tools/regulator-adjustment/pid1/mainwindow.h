@@ -103,7 +103,7 @@ private:
     QList<double> m_valuesMain;
 #endif
 
-    double m_setpoint;
+    double m_sim_setpoint; /**< Simulation setpoint */
 
     enum class PID_K_Selector
     {
@@ -116,7 +116,7 @@ private:
 
     void setpoint_valueSet(int value);
 
-    void setpointFuncSetValue(int value_);
+    void P_setpointFuncSetValue(int value);
 
     double map_integer_to_double(
             int iv,

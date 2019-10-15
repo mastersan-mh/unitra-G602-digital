@@ -44,10 +44,9 @@ pins_arduino.h:
 #define FACTOR 10
 
 #define DEBUG
-/* #define DEBUG_NOPRINT */
 #define GDInputDebounced_DEBUG
 
-#if (! defined(DEBUG)) || (defined (DEBUG_NOPRINT))
+#if (! defined(DEBUG))
 #   define DEBUG_INIT_GLOBAL()
 #   define DEBUG_PRINT_INIT()
 #   define DEBUG_PRINT(x)

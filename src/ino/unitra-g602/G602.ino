@@ -22,19 +22,23 @@ static const uint16_t P_run_modes[] =
 G602::G602(
     int baselineSpeedLow,
     int baselineSpeedHigh,
+    void (*event_config_store)(const uint8_t * conf, size_t size),
+    void (*event_config_load)(uint8_t * conf, size_t size),
     void (*event_strober)(bool on),
     void (*event_lift_up)(),
     void (*event_lift_down)(),
     void (*event_motor_update)(bool state, int setpoint)
 )
-: m_event_strober(event_strober)
+: m_event_config_store(event_config_store)
+, m_event_config_load(event_config_load)
+, m_event_strober(event_strober)
 , m_event_lift_up(event_lift_up)
 , m_event_lift_down(event_lift_down)
 , m_event_motor_update(event_motor_update)
 , m_time_now(0)
 , m_time_next(0)
+, m_motor_on_prev(false)
 , m_motor_on(false)
-, m_motor_setpoint(0)
 , sched()
 , m_blinker()
 , m_ctrl(baselineSpeedLow, baselineSpeedHigh, P_ctrl_event, this)
@@ -52,6 +56,8 @@ G602::G602(
 , m_Kd()
 , m_pid()
 {
+    P_config_load();
+
     static const GRPCServer::func_t *funcs[] =
     {
             P_rpc_func_00_pulses_r,
@@ -63,18 +69,17 @@ G602::G602(
             P_rpc_func_06_speed_PV_r,
             P_rpc_func_07_process_start,
             P_rpc_func_08_process_stop,
+            P_rpc_func_09_conf_store,
             nullptr
     };
     m_rpc.funcs_register(funcs);
-
-    P_measures_start();
-
-    P_koef_load();
 
     m_pid.KpSet(m_Kp);
     m_pid.KiSet(m_Ki);
     m_pid.KdSet(m_Kd);
     m_pid.reset();
+
+    P_measures_start();
 }
 
 G602::~G602()
@@ -138,11 +143,6 @@ void G602::manualSpeedSet(int speed)
     m_ctrl.speedManualSet(speed, this);
 }
 
-void G602::actualSpeedUpdate(int speed)
-{
-    m_ctrl.actualSpeedUpdate(speed, this);
-}
-
 void G602::eventModeChanged(app::Ctrl::RunMode runMode)
 {
     uint8_t resc = 1;
@@ -154,19 +154,14 @@ void G602::eventModeChanged(app::Ctrl::RunMode runMode)
     );
 }
 
-void G602::eventSPPV(GTime_t time, uint16_t speed)
+void G602::eventSPPV(GTime_t time, uint16_t sp, uint16_t pv)
 {
     uint8_t resc = 4;
     uint16_t resv[4];
     resv[0] = (uint16_t)((uint32_t)time >> 16);
     resv[1] = (uint16_t)((uint32_t)time & 0x0000ffff);
-    resv[2] = (uint16_t)m_motor_setpoint;
-    resv[3] = (uint16_t)speed;
-
-    DEBUG_PRINT("sp(ppm) = ");
-    DEBUG_PRINT(m_motor_setpoint);
-    DEBUG_PRINT("; pv(ppm) = ");
-    DEBUG_PRINTLN(speed);
+    resv[2] = (uint16_t)sp;
+    resv[3] = (uint16_t)pv;
 
     m_rpc.event(
         G602_EVENT_SPPV,
@@ -175,16 +170,26 @@ void G602::eventSPPV(GTime_t time, uint16_t speed)
     );
 }
 
-void G602::P_koef_store()
-{
+#define CONF_K(conf, i) \
+        (*((fixed32_t*)&conf[(sizeof(fixed32_t) * i)]))
 
+void G602::P_config_store()
+{
+    uint8_t conf[3 * sizeof(fixed32_t)];
+
+    CONF_K(conf, 0) = m_Kp.toRawFixed();
+    CONF_K(conf, 1) = m_Ki.toRawFixed();
+    CONF_K(conf, 2) = m_Kd.toRawFixed();
+    m_event_config_store(conf, sizeof(conf));
 }
 
-void G602::P_koef_load()
+void G602::P_config_load()
 {
-    m_Kp.set(1.1);
-    m_Ki.set(2.2);
-    m_Kd.set(3.3);
+    uint8_t conf[3 * sizeof(fixed32_t)];
+    m_event_config_load(conf, sizeof(conf));
+    m_Kp.setRawFixed(CONF_K(conf, 0));
+    m_Ki.setRawFixed(CONF_K(conf, 1));
+    m_Kd.setRawFixed(CONF_K(conf, 2));
 }
 
 unsigned long G602::P_rtcNextTimeGet() const
@@ -259,7 +264,12 @@ void G602::P_task_awaiting_service_mode(
 
 void G602::P_motor_update()
 {
-    m_event_motor_update(m_motor_on, m_motor_setpoint);
+    if(m_motor_on != m_motor_on_prev)
+    {
+        /* reset the measure and control tasks */
+        P_measures_stop();
+        P_measures_start();
+    }
 }
 
 void G602::P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& data, void * args)
@@ -314,7 +324,6 @@ void G602::P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& data
 
         case app::Ctrl::Event::MOTOR_SETPOINT_UPDATE:
         {
-            self->m_motor_setpoint = data.DRIVE_SETPOINT_UPDATE.setpoint;
             self->P_motor_update();
             break;
         }
@@ -510,6 +519,7 @@ void G602::P_event_stop_release(void * args)
 {
     G602_DEFINE_SELF();
     self->sched.unshedule(shed_task_id_service_mode_awaiting);
+    self->m_time_next = self->P_rtcNextTimeGet();
 }
 
 void G602::P_comm_reader()
@@ -561,7 +571,6 @@ uint8_t G602::P_rpc_func_01_mode_current_r(
         void * args
 )
 {
-    DEBUG_PRINTLN("P_rpc_func_01_mode_current_r()");
     G602_DEFINE_SELF();
     if(argc != 0) return GRPC_REPLY_ERR_INVALID_ARGUMENTS_AMOUNT;
 
@@ -647,7 +656,6 @@ uint8_t G602::P_rpc_func_03_koef_w(
     self->m_pid.KdSet(self->m_Kd);
     self->m_pid.reset();
 
-    self->P_koef_store();
     return GRPC_REPLY_ERR_OK;
 }
 
@@ -753,5 +761,29 @@ uint8_t G602::P_rpc_func_08_process_stop(
     G602_DEFINE_SELF();
     if(argc != 0) return GRPC_REPLY_ERR_INVALID_ARGUMENTS_AMOUNT;
     self->m_permanent_process_send = false;
+    return GRPC_REPLY_ERR_OK;
+}
+
+uint8_t G602::P_rpc_func_09_conf_store(
+        unsigned argc,
+        UNUSED uint16_t * argv,
+        UNUSED unsigned * resc,
+        UNUSED uint16_t * resv,
+        void * args
+)
+{
+    G602_DEFINE_SELF();
+    app::Ctrl::RunMode runMode = self->m_ctrl.runModeGet();
+    if(!(
+            runMode == app::Ctrl::RunMode::SERVICE_MODE3_STOPPED ||
+            runMode == app::Ctrl::RunMode::SERVICE_MODE3_STARTED
+    ))
+    {
+        return GRPC_REPLY_ERR_INVALID_MODE;
+    }
+
+    if(argc != 0) return GRPC_REPLY_ERR_INVALID_ARGUMENTS_AMOUNT;
+
+    self->P_config_store();
     return GRPC_REPLY_ERR_OK;
 }

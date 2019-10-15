@@ -65,17 +65,20 @@ void Ctrl::P_event_warnings_clean(unsigned warn, void * args)
 
 void Ctrl::P_event_motor_on(void * args)
 {
+    m_motor_state_cached = true;
     P_event(Event::MOTOR_ON, m_eventData, args);
 }
 
 void Ctrl::P_event_motor_off(void * args)
 {
+    m_motor_state_cached = false;
     P_event(Event::MOTOR_OFF, m_eventData, args);
 }
 
 void Ctrl::P_event_motor_setpoint_update(Ctrl::speed_t setpoint, void * args)
 {
-    m_eventData.DRIVE_SETPOINT_UPDATE.setpoint = setpoint;
+    m_motor_speed_SP_cached = setpoint;
+    m_eventData.MOTOR_SETPOINT_UPDATE.setpoint = setpoint;
     P_event(Event::MOTOR_SETPOINT_UPDATE, m_eventData, args);
 }
 
@@ -100,9 +103,11 @@ Ctrl::Error Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
              m_state_warnings = 0;
              m_state_allowed_autostop = false;
              m_state_autostop_triggered = false;
-             m_speed_manual_delta = 0;
-             m_speed_free = 0;
+             m_speed_SP_manual_delta = 0;
+             m_speed_SP_free = 0;
              m_speed_baseline_mode = BaselineSpeedMode::MODE_LOW;
+             m_motor_state_cached = false;
+             m_motor_speed_SP_cached = 0;
              P_event_motor_off(args);
              P_event_lift_up(args);
              Ctrl::speed_t speed = P_speed_baseline_get();
@@ -166,12 +171,12 @@ Ctrl::Error Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
                 }
                 case Command::SPEED_MANUAL_UPDATE:
                 {
-                    m_speed_manual_delta = data.SPEED_MANUAL_UPDATE.speed;
+                    m_speed_SP_manual_delta = data.SPEED_MANUAL_UPDATE.speed;
                     break;
                 }
                 case Command::SPEED_FREE_UPDATE:
                 {
-                    m_speed_free = data.SPEED_FREE_UPDATE.speed;
+                    m_speed_SP_free = data.SPEED_FREE_UPDATE.speed;
                     break;
                 }
                 case Command::AUTOSTOP_ALLOW:
@@ -224,14 +229,14 @@ Ctrl::Error Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
                 }
                 case Command::START:
                 {
-                    Ctrl::speed_t speed = P_speed_baseline_get() + m_speed_manual_delta;
+                    Ctrl::speed_t speed = P_speed_baseline_get() + m_speed_SP_manual_delta;
                     P_event_motor_setpoint_update(speed, args);
                     next_state = State::NORMAL_STARTED_MANUAL;
                     break;
                 }
                 case Command::STOP:
                 {
-                    P_event_warnings_clean(CTRL_WARNING_SPEED_TOO_LOW | CTRL_WARNING_SPEED_TOO_HIGH, args);
+                    P_event_warnings_clean(CTRL_WARNING_ALL, args);
                     P_event_motor_off(args);
                     P_event_lift_up(args);
                     next_state = State::NORMAL_STOPPED;
@@ -253,12 +258,12 @@ Ctrl::Error Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
                 }
                 case Command::SPEED_MANUAL_UPDATE:
                 {
-                    m_speed_manual_delta = data.SPEED_MANUAL_UPDATE.speed;
+                    m_speed_SP_manual_delta = data.SPEED_MANUAL_UPDATE.speed;
                     break;
                 }
                 case Command::SPEED_FREE_UPDATE:
                 {
-                    m_speed_free = data.SPEED_FREE_UPDATE.speed;
+                    m_speed_SP_free = data.SPEED_FREE_UPDATE.speed;
                     break;
                 }
                 case Command::AUTOSTOP_ALLOW:
@@ -335,7 +340,7 @@ Ctrl::Error Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
                 }
                 case Command::STOP:
                 {
-                    P_event_warnings_clean(CTRL_WARNING_SPEED_TOO_LOW | CTRL_WARNING_SPEED_TOO_HIGH, args);
+                    P_event_warnings_clean(CTRL_WARNING_ALL, args);
                     P_event_motor_off(args);
                     P_event_lift_up(args);
                     next_state = State::NORMAL_STOPPED;
@@ -344,30 +349,30 @@ Ctrl::Error Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
                 case Command::SPEED_BASELINE_LOW:
                 {
                     m_speed_baseline_mode = BaselineSpeedMode::MODE_LOW;
-                    Ctrl::speed_t speed = P_speed_baseline_get() + m_speed_manual_delta;
+                    Ctrl::speed_t speed = P_speed_baseline_get() + m_speed_SP_manual_delta;
                     P_event_motor_setpoint_update(speed, args);
                     break;
                 }
                 case Command::SPEED_BASELINE_HIGH:
                 {
                     m_speed_baseline_mode = BaselineSpeedMode::MODE_HIGH;
-                    Ctrl::speed_t speed = P_speed_baseline_get() + m_speed_manual_delta;
+                    Ctrl::speed_t speed = P_speed_baseline_get() + m_speed_SP_manual_delta;
                     P_event_motor_setpoint_update(speed, args);
                     break;
                 }
                 case Command::SPEED_MANUAL_UPDATE:
                 {
-                    if(m_speed_manual_delta != data.SPEED_MANUAL_UPDATE.speed)
+                    if(m_speed_SP_manual_delta != data.SPEED_MANUAL_UPDATE.speed)
                     {
-                        m_speed_manual_delta = data.SPEED_MANUAL_UPDATE.speed;
-                        Ctrl::speed_t speed = P_speed_baseline_get() + m_speed_manual_delta;
+                        m_speed_SP_manual_delta = data.SPEED_MANUAL_UPDATE.speed;
+                        Ctrl::speed_t speed = P_speed_baseline_get() + m_speed_SP_manual_delta;
                         P_event_motor_setpoint_update(speed, args);
                     }
                     break;
                 }
                 case Command::SPEED_FREE_UPDATE:
                 {
-                    m_speed_free = data.SPEED_FREE_UPDATE.speed;
+                    m_speed_SP_free = data.SPEED_FREE_UPDATE.speed;
                     break;
                 }
                 case Command::AUTOSTOP_ALLOW:
@@ -460,12 +465,12 @@ Ctrl::Error Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
                 }
                 case Command::SPEED_MANUAL_UPDATE:
                 {
-                    m_speed_manual_delta = data.SPEED_MANUAL_UPDATE.speed;
+                    m_speed_SP_manual_delta = data.SPEED_MANUAL_UPDATE.speed;
                     break;
                 }
                 case Command::SPEED_FREE_UPDATE:
                 {
-                    m_speed_free = data.SPEED_FREE_UPDATE.speed;
+                    m_speed_SP_free = data.SPEED_FREE_UPDATE.speed;
                     break;
                 }
                 case Command::AUTOSTOP_ALLOW:
@@ -538,12 +543,12 @@ Ctrl::Error Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
                 }
                 case Command::SPEED_MANUAL_UPDATE:
                 {
-                    m_speed_manual_delta = data.SPEED_MANUAL_UPDATE.speed;
+                    m_speed_SP_manual_delta = data.SPEED_MANUAL_UPDATE.speed;
                     break;
                 }
                 case Command::SPEED_FREE_UPDATE:
                 {
-                    m_speed_free = data.SPEED_FREE_UPDATE.speed;
+                    m_speed_SP_free = data.SPEED_FREE_UPDATE.speed;
                     break;
                 }
                 case Command::AUTOSTOP_ALLOW:
@@ -621,12 +626,12 @@ Ctrl::Error Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
                 }
                 case Command::SPEED_MANUAL_UPDATE:
                 {
-                    m_speed_manual_delta = data.SPEED_MANUAL_UPDATE.speed;
+                    m_speed_SP_manual_delta = data.SPEED_MANUAL_UPDATE.speed;
                     break;
                 }
                 case Command::SPEED_FREE_UPDATE:
                 {
-                    m_speed_free = data.SPEED_FREE_UPDATE.speed;
+                    m_speed_SP_free = data.SPEED_FREE_UPDATE.speed;
                     break;
                 }
                 case Command::AUTOSTOP_ALLOW:
@@ -683,6 +688,7 @@ Ctrl::Error Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
                 }
                 case Command::STOP:
                 {
+                    P_event_warnings_clean(CTRL_WARNING_ALL, args);
                     P_event_motor_off(args);
                     next_state = State::SERVICE_MODE2_STOPPED;
                     break;
@@ -699,12 +705,12 @@ Ctrl::Error Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
                 }
                 case Command::SPEED_MANUAL_UPDATE:
                 {
-                    m_speed_manual_delta = data.SPEED_MANUAL_UPDATE.speed;
+                    m_speed_SP_manual_delta = data.SPEED_MANUAL_UPDATE.speed;
                     break;
                 }
                 case Command::SPEED_FREE_UPDATE:
                 {
-                    m_speed_free = data.SPEED_FREE_UPDATE.speed;
+                    m_speed_SP_free = data.SPEED_FREE_UPDATE.speed;
                     break;
                 }
                 case Command::AUTOSTOP_ALLOW:
@@ -760,7 +766,7 @@ Ctrl::Error Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
                 }
                 case Command::START:
                 {
-                    Ctrl::speed_t speed = m_speed_free;
+                    Ctrl::speed_t speed = m_speed_SP_free;
                     P_event_motor_setpoint_update(speed, args);
                     P_event_motor_on(args);
                     next_state = State::SERVICE_MODE3_STARTED;
@@ -782,17 +788,12 @@ Ctrl::Error Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
                 }
                 case Command::SPEED_MANUAL_UPDATE:
                 {
-                    m_speed_manual_delta = data.SPEED_MANUAL_UPDATE.speed;
+                    m_speed_SP_manual_delta = data.SPEED_MANUAL_UPDATE.speed;
                     break;
                 }
                 case Command::SPEED_FREE_UPDATE:
                 {
-                    if(m_speed_free != data.SPEED_FREE_UPDATE.speed)
-                    {
-                        m_speed_free = data.SPEED_FREE_UPDATE.speed;
-                        Ctrl::speed_t speed = m_speed_free;
-                        P_event_motor_setpoint_update(speed, args);
-                    }
+                    m_speed_SP_free = data.SPEED_FREE_UPDATE.speed;
                     break;
                 }
                 case Command::AUTOSTOP_ALLOW:
@@ -849,6 +850,7 @@ Ctrl::Error Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
                 }
                 case Command::STOP:
                 {
+                    P_event_warnings_clean(CTRL_WARNING_ALL, args);
                     P_event_motor_off(args);
                     next_state = State::SERVICE_MODE3_STOPPED;
                     break;
@@ -865,12 +867,17 @@ Ctrl::Error Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
                 }
                 case Command::SPEED_MANUAL_UPDATE:
                 {
-                    m_speed_manual_delta = data.SPEED_MANUAL_UPDATE.speed;
+                    m_speed_SP_manual_delta = data.SPEED_MANUAL_UPDATE.speed;
                     break;
                 }
                 case Command::SPEED_FREE_UPDATE:
                 {
-                    m_speed_free = data.SPEED_FREE_UPDATE.speed;
+                    if(m_speed_SP_free != data.SPEED_FREE_UPDATE.speed)
+                    {
+                        m_speed_SP_free = data.SPEED_FREE_UPDATE.speed;
+                        Ctrl::speed_t speed = m_speed_SP_free;
+                        P_event_motor_setpoint_update(speed, args);
+                    }
                     break;
                 }
                 case Command::AUTOSTOP_ALLOW:
@@ -944,7 +951,13 @@ Ctrl::Error Ctrl::speedManualSet(speed_t speed, void * args)
 
 Ctrl::speed_t Ctrl::speedFreeGet()
 {
-    return m_speed_free;
+    return m_speed_SP_free;
+}
+
+void Ctrl::motorGet(bool * motor_state, speed_t * motor_setpoint)
+{
+    (*motor_state) = m_motor_state_cached;
+    (*motor_setpoint) = m_motor_speed_SP_cached;
 }
 
 Ctrl::Error Ctrl::speedFreeSet(speed_t speed, void * args)
@@ -990,41 +1003,14 @@ Ctrl::Error Ctrl::mode_service_3(void * args)
 
 void Ctrl::actualSpeedUpdate(speed_t speed, void * args)
 {
-    speed_t setpoint = 0;
-    bool check = false;
-    switch(m_state)
-    {
-        case State::INIT: break;
-        case State::NORMAL_STOPPED: break;
-        case State::NORMAL_STARTED_AUTO:
-        {
-            setpoint = P_speed_baseline_get();
-            check = true;
-            break;
-        }
-        case State::NORMAL_STARTED_MANUAL:
-        {
-            setpoint = P_speed_baseline_get() + m_speed_manual_delta;
-            check = true;
-            break;
-        }
-        case State::SERVICE_MODE1_STOPPED: break;
-        case State::SERVICE_MODE1_STARTED: break;
-        case State::SERVICE_MODE2_STOPPED: break;
-        case State::SERVICE_MODE2_STARTED:
-        {
-            setpoint = P_speed_baseline_get(); break;
-            check = true;
-            break;
-        }
-        case State::SERVICE_MODE3_STOPPED: break;
-        case State::SERVICE_MODE3_STARTED:
-        {
-            setpoint = m_speed_free;
-            check = true;
-            break;
-        }
-    }
+    speed_t setpoint = m_motor_speed_SP_cached;
+    bool check =
+            (
+                    m_state == State::NORMAL_STARTED_AUTO ||
+                    m_state == State::NORMAL_STARTED_MANUAL ||
+                    m_state == State::SERVICE_MODE2_STARTED ||
+                    m_state == State::SERVICE_MODE3_STARTED
+            );
 
     if(check)
     {
@@ -1038,7 +1024,7 @@ void Ctrl::actualSpeedUpdate(speed_t speed, void * args)
         }
         else
         {
-            P_event_warnings_clean(CTRL_WARNING_SPEED_TOO_LOW | CTRL_WARNING_SPEED_TOO_HIGH, args);
+            P_event_warnings_clean(CTRL_WARNING_ALL, args);
         }
     }
 
@@ -1082,7 +1068,7 @@ int Ctrl::warningsGet() const
 void Ctrl::debug_get(internal_state_t * state) const
 {
     state->m_state = m_state;
-    state->m_speed_manual_delta = m_speed_manual_delta;
+    state->m_speed_SP_manual_delta = m_speed_SP_manual_delta;
 }
 #endif
 

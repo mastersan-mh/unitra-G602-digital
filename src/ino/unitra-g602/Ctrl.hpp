@@ -50,7 +50,7 @@ public:
         struct
         {
             speed_t setpoint;
-        } DRIVE_SETPOINT_UPDATE;
+        } MOTOR_SETPOINT_UPDATE;
     }  EventData;
 
     enum class RunMode
@@ -97,12 +97,18 @@ public:
      */
     Error speedManualSet(speed_t speed, void * args);
 
+    /**
+     * @brief Get setpoint of freespeed
+     */
     speed_t speedFreeGet();
     /**
      * @brief Свободное задание скорости для SERVICE_MODE_3
      * @note не зависит от baseline
      */
     Error speedFreeSet(speed_t speed, void * args);
+
+    void motorGet(bool * motor_state, speed_t * motor_setpoint);
+
     Error autostopAllowSet(bool allow_autostop, void * args);
 
     /** @breif Leave service mode, enter normal mode */
@@ -205,10 +211,11 @@ private:
     bool m_state_autostop_triggered;
 
     /* user control variables */
-    speed_t m_speed_manual_delta;
-    speed_t m_speed_free;
-
+    speed_t m_speed_SP_manual_delta;
+    speed_t m_speed_SP_free;
     BaselineSpeedMode m_speed_baseline_mode;
+    bool m_motor_state_cached; /*on/off */
+    speed_t m_motor_speed_SP_cached;
 
     CommandData m_cmdData;
     EventData m_eventData;
@@ -218,7 +225,7 @@ public:
     typedef struct
     {
         State m_state;
-        speed_t m_speed_manual_delta;
+        speed_t m_speed_SP_manual_delta;
     } internal_state_t;
     void debug_get(internal_state_t * state) const;
 #endif

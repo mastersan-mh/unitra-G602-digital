@@ -55,4 +55,12 @@ public:
 };
 extern CSerial Serial;
 
+struct EEPROMClass
+{
+    uint8_t read( int idx );
+    void write( int idx, uint8_t val );
+};
+
+extern EEPROMClass EEPROM;
+
 #endif /* ARDUINO_H_ */

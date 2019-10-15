@@ -8,9 +8,6 @@
 
 #define CRC_SIZE 2 /* CRC size, bytes */
 
-#define BUILD_16(hi, lo) \
-        (((uint16_t)(hi) << 8)| (uint16_t)(lo));
-
 GComm::GComm()
 : GCommBase()
 {
