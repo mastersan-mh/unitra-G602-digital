@@ -406,9 +406,19 @@ void G602::P_task_rotator_handler(
         int ctrl_int = (int)(ctrl_raw >> 16);
         //DEBUG_PRINT("ctrl_int = "); DEBUG_PRINTLN(ctrl_int);
 
+#if 0
         int motor_output = constrain(ctrl_int, 0, 255);
+#else
+        int motor_output = (int)map(
+                speed_sp,
+                G602_SPEED_MIN,
+                G602_SPEED_MAX,
+                0,
+                255
+        );
 
-        //DEBUG_PRINT("motor_output = "); DEBUG_PRINTLN(motor_output);
+        if(!motor_state) motor_output = 0;
+#endif
 
         self->m_event_motor_update(self->m_motor_on, motor_output);
 
@@ -557,7 +567,7 @@ void loop()
     int avg = potentiometer_avg.averageGet();
 #define POTENTIOMETER_TO_MANUAL_SPEED(xval) \
         (int)map( \
-            xval - G602_POTENTIOMETER_HALF, \
+            xval, \
             G602_POTENTIOMETER_MIN, G602_POTENTIOMETER_MAX, \
             G602_SPEED_RANGE_MIN, G602_SPEED_RANGE_MAX \
         )
