@@ -47,21 +47,24 @@ public:
     int read();
     void write(char);
     void write(const char *);
+    void println();
     void println(const char *);
     void println(char);
+    void println(unsigned char);
+    void println(int);
+    void println(unsigned);
+    void println(unsigned short int);
+    void println(long int);
+    void println(unsigned long int);
     void print(const char *);
     void print(char);
-
-
+    void print(unsigned char);
+    void print(int);
+    void print(unsigned);
+    void print(unsigned short int);
+    void print(long int);
+    void print(unsigned long int);
 };
 extern CSerial Serial;
-
-struct EEPROMClass
-{
-    uint8_t read( int idx );
-    void write( int idx, uint8_t val );
-};
-
-extern EEPROMClass EEPROM;
 
 #endif /* ARDUINO_H_ */

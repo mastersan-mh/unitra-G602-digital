@@ -49,5 +49,11 @@
 #define G602_SPEED_BASELINE_HIGH (G602_TABLE_SPEED_HIGH_RPM * G602_TABLE_PULSES_PER_REV)
 #define G602_SPEED_MAX           (G602_SPEED_BASELINE_HIGH + G602_SPEED_HALF)
 
+/* Time(ms) for which <xppr> pulses are counted at the <xspeed> speed. */
+#define G602_MINIMAL_TIME(xppr, xspeed) ((60UL * 1000UL * (unsigned long)(xppr)) / (unsigned long)(xspeed))
+
+#define G602_MINIMAL_TIME_OF_MINIMAL_SPEED      G602_MINIMAL_TIME(G602_TABLE_PULSES_PER_REV, G602_SPEED_MIN)
+#define G602_MINIMAL_TIME_OF_MAXIMAL_SPEED      G602_MINIMAL_TIME(G602_TABLE_PULSES_PER_REV, G602_SPEED_MAX)
+
 
 #endif

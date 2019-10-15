@@ -102,11 +102,11 @@ MainWindow::MainWindow(QWidget *parent)
     QObject::connect(m_ui->mainMenu.actionDisconnect, SIGNAL(triggered()), this, SLOT(P_closeSerialPort()));
     QObject::connect(m_ui->mainMenu.actionQuit      , SIGNAL(triggered()), this, SLOT(close()));
     QObject::connect(m_ui->mainMenu.actionConfigure , SIGNAL(triggered()), m_settings, SLOT(show()));
-    QObject::connect(m_ui->mainMenu.actionClear     , SIGNAL(triggered()), m_ui->tab.serial->m_console , SLOT(clear()));
+    QObject::connect(m_ui->mainMenu.actionClear     , SIGNAL(triggered()), m_ui->tab.device->m_console , SLOT(clear()));
     QObject::connect(m_ui->mainMenu.actionRunMode   , SIGNAL(toggled(bool)), this , SLOT(P_runModeChange(bool)));
 
     QObject::connect(m_serial, SIGNAL(readyRead()), this, SLOT(P_appendRawData()));
-    QObject::connect(m_ui->tab.serial->m_console, SIGNAL(getData(const QByteArray &)), this, SLOT(P_writeRawData(const QByteArray &)));
+    QObject::connect(m_ui->tab.device->m_console, SIGNAL(getData(const QByteArray &)), this, SLOT(P_writeRawData(const QByteArray &)));
     QObject::connect(m_comm, SIGNAL(readyFrameToRead()), this, SLOT(P_readFrame()));
     QObject::connect(m_comm, SIGNAL(readyOutputStream(const QByteArray &)), this, SLOT(P_writeRawData(const QByteArray &)));
     QObject::connect(m_device, SIGNAL(ready_dataToSend(const QByteArray &)), m_comm, SLOT(writeFrame(const QByteArray&)));
@@ -164,45 +164,45 @@ MainWindow::MainWindow(QWidget *parent)
                 );
 
     QObject::connect(
-                m_ui->tab.serial->m_buttonReq1, SIGNAL(clicked(bool)),
+                m_ui->tab.device->m_buttonReq1, SIGNAL(clicked(bool)),
                 this, SLOT(P_button_rpc_request_1_mode_r(bool))
                 );
     QObject::connect(
-                m_ui->tab.serial->m_buttonReq2, SIGNAL(clicked(bool)),
+                m_ui->tab.device->m_buttonReq2, SIGNAL(clicked(bool)),
                 this, SLOT(P_button_rpc_request_2_koef_r(bool))
                 );
     QObject::connect(
-                m_ui->tab.serial->m_buttonReq3, SIGNAL(clicked(bool)),
+                m_ui->tab.device->m_buttonReq3, SIGNAL(clicked(bool)),
                 this, SLOT(P_button_rpc_request_3_koef_w(bool))
                 );
     QObject::connect(
-                m_ui->tab.serial->m_buttonReq4, SIGNAL(clicked(bool)),
+                m_ui->tab.device->m_buttonReq4, SIGNAL(clicked(bool)),
                 this, SLOT(P_button_rpc_request_4_speed_SP_r(bool))
                 );
     QObject::connect(
-                m_ui->tab.serial->m_buttonReq5, SIGNAL(clicked(bool)),
+                m_ui->tab.device->m_buttonReq5, SIGNAL(clicked(bool)),
                 this, SLOT(P_button_rpc_request_5_speed_SP_w(bool))
                 );
     QObject::connect(
-                m_ui->tab.serial->m_buttonReq6, SIGNAL(clicked(bool)),
+                m_ui->tab.device->m_buttonReq6, SIGNAL(clicked(bool)),
                 this, SLOT(P_button_rpc_request_6_speed_PV_r(bool))
                 );
     QObject::connect(
-                m_ui->tab.serial->m_buttonReq7, SIGNAL(clicked(bool)),
+                m_ui->tab.device->m_buttonReq7, SIGNAL(clicked(bool)),
                 this, SLOT(P_button_rpc_request_7_process_start(bool))
                 );
     QObject::connect(
-                m_ui->tab.serial->m_buttonReq8, SIGNAL(clicked(bool)),
+                m_ui->tab.device->m_buttonReq8, SIGNAL(clicked(bool)),
                 this, SLOT(P_button_rpc_request_8_process_stop(bool))
                 );
 
     QObject::connect(
-                m_ui->tab.serial->m_buttonClearBad, SIGNAL(clicked(bool)),
+                m_ui->tab.device->m_buttonClearBad, SIGNAL(clicked(bool)),
                 this, SLOT(P_button_driveReqstat_clearBad(bool))
                 );
 
     QObject::connect(
-                m_ui->tab.serial->m_buttonClearAll, SIGNAL(clicked(bool)),
+                m_ui->tab.device->m_buttonClearAll, SIGNAL(clicked(bool)),
                 this, SLOT(P_button_driveReqstat_clearAll(bool))
                 );
 
@@ -281,8 +281,8 @@ void MainWindow::P_openSerialPort()
     m_serial->setFlowControl(p.flowControl);
     if (m_serial->open(QIODevice::ReadWrite))
     {
-            m_ui->tab.serial->m_console->setEnabled(true);
-            m_ui->tab.serial->m_console->setLocalEchoEnabled(p.localEchoEnabled);
+            m_ui->tab.device->m_console->setEnabled(true);
+            m_ui->tab.device->m_console->setLocalEchoEnabled(p.localEchoEnabled);
             m_ui->mainMenu.actionConnect->setEnabled(false);
             m_ui->mainMenu.actionDisconnect->setEnabled(true);
             m_ui->mainMenu.actionConfigure->setEnabled(false);
@@ -311,7 +311,7 @@ void MainWindow::P_closeSerialPort()
         m_serial->close();
     }
     m_device->devDisconnect();
-    m_ui->tab.serial->m_console->setEnabled(false);
+    m_ui->tab.device->m_console->setEnabled(false);
     m_ui->mainMenu.actionConnect->setEnabled(true);
     m_ui->mainMenu.actionDisconnect->setEnabled(false);
     m_ui->mainMenu.actionConfigure->setEnabled(true);
@@ -361,7 +361,7 @@ void MainWindow::P_runMode_simulatin_plot_clear()
 
 void MainWindow::P_runModeChange(bool simulation)
 {
-    m_ui->tab.serial->setEnabled(!simulation);
+    m_ui->tab.device->setEnabled(!simulation);
     m_ui->tab.simulation->setEnabled(simulation);
     m_axis_x.clear();
     m_valuesSetpoint.clear();
@@ -400,7 +400,7 @@ void MainWindow::P_device_status_update(Device::RunMode mode) const
         modeStr = P_device_mode_string_get(mode);
     }
 
-    m_ui->tab.serial->m_deviceStatusLabel->setText(modeStr);
+    m_ui->tab.device->m_deviceStatusLabel->setText(modeStr);
 }
 
 void MainWindow::P_writeRawData(const QByteArray &data)
@@ -414,7 +414,7 @@ void MainWindow::P_appendRawData()
     while(m_serial->bytesAvailable() > 0)
     {
         data = m_serial->readAll();
-        m_ui->tab.serial->m_console->putData(data);
+        m_ui->tab.device->m_console->putData(data);
         m_comm->appendInputStream(data);
     }
 }
@@ -466,21 +466,21 @@ void MainWindow::P_dev_ready_pulsesRead(bool timedout, unsigned err, unsigned pp
 {
     if(timedout) return;
     if(err) return;
-    m_ui->tab.serial->m_devicePPR->setText(QString("%1").arg(ppr));
+    m_ui->tab.device->m_devicePPR->setText(QString("%1").arg(ppr));
 }
 
 void MainWindow::P_dev_ready_runModeRead(bool timedout, unsigned err, Device::RunMode mode)
 {
     if(timedout) return;
     if(err) return;
-    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
+    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
     P_device_reqstats_update();
     P_device_status_update(timedout ? Device::RunMode::UNKNOWN : mode);
 }
 
 void MainWindow::P_dev_ready_pidKoefRead(bool timedout, unsigned err, double Kp, double Ki, double Kd)
 {
-    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
+    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
     if(err) return;
     m_ui->pidK->setValueKp(Kp);
@@ -490,42 +490,42 @@ void MainWindow::P_dev_ready_pidKoefRead(bool timedout, unsigned err, double Kp,
 
 void MainWindow::P_dev_ready_pidKoefWrite(bool timedout, unsigned err)
 {
-    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
+    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
     if(err) return;
 }
 
 void MainWindow::P_dev_ready_speedSetpointRead(bool timedout, unsigned err, double sp)
 {
-    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
+    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
     if(err) return;
 }
 
 void MainWindow::P_dev_ready_speedSetpointWrite(bool timedout, unsigned err)
 {
-    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
+    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
     if(err) return;
 }
 
 void MainWindow::P_dev_ready_speedPVRead(bool timedout, unsigned err, double pv)
 {
-    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
+    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
     if(err) return;
 }
 
 void MainWindow::P_dev_ready_processStart(bool timedout, unsigned err)
 {
-    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
+    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
     if(err) return;
 }
 
 void MainWindow::P_dev_ready_processStop(bool timedout, unsigned err)
 {
-    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
+    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
     if(err) return;
 }
@@ -533,13 +533,13 @@ void MainWindow::P_dev_ready_processStop(bool timedout, unsigned err)
 void MainWindow::P_button_rpc_request_1_mode_r(bool)
 {
     m_device->runModeRead();
-    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
+    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
 }
 
 void MainWindow::P_button_rpc_request_2_koef_r(bool)
 {
     m_device->pidKoefRead();
-    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
+    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
 }
 
 void MainWindow::P_button_rpc_request_3_koef_w(bool)
@@ -549,13 +549,13 @@ void MainWindow::P_button_rpc_request_3_koef_w(bool)
                 m_ui->pidK->valueKi(),
                 m_ui->pidK->valueKd()
                 );
-    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
+    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
 }
 
 void MainWindow::P_button_rpc_request_4_speed_SP_r(bool)
 {
     m_device->speedSetpointRead();
-    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
+    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
 }
 
 void MainWindow::P_button_rpc_request_5_speed_SP_w(bool)
@@ -570,37 +570,37 @@ void MainWindow::P_button_rpc_request_5_speed_SP_w(bool)
         m_ui->statusBar->showMessage(tr("Device info not ready"));
     }
 
-    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
+    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
 }
 
 void MainWindow::P_button_rpc_request_6_speed_PV_r(bool)
 {
     m_device->speedPVRead();
-    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
+    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
 }
 
 void MainWindow::P_button_rpc_request_7_process_start(bool)
 {
     m_device->request_07_process_start();
-    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
+    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
 }
 
 void MainWindow::P_button_rpc_request_8_process_stop(bool)
 {
     m_device->request_08_process_stop();
-    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
+    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
 }
 
 void MainWindow::P_button_driveReqstat_clearBad(bool)
 {
     m_device->requestsStatClear(Device::ReqResult::TIMEOUT);
-    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
+    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
 }
 
 void MainWindow::P_button_driveReqstat_clearAll(bool)
 {
     m_device->requestsStatClearAll();
-    m_ui->tab.serial->m_reqstat_model->update(m_device->requestsStatGet());
+    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
 }
 
 void MainWindow::pidK_changed(double Kp, double Ki, double Kd)

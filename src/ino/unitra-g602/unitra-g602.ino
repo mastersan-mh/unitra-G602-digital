@@ -401,17 +401,14 @@ void G602::P_task_rotator_handler(
 
         fixed32_t ctrl_raw = ctrl.toRawFixed();
 
-        DEBUG_PRINT("ctrl_raw = "); DEBUG_PRINTLN(ctrl_raw);
+        //DEBUG_PRINT("ctrl_raw = "); DEBUG_PRINTLN(ctrl_raw);
 
-        long ctrl_constrained = constrain(ctrl_raw, 0, 255 * 65536);
+        int ctrl_int = (int)(ctrl_raw >> 16);
+        //DEBUG_PRINT("ctrl_int = "); DEBUG_PRINTLN(ctrl_int);
 
-        DEBUG_PRINT("ctrl_constrained = "); DEBUG_PRINTLN(ctrl_constrained);
+        int motor_output = constrain(ctrl_int, 0, 255);
 
-        // long motor_output = map(ctrl_constrained, 0, 255 * 65536 , 0, 255);
-
-        long motor_output = ctrl_constrained >> 16;
-
-        DEBUG_PRINT("motor_output = "); DEBUG_PRINTLN(motor_output);
+        //DEBUG_PRINT("motor_output = "); DEBUG_PRINTLN(motor_output);
 
         self->m_event_motor_update(self->m_motor_on, motor_output);
 
@@ -424,12 +421,9 @@ void G602::P_task_rotator_handler(
         meas->t_pulses = table_pulses_diff;
         meas->rpm = speed_pv_rpm;
 
-//        DEBUG_PRINT("; m_pulses_d = " ); DEBUG_PRINT((int)motor_pulses_diff);
-//        DEBUG_PRINT("; t_pulses_d = " ); DEBUG_PRINT((int)table_pulses_diff);
-//        DEBUG_PRINT("; t_speed(rpm) = "); DEBUG_PRINT(speed);
     }
-#if 0
-    DEBUG_PRINT((unsigned long)now);
+#if 1
+    DEBUG_PRINT(now);
 
     unsigned i;
     for(i = 0; i < G602_ROTATE_MEASURES__NUM; ++i)
@@ -451,17 +445,8 @@ void G602::P_task_rotator_handler(
         }
         DEBUG_PRINT("\t");
 
-        DEBUG_PRINT(meas->m_pulses);
-        DEBUG_PRINT("\t");
-        DEBUG_PRINT(meas->t_pulses);
-        DEBUG_PRINT("\t");
         DEBUG_PRINT(meas->rpm);
     }
-
-    DEBUG_PRINT("\tBC =\t");
-    DEBUG_PRINT(motor_pulses.bounces);
-    DEBUG_PRINT("\t");
-    DEBUG_PRINT(table_pulses.bounces);
 
     DEBUG_PRINTLN();
 #endif

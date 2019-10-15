@@ -165,7 +165,7 @@ private:
     QDoubleSpinBox * Kd_spinBox;
 };
 
-class TabDataSourceSerail : public QWidget
+class TabDataSourceDevice : public QWidget
 {
     Q_OBJECT
 
@@ -186,7 +186,7 @@ public:
     QPushButton * m_buttonClearBad;
     QPushButton * m_buttonClearAll;
 
-    TabDataSourceSerail(QWidget *parent)
+    TabDataSourceDevice(QWidget *parent)
         : QWidget(parent)
     {
 
@@ -420,7 +420,7 @@ public:
     struct
     {
         QTabWidget * ownerWidget;
-        TabDataSourceSerail * serial;
+        TabDataSourceDevice * device;
         TabDataSourceSimulation * simulation;
     } tab;
 
@@ -668,8 +668,8 @@ public:
                     tab.ownerWidget = new QTabWidget(MainWindow);
                     tab.ownerWidget->setSizePolicy(sp, sp);
 
-                    tab.serial = new TabDataSourceSerail(MainWindow);
-                    tab.ownerWidget->addTab(tab.serial, QStringLiteral("Serial"));
+                    tab.device = new TabDataSourceDevice(MainWindow);
+                    tab.ownerWidget->addTab(tab.device, QStringLiteral("Serial"));
                     tab.simulation = new TabDataSourceSimulation(MainWindow);
                     tab.ownerWidget->addTab(tab.simulation, QStringLiteral("Simulation"));
                     tab.ownerWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
