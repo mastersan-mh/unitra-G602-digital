@@ -5,7 +5,7 @@
 #define DI_DEBOUNCE_TIME (100UL)
 
 #define DI_MOTOR_DEBOUNCE_TIME (2U)
-#define DI_TABLE_DEBOUNCE_TIME (50U)
+#define DI_TABLE_DEBOUNCE_TIME (100U)
 
 /* irq 0 (digital pin 2) */
 #define PIN_DI_2_INTERRUPT (0U)
@@ -56,7 +56,5 @@
 #define G602_MINIMAL_TIME(xppr, xspeed) ((60UL * 1000UL * (unsigned long)(xppr)) / (unsigned long)(xspeed))
 
 #define G602_MINIMAL_TIME_OF_MINIMAL_SPEED      G602_MINIMAL_TIME(G602_TABLE_PULSES_PER_REV, G602_SPEED_MIN)
-#define G602_MINIMAL_TIME_OF_MAXIMAL_SPEED      G602_MINIMAL_TIME(G602_TABLE_PULSES_PER_REV, G602_SPEED_MAX)
-
 
 #endif

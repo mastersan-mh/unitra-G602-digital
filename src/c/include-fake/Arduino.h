@@ -19,6 +19,7 @@ extern "C"
 #define INPUT_PULLUP 0
 #define OUTPUT 0
 #define RISING 0
+#define FALLING 1
 #define DEFAULT 0
 #define LED_BUILTIN 0
 #define PROGMEM

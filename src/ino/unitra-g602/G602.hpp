@@ -29,7 +29,9 @@ class G602
 public:
     static const nostd::size_t shed_task_id_blinker = 0;
     static const nostd::size_t shed_task_id_service_mode_awaiting = 1;
+    static const nostd::size_t shed_task_id_ctrl = 2;
     static const unsigned long service_mode_enter_awaiting_time = 5000; /**< time to wait to enter service mode, ms */
+    static const unsigned long ctrl_handler_period = 1000;
 
     G602() = delete;
     G602(
@@ -62,6 +64,7 @@ private:
 
     typedef nostd::Fixed32 Fixed;
     typedef nostd::PidRecurrent<Fixed> PID;
+    typedef nostd::SlidingWindow<unsigned, 60> SWindow;
 
     void (*m_event_config_store)(const uint8_t * conf, size_t size);
     void (*m_event_config_load)(uint8_t * conf, size_t size);
@@ -95,6 +98,8 @@ private:
     Fixed m_Kd;
 
     PID m_pid;
+
+    SWindow m_pulses; /**< Amount of pulses per period <ctrl_handler_period> */
 
     void P_config_store();
     void P_config_load();

@@ -53,6 +53,7 @@ G602::G602(
 , m_Ki()
 , m_Kd()
 , m_pid()
+, m_pulses()
 {
     P_config_load();
 

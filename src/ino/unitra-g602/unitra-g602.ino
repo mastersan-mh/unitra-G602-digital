@@ -56,20 +56,6 @@ DEBUG_INIT_GLOBAL();
 
 #define BOOL_TO_STR(xval) (xval ? "true" : "false")
 
-typedef struct
-{
-    bool resetted;
-    unsigned motor_prev;
-    unsigned table_prev;
-} rotate_measures_t;
-
-typedef struct
-{
-    rotate_measures_t rotate_measures[G602_ROTATE_MEASURES__NUM - 1];
-} global_t;
-
-static global_t global = {};
-
 //#define rotate_pulse_counter_t unsigned int
 typedef unsigned int rotate_pulse_counter_t;
 
@@ -264,38 +250,11 @@ void P_pulses_all_get(
 
 static AverageTinyMemory potentiometer_avg(FACTOR);
 
-static const unsigned rotate_measurer_sheduler_id[G602_ROTATE_MEASURES__NUM] =
-{
-        2,
-        3,
-        4,
-        5,
-        6,
-};
-
-static const unsigned long rotate_measurer_handler_times[G602_ROTATE_MEASURES__NUM] =
-{
-        G602_MINIMAL_TIME_OF_MINIMAL_SPEED,
-        G602_MINIMAL_TIME_OF_MINIMAL_SPEED * 2UL,
-        G602_MINIMAL_TIME_OF_MINIMAL_SPEED * 3UL,
-        G602_MINIMAL_TIME_OF_MINIMAL_SPEED * 4UL,
-        60000,
-};
-
-static int P_rotator_id_get(size_t sheduler_id)
-{
-    unsigned i;
-    for(i = 0; i < G602_ROTATE_MEASURES__NUM; ++i)
-    {
-        if(sheduler_id == rotate_measurer_sheduler_id[i]) return i;
-    }
-    return -1;
-}
-
 typedef struct
 {
-    unsigned long m_pulses;
-    unsigned long t_pulses;
+    unsigned long long pulses_sum;
+    unsigned amount;
+    unsigned long ppm;
     unsigned long rpm;
 } tmp_measure_t;
 
@@ -311,149 +270,151 @@ void G602::P_task_rotator_handler(
 {
     G602_DEFINE_SELF();
 
-    int rid = P_rotator_id_get(id);
-    if(rid < 0) return;
-
-    bool last = false;
-    if(rid == G602_ROTATE_MEASURES__NUM - 1)
-    {
-        last = true;
-    }
-
     struct pulse motor_pulses;
     struct pulse table_pulses;
 
-    rotate_pulse_counter_t motor_pulses_diff;
-    rotate_pulse_counter_t table_pulses_diff;
 
-    unsigned long time_delta = rotate_measurer_handler_times[rid];
+    unsigned long time_delta = ctrl_handler_period;
 
-    bool speed_valid;
+    P_pulses_all_get(&motor_pulses, &table_pulses, true);
 
-    P_pulses_all_get(&motor_pulses, &table_pulses, last);
-    if(last)
+    // rotate_pulse_counter_t motor_pulses_diff = motor_pulses.pulses;
+    rotate_pulse_counter_t table_pulses_diff = table_pulses.pulses;
+
+    self->m_pulses.append(table_pulses_diff);
+
+    static unsigned periods_amount[G602_ROTATE_MEASURES__NUM] =
     {
-        unsigned i;
-        for(i = 0; i < G602_ROTATE_MEASURES__NUM - 1; ++i)
-        {
-            global.rotate_measures[i].resetted = true;
-        }
-        motor_pulses_diff = motor_pulses.pulses;
-        table_pulses_diff = table_pulses.pulses;
-        speed_valid = true;
-    }
-    else
-    {
-        rotate_measures_t * rotate_measure = &global.rotate_measures[rid];
-        if(rotate_measure->resetted)
-        {
-            rotate_measure->resetted = false;
-            rotate_measure->motor_prev = 0;
-            rotate_measure->table_prev = 0;
-            motor_pulses_diff = 0;
-            table_pulses_diff = 0;
-            speed_valid = false;
-        }
-        else
-        {
-            motor_pulses_diff = motor_pulses.pulses - rotate_measure->motor_prev;
-            table_pulses_diff = table_pulses.pulses - rotate_measure->table_prev;
-            rotate_measure->motor_prev = motor_pulses.pulses;
-            rotate_measure->table_prev = table_pulses.pulses;
-            speed_valid = true;
-        }
-    }
+            1,
+            5,
+            15,
+            30,
+            60,
+    };
 
-    tmp_measure_t *meas = &measures[rid];
-
-    if(speed_valid)
-    {
-        /* speed, rev/m */
-        int speed_pv_rpm = (int)(
-                ((unsigned long)table_pulses_diff * 1000 * 60) /
-                ((unsigned long)time_delta * G602_TABLE_PULSES_PER_REV));
-
-        //DEBUG_PRINT("pv(rpm) = ");
-        //DEBUG_PRINTLN(speed);
-
-        int speed_pv_ppm = (int)(
-                ((unsigned long)table_pulses_diff * 1000 * 60) /
-                ((unsigned long)time_delta));
-
-        self->m_ctrl.actualSpeedUpdate(speed_pv_ppm, self);
-
-
-        bool motor_state;
-        app::Ctrl::speed_t table_setpoint;
-        self->m_ctrl.motorGet(&motor_state, &table_setpoint);
-        app::Ctrl::speed_t speed_sp = (motor_state ? table_setpoint : 0);
-
-        Fixed sp;
-        Fixed pv;
-        Fixed ctrl;
-        sp.set(speed_sp);
-        pv.set(speed_pv_ppm);
-
-        ctrl = self->m_pid.calculate(sp, pv);
-
-        fixed32_t ctrl_raw = ctrl.toRawFixed();
-
-        //DEBUG_PRINT("ctrl_raw = "); DEBUG_PRINTLN(ctrl_raw);
-
-        int ctrl_int = (int)(ctrl_raw >> 16);
-        //DEBUG_PRINT("ctrl_int = "); DEBUG_PRINTLN(ctrl_int);
-
-#if 0
-        int motor_output = constrain(ctrl_int, 0, 255);
-#else
-        int motor_output = (int)map(
-                speed_sp,
-                G602_SPEED_MIN,
-                G602_SPEED_MAX,
-                0,
-                255
-        );
-
-        if(!motor_state) motor_output = 0;
-#endif
-
-        self->m_event_motor_update(motor_state, motor_output);
-
-        if(self->m_permanent_process_send)
-        {
-            self->P_rpc_eventSPPV(time, (uint16_t)speed_sp, (uint16_t)speed_pv_ppm);
-        }
-
-        meas->m_pulses = motor_pulses_diff;
-        meas->t_pulses = table_pulses_diff;
-        meas->rpm = speed_pv_rpm;
-
-    }
-#if 1
-    DEBUG_PRINT(now);
+    tmp_measure_t * meas;
 
     unsigned i;
     for(i = 0; i < G602_ROTATE_MEASURES__NUM; ++i)
     {
         meas = &measures[i];
+        meas->pulses_sum = 0;
+        meas->amount = 0;
+    };
+
+
+    unsigned vindex = 0;
+    SWindow::reverse_const_iterator it;
+    for(
+            it = self->m_pulses.rcbegin(), vindex = 0;
+            it != self->m_pulses.rcend();
+            --it, ++vindex
+    )
+    {
+        for(i = 0; i < G602_ROTATE_MEASURES__NUM; ++i)
+        {
+            if(vindex < periods_amount[i])
+            {
+                meas = &measures[i];
+                meas->pulses_sum += (*it);
+                ++(meas->amount);
+            }
+        };
+    }
+
+#define SPEED_PPM(dpulses, dtime) \
+        ( \
+                ((unsigned long)dpulses * 1000 * 60) / \
+                ((unsigned long)dtime) \
+        )
+
+#define SPEED_RPM(dpulses, dtime) \
+        ( \
+                ((unsigned long)(dpulses) * 1000 * 60) / \
+                ((unsigned long)(dtime) * G602_TABLE_PULSES_PER_REV) \
+        )
+
+    for(i = 0; i < G602_ROTATE_MEASURES__NUM; ++i)
+    {
+        meas = &measures[i];
+        meas->ppm = SPEED_PPM(meas->pulses_sum, time_delta * meas->amount);
+        meas->rpm = SPEED_RPM(meas->pulses_sum, time_delta * meas->amount);
+        meas->amount = 0;
+
+    };
+
+    i = 2; /* 15 sec */
+    meas = &measures[i];
+
+    int speed_pv_ppm = (int)meas->ppm;
+
+    self->m_ctrl.actualSpeedUpdate(speed_pv_ppm, self);
+
+    bool motor_state;
+    app::Ctrl::speed_t table_setpoint;
+    self->m_ctrl.motorGet(&motor_state, &table_setpoint);
+    app::Ctrl::speed_t speed_sp = (motor_state ? table_setpoint : 0);
+
+    Fixed sp;
+    Fixed pv;
+    Fixed ctrl;
+    sp.set(speed_sp);
+    pv.set(speed_pv_ppm);
+
+    ctrl = self->m_pid.calculate(sp, pv);
+
+    fixed32_t ctrl_raw = ctrl.toRawFixed();
+
+    //DEBUG_PRINT("ctrl_raw = "); DEBUG_PRINTLN(ctrl_raw);
+
+    int ctrl_int = (int)(ctrl_raw >> 16);
+    //DEBUG_PRINT("ctrl_int = "); DEBUG_PRINTLN(ctrl_int);
+
+#if 0
+    int motor_output = constrain(ctrl_int, 0, 255);
+#else
+    int motor_output = (int)map(
+            speed_sp,
+            G602_SPEED_MIN,
+            G602_SPEED_MAX,
+            0,
+            255
+    );
+
+    if(!motor_state) motor_output = 0;
+#endif
+
+    self->m_event_motor_update(motor_state, motor_output);
+
+    if(self->m_permanent_process_send)
+    {
+        self->P_rpc_eventSPPV(time, (uint16_t)speed_sp, (uint16_t)speed_pv_ppm);
+    }
+
+#if 1
+    DEBUG_PRINT(now);
+
+    for(i = 0; i < G602_ROTATE_MEASURES__NUM; ++i)
+    {
+        meas = &measures[i];
         DEBUG_PRINT("\t");
 
-        unsigned long time_delta = rotate_measurer_handler_times[i];
+        unsigned long time_delta = ctrl_handler_period;
 
-        if(i == (unsigned)rid)
-        {
-            DEBUG_PRINT("[");
-            DEBUG_PRINT(time_delta);
-            DEBUG_PRINT("]");
-        }
-        else
-        {
-            DEBUG_PRINT(time_delta);
-        }
+        DEBUG_PRINT("[ ");
+        DEBUG_PRINT(time_delta * periods_amount[i]);
+        DEBUG_PRINT(" ]");
+
         DEBUG_PRINT("\t");
-
+        DEBUG_PRINT(meas->ppm);
+        DEBUG_PRINT(" ");
         DEBUG_PRINT(meas->rpm);
     }
+
+    DEBUG_PRINT("\tp ");
+    DEBUG_PRINT(table_pulses.pulses);
+    DEBUG_PRINT("\tboun ");
+    DEBUG_PRINT(table_pulses.bounces);
 
     DEBUG_PRINTLN();
 #endif
@@ -471,16 +432,13 @@ void G602::P_measures_start()
     struct pulse t_pulse;
     P_pulses_all_get(&m_pulse, &t_pulse, true); /* reset */
 
-    unsigned i;
-    for(i = 0; i < G602_ROTATE_MEASURES__NUM; ++i)
-    {
-        m_sched.shedule(
-                rotate_measurer_sheduler_id[i],
-                m_time_now + rotate_measurer_handler_times[i],
-                P_task_rotator_handler,
-                this
-        );
-    }
+    m_sched.shedule(
+            shed_task_id_ctrl,
+            m_time_now + ctrl_handler_period,
+            P_task_rotator_handler,
+            this
+    );
+
     m_pid.reset();
     m_time_next = P_rtcNextTimeGet();
 }
@@ -491,11 +449,7 @@ void G602::P_measures_stop()
     struct pulse t_pulse;
     P_pulses_all_get(&m_pulse, &t_pulse, true); /* reset */
 
-    unsigned i;
-    for(i = 0; i < G602_ROTATE_MEASURES__NUM; ++i)
-    {
-        m_sched.unshedule(rotate_measurer_sheduler_id[i]);
-    }
+    m_sched.unshedule(shed_task_id_ctrl);
     m_time_next = P_rtcNextTimeGet();
 }
 
@@ -510,9 +464,9 @@ void setup()
 
     /* gauges */
     pinMode(PIN_DI_GAUGE_DRIVE_ROTATEPULSE, INPUT_PULLUP);
-    attachInterrupt(PIN_DI_2_INTERRUPT, drive_rotate_pulse_update, RISING);
+    attachInterrupt(PIN_DI_2_INTERRUPT, drive_rotate_pulse_update, FALLING);
     pinMode(PIN_DI_GAUGE_TABLE_ROTATEPULSE, INPUT_PULLUP);
-    attachInterrupt(PIN_DI_3_INTERRUPT, table_rotate_pulse_update, RISING);
+    attachInterrupt(PIN_DI_3_INTERRUPT, table_rotate_pulse_update, FALLING);
 
     pinMode(PIN_DI_GAUGE_STOP         , INPUT_PULLUP);
     /* buttons */
