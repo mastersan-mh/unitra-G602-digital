@@ -28,6 +28,7 @@ MainWindow::MainWindow(QWidget *parent)
     , m_axis_x(1)
     , m_valuesSetpoint(1)
     , m_valuesPV(1)
+    , m_valuesOut(1)
 {
     m_ui->init_UI(this);
 
@@ -84,6 +85,14 @@ MainWindow::MainWindow(QWidget *parent)
     m_ui->cplot->yAxis->setSubTickPen(axisPen);
     m_ui->cplot->yAxis->setRange(AXIS_Y_MIN, AXIS_Y_MAX);
 
+    m_ui->cplot->yAxis2->setLabelColor(axisColor);
+    m_ui->cplot->yAxis2->setBasePen(axisPen);
+    m_ui->cplot->yAxis2->setTickLabelColor(axisColor);
+    m_ui->cplot->yAxis2->setTickPen(axisPen);
+    m_ui->cplot->yAxis2->setSubTickPen(axisPen);
+    m_ui->cplot->yAxis2->setRange(0, -300.0, Qt::AlignRight);
+    m_ui->cplot->yAxis2->setVisible(true);
+
     m_ui->cplot->xAxis->setBasePen(axisPen);
     m_ui->cplot->xAxis->setLabel("time");
     m_ui->cplot->xAxis->setLabelColor(axisColor);
@@ -93,10 +102,13 @@ MainWindow::MainWindow(QWidget *parent)
     m_ui->cplot->xAxis->setRange(AXIS_X_MIN, AXIS_X_MAX);
 
     m_ui->plotSetpoint = m_ui->cplot->addGraph();
-    m_ui->plotSetpoint->setPen(QPen(QColor(Qt::red)));
+    m_ui->plotSetpoint->setPen(QPen(QColor(Qt::white)));
 
     m_ui->plotPV = m_ui->cplot->addGraph();
-    m_ui->plotPV->setPen(QPen(QColor(Qt::white)));
+    m_ui->plotPV->setPen(QPen(QColor(Qt::red)));
+
+    m_ui->plotOut = m_ui->cplot->addGraph(m_ui->cplot->xAxis, m_ui->cplot->yAxis2);
+    m_ui->plotOut->setPen(QPen(QColor(Qt::cyan)));
 
     QObject::connect(m_ui->mainMenu.actionConnect   , SIGNAL(triggered()), this, SLOT(P_openSerialPort()));
     QObject::connect(m_ui->mainMenu.actionDisconnect, SIGNAL(triggered()), this, SLOT(P_closeSerialPort()));
@@ -111,7 +123,7 @@ MainWindow::MainWindow(QWidget *parent)
     QObject::connect(m_comm, SIGNAL(readyOutputStream(const QByteArray &)), this, SLOT(P_writeRawData(const QByteArray &)));
     QObject::connect(m_device, SIGNAL(ready_dataToSend(const QByteArray &)), m_comm, SLOT(writeFrame(const QByteArray&)));
     QObject::connect(m_device, SIGNAL(ready_runModeChanged(Device::RunMode)          ), this, SLOT(P_dev_ready_runModeChanged(Device::RunMode)          ));
-    QObject::connect(m_device, SIGNAL(ready_SPPV(unsigned long, double, double)      ), this, SLOT(P_dev_ready_SPPV(unsigned long, double, double )     ));
+    QObject::connect(m_device, SIGNAL(ready_SPPV(unsigned long, double, double, double)        ), this, SLOT(P_dev_ready_SPPV(unsigned long, double, double, double)        ));
 
     QObject::connect(m_device, SIGNAL(ready_pulsesRead(bool, unsigned, unsigned)               ), this, SLOT(P_dev_ready_pulsesRead(bool, unsigned, unsigned)               ));
     QObject::connect(m_device, SIGNAL(ready_runModeRead(bool, unsigned, Device::RunMode)       ), this, SLOT(P_dev_ready_runModeRead(bool, unsigned, Device::RunMode)       ));
@@ -328,14 +340,16 @@ void MainWindow::P_device_reqstats_update()
 void MainWindow::P_runMode_device_plot_clear()
 {
     int len_max;
-    len_max = 20;
+    len_max = 200;
     m_axis_x.sizeSet(len_max);
     m_valuesSetpoint.sizeSet(len_max);
     m_valuesPV.sizeSet(len_max);
+    m_valuesOut.sizeSet(len_max);
 
     m_axis_x.clear();
     m_valuesSetpoint.clear();
     m_valuesPV.clear();
+    m_valuesOut.clear();
 
 }
 
@@ -347,10 +361,12 @@ void MainWindow::P_runMode_simulatin_plot_clear()
     m_axis_x.sizeSet(len_max);
     m_valuesSetpoint.sizeSet(len_max);
     m_valuesPV.sizeSet(len_max);
+    m_valuesOut.sizeSet(len_max);
 
     m_axis_x.clear();
     m_valuesSetpoint.clear();
     m_valuesPV.clear();
+    m_valuesOut.clear();
 
     m_plot_start = AXIS_X_MIN;
     m_plot_end = AXIS_X_MAX;
@@ -366,6 +382,7 @@ void MainWindow::P_runModeChange(bool simulation)
     m_axis_x.clear();
     m_valuesSetpoint.clear();
     m_valuesPV.clear();
+    m_valuesOut.clear();
     m_processVariable = 0.0;
 
     int len_max;
@@ -434,12 +451,11 @@ void MainWindow::P_dev_ready_runModeChanged(Device::RunMode mode)
     P_device_status_update(mode);
 }
 
-void MainWindow::P_dev_ready_SPPV(unsigned long time_ms, double sp, double pv)
+void MainWindow::P_dev_ready_SPPV(unsigned long time_ms, double sp, double pv, double out)
 {
-    double power = 666.666;
 
     m_processVariable = pv;
-    m_ui->indication.PID_power->setText(QString("PID output = %1").arg(power));
+    m_ui->indication.PID_power->setText(QString("PID output = %1").arg(out));
 
 
     m_plot_start = AXIS_X_MIN;
@@ -448,6 +464,7 @@ void MainWindow::P_dev_ready_SPPV(unsigned long time_ms, double sp, double pv)
     m_axis_x.append((double)time_ms / 1000.0);
     m_valuesSetpoint.append(sp);
     m_valuesPV.append(m_processVariable);
+    m_valuesOut.append(out);
 
     const QVector <double> &axis_x_vals = m_axis_x.get();
 
@@ -801,6 +818,7 @@ void MainWindow::P_tickEventSimulation()
         m_axis_x.append(m_simulatuion_value);
         m_valuesSetpoint.append(m_sim_setpoint);
         m_valuesPV.append(m_processVariable);
+        m_valuesOut.append(power);
         m_simulatuion_value += (INTERVAL_MS / 1000.0);
         m_time += INTERVAL_MS;
 
@@ -827,6 +845,7 @@ void MainWindow::P_tickEventCommon()
 
     const QVector<double> & vec_sp = m_valuesSetpoint.get();
     const QVector<double> & vec_pv = m_valuesPV.get();
+    const QVector<double> & vec_out = m_valuesOut.get();
 
     double sp = (vec_sp.isEmpty() ? 0.0 : vec_sp.last());
     double pv = (vec_pv.isEmpty() ? 0.0 : vec_pv.last());
@@ -836,7 +855,8 @@ void MainWindow::P_tickEventCommon()
     P_replot(
                 m_axis_x.get(),
                 vec_sp,
-                vec_pv
+                vec_pv,
+                vec_out
                 );
 
 }
@@ -861,13 +881,15 @@ void MainWindow::P_indication_update(double setpoint, double processVariable, do
 void MainWindow::P_replot(
         const QVector<double> &axis_x,
         const QVector<double> &vSetpoint,
-        const QVector<double> &vPV
+        const QVector<double> &vPV,
+        const QVector<double> &vOut
         )
 {
     /* fill the axis-X values */
 
     m_ui->plotSetpoint->setData(axis_x, vSetpoint);
     m_ui->plotPV->setData(axis_x, vPV);
+    m_ui->plotOut->setData(axis_x, vOut);
 
     /* scale setup */
     bool autoScale = (m_ui->mainMenu.actionAutoscale->isChecked());

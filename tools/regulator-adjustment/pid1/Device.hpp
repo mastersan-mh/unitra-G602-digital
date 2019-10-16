@@ -104,7 +104,7 @@ public:
 signals:
     void ready_dataToSend(const QByteArray &);
     void ready_runModeChanged(Device::RunMode mode);
-    void ready_SPPV(unsigned long time_ms, double sp, double pv);
+    void ready_SPPV(unsigned long time_ms, double sp, double pv, double out);
 
     void ready_pulsesRead(bool timedout, unsigned err, unsigned ppr);
     void ready_runModeRead(bool timedout, unsigned err, Device::RunMode mode);

@@ -317,11 +317,13 @@ void Device::P_rpc_eventReceived(uint8_t eventId, const QVector<uint16_t> &resv)
         case EVENT_SPPV:
         {
             if(!m_ppr.valid) break;
-            if(resv.size() != 4) break;
+            if(resv.size() != 6) break;
             unsigned long time_ms = ((resv[0] << 16) | resv[1]);
             double sp = (double)resv[2] / (double)m_ppr.value;
             double pv = (double)resv[3] / (double)m_ppr.value;
-            emit ready_SPPV(time_ms, sp, pv);
+            nostd::Fixed32 f32_out((fixed32_t)BUILD32(resv[4], resv[5]));
+            double out = f32_out.toDouble();
+            emit ready_SPPV(time_ms, sp, pv, out);
             break;
         }
     }

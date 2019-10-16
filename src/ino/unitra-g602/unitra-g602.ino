@@ -121,16 +121,22 @@ void P_config_store(const uint8_t * conf, size_t size)
     }
 }
 
-void P_config_load(uint8_t * conf, size_t size)
+void P_config_load(uint8_t * conf, size_t size, bool * empty)
 {
+    bool tempty = true;
     unsigned i;
     for(i = 0; i < size; ++i)
     {
         for(i = 0; i < size; ++i)
         {
             conf[i] = EEPROM.read(i);
+            if(conf[i] != 255)
+            {
+                tempty = false;
+            }
         }
     }
+    (*empty) = tempty;
 }
 
 static void P_event_strober(bool on)
@@ -363,14 +369,14 @@ void G602::P_task_rotator_handler(
 
     ctrl = self->m_pid.calculate(sp, pv);
 
+#if 1
     fixed32_t ctrl_raw = ctrl.toRawFixed();
-
+    if(ctrl_raw < 0) ctrl_raw = 0;
     //DEBUG_PRINT("ctrl_raw = "); DEBUG_PRINTLN(ctrl_raw);
 
     int ctrl_int = (int)(ctrl_raw >> 16);
     //DEBUG_PRINT("ctrl_int = "); DEBUG_PRINTLN(ctrl_int);
 
-#if 0
     int motor_output = constrain(ctrl_int, 0, 255);
 #else
     int motor_output = (int)map(
@@ -388,10 +394,10 @@ void G602::P_task_rotator_handler(
 
     if(self->m_permanent_process_send)
     {
-        self->P_rpc_eventSPPV(time, (uint16_t)speed_sp, (uint16_t)speed_pv_ppm);
+        self->P_rpc_eventSPPV(time, (uint16_t)speed_sp, (uint16_t)speed_pv_ppm, (fixed32_t)ctrl_raw);
     }
 
-#if 1
+#if 0
     DEBUG_PRINT(now);
 
     for(i = 0; i < G602_ROTATE_MEASURES__NUM; ++i)

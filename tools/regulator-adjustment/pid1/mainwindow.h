@@ -52,7 +52,8 @@ private slots:
     void P_replot(
             const QVector<double> &axis_x,
             const QVector<double> &vSetpoint,
-            const QVector<double> &vPV
+            const QVector<double> &vPV,
+            const QVector<double> &vOut
             );
 
 private:
@@ -94,6 +95,7 @@ private:
     CSlidingWindow m_axis_x;
     CSlidingWindow m_valuesSetpoint;
     CSlidingWindow m_valuesPV;
+    CSlidingWindow m_valuesOut;
     double m_plot_start;
     double m_plot_end;
 
@@ -141,7 +143,7 @@ private slots:
     /** @brief Прочитать кадр данных для Device */
     void P_readFrame();
     void P_dev_ready_runModeChanged(Device::RunMode mode);
-    void P_dev_ready_SPPV(unsigned long time_ms, double sp, double pv);
+    void P_dev_ready_SPPV(unsigned long time_ms, double sp, double pv, double out);
     void P_dev_ready_pulsesRead(bool timedout, unsigned err, unsigned ppr);
     void P_dev_ready_runModeRead(bool timedout, unsigned err, Device::RunMode mode);
     void P_dev_ready_pidKoefRead(bool timedout, unsigned err, double Kp, double Ki, double Kd);

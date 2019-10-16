@@ -23,7 +23,7 @@ G602::G602(
     int baselineSpeedLow,
     int baselineSpeedHigh,
     void (*event_config_store)(const uint8_t * conf, size_t size),
-    void (*event_config_load)(uint8_t * conf, size_t size),
+    void (*event_config_load)(uint8_t * conf, size_t size, bool * empty),
     void (*event_strober)(bool on),
     void (*event_lift_up)(),
     void (*event_lift_down)(),
@@ -153,14 +153,16 @@ void G602::P_rpc_eventModeChanged(app::Ctrl::RunMode runMode)
     );
 }
 
-void G602::P_rpc_eventSPPV(GTime_t time, uint16_t sp, uint16_t pv)
+void G602::P_rpc_eventSPPV(GTime_t time, uint16_t sp, uint16_t pv, fixed32_t out)
 {
-    uint8_t resc = 4;
-    uint16_t resv[4];
+    uint8_t resc = 6;
+    uint16_t resv[6];
     resv[0] = (uint16_t)((uint32_t)time >> 16);
     resv[1] = (uint16_t)((uint32_t)time & 0x0000ffff);
-    resv[2] = (uint16_t)sp;
-    resv[3] = (uint16_t)pv;
+    resv[2] = sp;
+    resv[3] = pv;
+    resv[4] = (uint16_t)(out >> 16);
+    resv[5] = (uint16_t)(out & 0x0000ffff);
 
     m_rpc.event(
         G602_EVENT_SPPV,
@@ -184,11 +186,22 @@ void G602::P_config_store()
 
 void G602::P_config_load()
 {
+    bool empty;
     uint8_t conf[3 * sizeof(fixed32_t)];
-    m_event_config_load(conf, sizeof(conf));
-    m_Kp.setRawFixed(CONF_K(conf, 0));
-    m_Ki.setRawFixed(CONF_K(conf, 1));
-    m_Kd.setRawFixed(CONF_K(conf, 2));
+    m_event_config_load(conf, sizeof(conf), &empty);
+    if(empty)
+    {
+        /* 1 minute to stable speed */
+        m_Kp.set(1.17187500);
+        m_Ki.set(0.03906250);
+        m_Kd.set(2.50000000);
+    }
+    else
+    {
+        m_Kp.setRawFixed(CONF_K(conf, 0));
+        m_Ki.setRawFixed(CONF_K(conf, 1));
+        m_Kd.setRawFixed(CONF_K(conf, 2));
+    }
 }
 
 unsigned long G602::P_rtcNextTimeGet() const

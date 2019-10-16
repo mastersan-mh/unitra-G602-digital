@@ -27,18 +27,12 @@ class G602
 #define ARRAY_INDEX(x) static_cast<unsigned int>(x)
 
 public:
-    static const nostd::size_t shed_task_id_blinker = 0;
-    static const nostd::size_t shed_task_id_service_mode_awaiting = 1;
-    static const nostd::size_t shed_task_id_ctrl = 2;
-    static const unsigned long service_mode_enter_awaiting_time = 5000; /**< time to wait to enter service mode, ms */
-    static const unsigned long ctrl_handler_period = 1000;
-
     G602() = delete;
     G602(
         int baselineSpeedLow,
         int baselineSpeedHigh,
         void (*event_config_store)(const uint8_t * conf, size_t size),
-        void (*event_config_load)(uint8_t * conf, size_t size),
+        void (*event_config_load)(uint8_t * conf, size_t size, bool * empty),
         void (*event_strober)(bool on),
         void (*event_lift_up)(),
         void (*event_lift_down)(),
@@ -62,12 +56,18 @@ public:
     void manualSpeedSet(int speed);
 private:
 
+    static const nostd::size_t shed_task_id_blinker = 0;
+    static const nostd::size_t shed_task_id_service_mode_awaiting = 1;
+    static const nostd::size_t shed_task_id_ctrl = 2;
+    static const unsigned long service_mode_enter_awaiting_time = 5000; /**< time to wait to enter service mode, ms */
+    static const unsigned long ctrl_handler_period = 1000;
+
     typedef nostd::Fixed32 Fixed;
     typedef nostd::PidRecurrent<Fixed> PID;
     typedef nostd::SlidingWindow<unsigned, 60> SWindow;
 
     void (*m_event_config_store)(const uint8_t * conf, size_t size);
-    void (*m_event_config_load)(uint8_t * conf, size_t size);
+    void (*m_event_config_load)(uint8_t * conf, size_t size, bool * empty);
     void (*m_event_strober)(bool on);
     void (*m_event_lift_up)();
     void (*m_event_lift_down)();
@@ -141,7 +141,7 @@ private:
 
     /** @brief Update the actual speed */
     void P_rpc_eventModeChanged(app::Ctrl::RunMode runMode);
-    void P_rpc_eventSPPV(GTime_t time, uint16_t sp, uint16_t pv);
+    void P_rpc_eventSPPV(GTime_t time, uint16_t sp, uint16_t pv, fixed32_t out);
 
 };
 

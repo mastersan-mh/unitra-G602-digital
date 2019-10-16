@@ -449,6 +449,7 @@ public:
     QCustomPlot * cplot;
     QCPGraph * plotSetpoint;
     QCPGraph * plotPV;
+    QCPGraph * plotOut;
 
 private:
     QGroupBox *init_UI_Kselector(QWidget * parent)
@@ -587,7 +588,7 @@ public:
                     selection.tryLeft = new QPushButton("Try", selection.main);
                     selection.mainLayout->addWidget(selection.tryLeft, 1, 0, 2, 2);
 
-                    selection.setCenterToLeft = new QPushButton("Set <", selection.main);
+                    selection.setCenterToLeft = new QPushButton("<--- Set", selection.main);
                     selection.mainLayout->addWidget(selection.setCenterToLeft, 3, 0, 1, 3);
 
                     /* column 1 */
@@ -610,7 +611,7 @@ public:
                     selection.tryRight = new QPushButton("Try", selection.main);
                     selection.mainLayout->addWidget(selection.tryRight, 1, 4, 2, 2);
 
-                    selection.setCenterToRight = new QPushButton("> Set", selection.main);
+                    selection.setCenterToRight = new QPushButton("Set --->", selection.main);
                     selection.mainLayout->addWidget(selection.setCenterToRight, 3, 3, 1, 3);
 
                     /* column 3 */
