@@ -19,7 +19,7 @@ QMAKE_CXXFLAGS += -Wno-expansion-to-defined
 #DEFINES += PID_RECURRENT
 DEFINES += PID_RECURRENT_FIXED32
 
-INCLUDEPATH += ../../../src/c/include/
+INCLUDEPATH += ../../../libs-common/include/
 
 SOURCES  += main.cpp\
             mainwindow.cpp \
@@ -35,8 +35,8 @@ SOURCES  += main.cpp\
             comm.cpp \
             RPCClient.cpp \
             Device.cpp \
-    DeviceViewModel.cpp \
-    CSlidingWindow.cpp
+            DeviceViewModel.cpp \
+            CSlidingWindow.cpp
 
 HEADERS  += mainwindow.h \
             mainwindow_ui.h \
@@ -56,8 +56,8 @@ HEADERS  += mainwindow.h \
             comm.hpp \
             RPCClient.hpp \
             Device.hpp \
-    DeviceViewModel.hpp \
-    CSlidingWindow.hpp
+            DeviceViewModel.hpp \
+            CSlidingWindow.hpp
 
 FORMS    +=
 
