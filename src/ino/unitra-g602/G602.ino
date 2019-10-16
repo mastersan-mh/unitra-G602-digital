@@ -37,7 +37,7 @@ G602::G602(
 , m_event_motor_update(event_motor_update)
 , m_time_now(0)
 , m_time_next(0)
-, sched()
+, m_sched()
 , m_blinker()
 , m_ctrl(baselineSpeedLow, baselineSpeedHigh, P_ctrl_event, this)
 , m_di_gauge_stop(false, P_event_stopUnset, P_event_stopSet, this, DI_DEBOUNCE_TIME)
@@ -96,7 +96,7 @@ void G602::loop()
     if(m_time_now >= m_time_next)
     {
         /*    long late = (long)time - (long)time_next; */
-        sched.handle(m_time_now);
+        m_sched.handle(m_time_now);
         m_time_next = P_rtcNextTimeGet();
 
     }
@@ -141,7 +141,7 @@ void G602::manualSpeedSet(int speed)
     m_ctrl.speedManualSet(speed, this);
 }
 
-void G602::eventModeChanged(app::Ctrl::RunMode runMode)
+void G602::P_rpc_eventModeChanged(app::Ctrl::RunMode runMode)
 {
     uint8_t resc = 1;
     uint16_t resv[1] = { P_run_modes[ARRAY_INDEX(runMode)] };
@@ -152,7 +152,7 @@ void G602::eventModeChanged(app::Ctrl::RunMode runMode)
     );
 }
 
-void G602::eventSPPV(GTime_t time, uint16_t sp, uint16_t pv)
+void G602::P_rpc_eventSPPV(GTime_t time, uint16_t sp, uint16_t pv)
 {
     uint8_t resc = 4;
     uint16_t resv[4];
@@ -192,7 +192,7 @@ void G602::P_config_load()
 
 unsigned long G602::P_rtcNextTimeGet() const
 {
-    unsigned long time_next = sched.nearestTime();
+    unsigned long time_next = m_sched.nearestTime();
     return (time_next > 0 ? time_next : m_time_now + 10 );
 }
 
@@ -202,11 +202,11 @@ void G602::P_blinker_start(GBlinker::BlinkType type)
 
     if(actions & GBLINKER_ACTIONFLAG_UNSCHEDULE)
     {
-        sched.unshedule(shed_task_id_blinker);
+        m_sched.unshedule(shed_task_id_blinker);
     }
     if(actions & GBLINKER_ACTIONFLAG_SCHEDULE)
     {
-        sched.shedule(shed_task_id_blinker, m_time_now, P_task_blinker, this);
+        m_sched.shedule(shed_task_id_blinker, m_time_now, P_task_blinker, this);
         m_time_next = P_rtcNextTimeGet();
     }
 }
@@ -217,11 +217,11 @@ void G602::P_blinker_stop(GBlinker::BlinkType type)
 
     if(actions & GBLINKER_ACTIONFLAG_UNSCHEDULE)
     {
-        sched.unshedule(shed_task_id_blinker);
+        m_sched.unshedule(shed_task_id_blinker);
     }
     if(actions & GBLINKER_ACTIONFLAG_SCHEDULE)
     {
-        sched.shedule(shed_task_id_blinker, m_time_now, P_task_blinker, this);
+        m_sched.shedule(shed_task_id_blinker, m_time_now, P_task_blinker, this);
         m_time_next = P_rtcNextTimeGet();
     }
 }
@@ -257,7 +257,7 @@ void G602::P_task_awaiting_service_mode(
     self->P_blinker_start(GBlinker::BlinkType::FAST6);
 
     app::Ctrl::RunMode mode_new = self->m_ctrl.runModeGet();
-    self->eventModeChanged(mode_new);
+    self->P_rpc_eventModeChanged(mode_new);
 }
 
 void G602::P_motor_update()
@@ -429,7 +429,7 @@ void G602::P_event_start(void * args)
     app::Ctrl::RunMode mode_new = self->m_ctrl.runModeGet();
     if(mode != mode_new)
     {
-        self->eventModeChanged(mode_new);
+        self->P_rpc_eventModeChanged(mode_new);
     }
 }
 
@@ -442,7 +442,7 @@ void G602::P_event_stop(void * args)
     {
         case app::Ctrl::RunMode::NORMAL_STOPPED:
         {
-            self->sched.shedule(
+            self->m_sched.shedule(
                 shed_task_id_service_mode_awaiting,
                 self->m_time_now + service_mode_enter_awaiting_time,
                 P_task_awaiting_service_mode,
@@ -503,14 +503,14 @@ void G602::P_event_stop(void * args)
     app::Ctrl::RunMode mode_new = self->m_ctrl.runModeGet();
     if(mode != mode_new)
     {
-        self->eventModeChanged(mode_new);
+        self->P_rpc_eventModeChanged(mode_new);
     }
 }
 
 void G602::P_event_stop_release(void * args)
 {
     G602_DEFINE_SELF();
-    self->sched.unshedule(shed_task_id_service_mode_awaiting);
+    self->m_sched.unshedule(shed_task_id_service_mode_awaiting);
     self->m_time_next = self->P_rtcNextTimeGet();
 }
 

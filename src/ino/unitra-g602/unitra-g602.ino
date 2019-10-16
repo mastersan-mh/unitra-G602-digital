@@ -421,7 +421,7 @@ void G602::P_task_rotator_handler(
 
         if(self->m_permanent_process_send)
         {
-            self->eventSPPV(time, (uint16_t)speed_sp, (uint16_t)speed_pv_ppm);
+            self->P_rpc_eventSPPV(time, (uint16_t)speed_sp, (uint16_t)speed_pv_ppm);
         }
 
         meas->m_pulses = motor_pulses_diff;
@@ -474,7 +474,7 @@ void G602::P_measures_start()
     unsigned i;
     for(i = 0; i < G602_ROTATE_MEASURES__NUM; ++i)
     {
-        sched.shedule(
+        m_sched.shedule(
                 rotate_measurer_sheduler_id[i],
                 m_time_now + rotate_measurer_handler_times[i],
                 P_task_rotator_handler,
@@ -494,7 +494,7 @@ void G602::P_measures_stop()
     unsigned i;
     for(i = 0; i < G602_ROTATE_MEASURES__NUM; ++i)
     {
-        sched.unshedule(rotate_measurer_sheduler_id[i]);
+        m_sched.unshedule(rotate_measurer_sheduler_id[i]);
     }
     m_time_next = P_rtcNextTimeGet();
 }

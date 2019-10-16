@@ -58,10 +58,11 @@ public:
     void notifyButtonStopSet(bool state);
     /** @brief Set manual speed relative to base speed */
     void manualSpeedSet(int speed);
-    /** @brief Update the actual speed */
-    void eventModeChanged(app::Ctrl::RunMode runMode);
-    void eventSPPV(GTime_t time, uint16_t sp, uint16_t pv);
 private:
+
+    typedef nostd::Fixed32 Fixed;
+    typedef nostd::PidRecurrent<Fixed> PID;
+
     void (*m_event_config_store)(const uint8_t * conf, size_t size);
     void (*m_event_config_load)(uint8_t * conf, size_t size);
     void (*m_event_strober)(bool on);
@@ -72,12 +73,7 @@ private:
     unsigned long m_time_now;
     unsigned long m_time_next;
 
-public:
-    G602Scheduler sched;
-private:
-    typedef nostd::Fixed32 Fixed;
-    typedef nostd::PidRecurrent<Fixed> PID;
-
+    G602Scheduler m_sched;
     GBlinker m_blinker;
     app::Ctrl m_ctrl;
     GDInputDebounced m_di_gauge_stop;
@@ -137,6 +133,10 @@ private:
     static uint8_t P_rpc_func_07_process_start(unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args);
     static uint8_t P_rpc_func_08_process_stop(unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args);
     static uint8_t P_rpc_func_09_conf_store(unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args);
+
+    /** @brief Update the actual speed */
+    void P_rpc_eventModeChanged(app::Ctrl::RunMode runMode);
+    void P_rpc_eventSPPV(GTime_t time, uint16_t sp, uint16_t pv);
 
 };
 
