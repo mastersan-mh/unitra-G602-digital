@@ -60,12 +60,12 @@ public:
 
     SchedulerSoft()
     {
-        NOSTD_LIST2_HEAD_INIT(task_s, scheduled);
+        NOSTD_LIST2_HEAD_INIT(task_s, m_scheduled);
 
         nostd::size_t i = 0;
         for(i = 0; i < scheduledTasksMax; ++i)
         {
-            tasks[i].handler = nullptr;
+            m_tasks[i].handler = nullptr;
         }
     }
 
@@ -113,7 +113,7 @@ public:
          * because time of most scheduled tasks,
          * is later than current and later than already added tasks.
          */
-        NOSTD_LIST2_FOREACH_REV(task_s, field, scheduled, tmp)
+        NOSTD_LIST2_FOREACH_REV(task_s, field, m_scheduled, tmp)
         {
             if(time >= tmp->time)
             {
@@ -122,7 +122,7 @@ public:
             }
         }
 
-        NOSTD_LIST2_INSERT_HEAD(task_s, field, scheduled, task);
+        NOSTD_LIST2_INSERT_HEAD(task_s, field, m_scheduled, task);
 
         return Error::OK;
     }
@@ -141,7 +141,7 @@ public:
         {
             removed = false;
             struct task_s * tmp;
-            NOSTD_LIST2_FOREACH(task_s, field, scheduled, tmp)
+            NOSTD_LIST2_FOREACH(task_s, field, m_scheduled, tmp)
             {
                 if(id == tmp->id)
                 {
@@ -153,8 +153,25 @@ public:
             }
         } while(removed);
 
-
         return Error::OK;
+    }
+
+    /**
+     * @brief Is task with id scheduled?
+     */
+    bool isScheduled(
+            nostd::size_t id
+    )
+    {
+        struct task_s * tmp;
+        NOSTD_LIST2_FOREACH(task_s, field, m_scheduled, tmp)
+        {
+            if(id == tmp->id)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -166,8 +183,8 @@ public:
         void (*handler)(nostd::size_t id, time_type time, time_type now, SchedulerSoft & sched, void * args);
         struct task_s * tmp;
 
-        tmp = NOSTD_LIST2_HEAD(scheduled);
-        while(tmp != NOSTD_LIST2_END(task_s, scheduled) && tmp->time <= now)
+        tmp = NOSTD_LIST2_HEAD(m_scheduled);
+        while(tmp != NOSTD_LIST2_END(task_s, m_scheduled) && tmp->time <= now)
         {
             NOSTD_LIST2_REMOVE(field, tmp);
 
@@ -176,7 +193,7 @@ public:
 
             handler(tmp->id, tmp->time, now, *this, tmp->args);
 
-            tmp = NOSTD_LIST2_HEAD(scheduled);
+            tmp = NOSTD_LIST2_HEAD(m_scheduled);
 
         }
     }
@@ -188,18 +205,18 @@ public:
      */
     inline time_type nearestTime() const
     {
-        if(NOSTD_LIST2_EMPTY(task_s, scheduled))
+        if(NOSTD_LIST2_EMPTY(task_s, m_scheduled))
         {
             return time_type();
         }
-        return NOSTD_LIST2_HEAD(scheduled)->time;
+        return NOSTD_LIST2_HEAD(m_scheduled)->time;
     }
 
 #ifdef NOSTD_SCHEDULERSOFT_DEBUG
     void debugPrint() const
     {
         struct task_s * tmp;
-        LIST2_FOREACH(task_s, field, scheduled, tmp)
+        LIST2_FOREACH(task_s, field, m_scheduled, tmp)
         {
             std::cout
             << "SchedulerSoft::debugPrint(): id = " << tmp->id
@@ -217,7 +234,7 @@ private:
         nostd::size_t i;
         for(i = 0; i < scheduledTasksMax; ++i)
         {
-            task = &tasks[i];
+            task = &m_tasks[i];
             if(task->handler == nullptr)
             {
                 return task;
@@ -227,9 +244,9 @@ private:
     }
 
     /* scheduled tasks */
-    NOSTD_LIST2_LIST(task_s, field_s) scheduled;
+    NOSTD_LIST2_LIST(task_s, field_s) m_scheduled;
     /* pool for the tasks */
-    struct task_s tasks[scheduledTasksMax];
+    struct task_s m_tasks[scheduledTasksMax];
 
 };
 
