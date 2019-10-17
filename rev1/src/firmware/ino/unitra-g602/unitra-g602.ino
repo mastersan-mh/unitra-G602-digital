@@ -112,6 +112,45 @@ static void terminate_handler(const char * file, unsigned int line, int error)
     }
 }
 
+struct pulse
+{
+    unsigned long change_time; /**< Time of change */
+    rotate_pulse_counter_t pulses; /**< Amount of clean pulses */
+    rotate_pulse_counter_t bounces; /**< Amount of bounces (dirty pulses) */
+};
+
+static volatile struct pulse P_motor_rotate;
+static volatile struct pulse P_table_rotate;
+
+static void P_pulse_get(
+        volatile struct pulse * pulse_in,
+        bool reset,
+        struct pulse * pulse_out
+)
+{
+    pulse_out->change_time = pulse_in->change_time;
+    pulse_out->pulses = pulse_in->pulses;
+    pulse_out->bounces = pulse_in->bounces;
+    if(reset)
+    {
+        pulse_in->pulses = 0;
+        pulse_in->bounces = 0;
+    }
+}
+
+void P_pulses_all_get(
+        struct pulse * pulses_motor,
+        struct pulse * pulses_table,
+        bool reset
+)
+{
+    ATOMIC_BLOCK(ATOMIC_FORCEON)
+    {
+        P_pulse_get(&P_motor_rotate, reset, pulses_motor);
+        P_pulse_get(&P_table_rotate, reset, pulses_table);
+    }
+}
+
 void P_config_store(const uint8_t * conf, size_t size)
 {
     unsigned i;
@@ -168,6 +207,15 @@ void P_motor_update(bool state, int output)
     }
 }
 
+static void P_pulses_get(unsigned * motor_pulses, unsigned * table_pulses)
+{
+    struct pulse m_pulse;
+    struct pulse t_pulse;
+    P_pulses_all_get(&m_pulse, &t_pulse, true); /* reset */
+    (*motor_pulses) = m_pulse.pulses;
+    (*table_pulses) = t_pulse.pulses;
+}
+
 static unsigned long time;
 static unsigned long time_prev = 0;
 static unsigned long cycletime = 0;
@@ -180,19 +228,9 @@ static G602 g602(
     P_event_strober,
     P_event_lift_up,
     P_event_lift_down,
-    P_motor_update
-
+    P_motor_update,
+    P_pulses_get
 );
-
-struct pulse
-{
-    unsigned long change_time; /**< Time of change */
-    rotate_pulse_counter_t pulses; /**< Amount of clean pulses */
-    rotate_pulse_counter_t bounces; /**< Amount of bounces (dirty pulses) */
-};
-
-static volatile struct pulse P_motor_rotate;
-static volatile struct pulse P_table_rotate;
 
 void P_pulses_init(volatile struct pulse * pulse)
 {
@@ -214,23 +252,6 @@ static void P_pulse_update(volatile struct pulse * pulse, unsigned long bounce_t
     pulse->change_time = time;
 }
 
-static void P_pulse_get(
-        volatile struct pulse * pulse_in,
-        bool reset,
-        struct pulse * pulse_out
-)
-{
-    pulse_out->change_time = pulse_in->change_time;
-    pulse_out->pulses = pulse_in->pulses;
-    pulse_out->bounces = pulse_in->bounces;
-    if(reset)
-    {
-        pulse_in->pulses = 0;
-        pulse_in->bounces = 0;
-    }
-}
-
-
 void drive_rotate_pulse_update(void)
 {
     P_pulse_update(&P_motor_rotate, DI_MOTOR_DEBOUNCE_TIME);
@@ -239,19 +260,6 @@ void drive_rotate_pulse_update(void)
 void table_rotate_pulse_update(void)
 {
     P_pulse_update(&P_table_rotate, DI_TABLE_DEBOUNCE_TIME);
-}
-
-void P_pulses_all_get(
-        struct pulse * pulses_motor,
-        struct pulse * pulses_table,
-        bool reset
-)
-{
-    ATOMIC_BLOCK(ATOMIC_FORCEON)
-    {
-        P_pulse_get(&P_motor_rotate, reset, pulses_motor);
-        P_pulse_get(&P_table_rotate, reset, pulses_table);
-    }
 }
 
 static AverageTinyMemory potentiometer_avg(FACTOR);
@@ -430,33 +438,6 @@ void G602::P_task_rotator_handler(
             P_task_rotator_handler,
             &g602
     );
-}
-
-void G602::P_measures_start()
-{
-    struct pulse m_pulse;
-    struct pulse t_pulse;
-    P_pulses_all_get(&m_pulse, &t_pulse, true); /* reset */
-
-    m_sched.shedule(
-            shed_task_id_ctrl,
-            m_time_now + ctrl_handler_period,
-            P_task_rotator_handler,
-            this
-    );
-
-    m_pid.reset();
-    m_time_next = P_rtcNextTimeGet();
-}
-
-void G602::P_measures_stop()
-{
-    struct pulse m_pulse;
-    struct pulse t_pulse;
-    P_pulses_all_get(&m_pulse, &t_pulse, true); /* reset */
-
-    m_sched.unshedule(shed_task_id_ctrl);
-    m_time_next = P_rtcNextTimeGet();
 }
 
 void setup()

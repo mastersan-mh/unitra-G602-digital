@@ -27,7 +27,8 @@ G602::G602(
     void (*event_strober)(bool on),
     void (*event_lift_up)(),
     void (*event_lift_down)(),
-    void (*event_motor_update)(bool state, int setpoint)
+    void (*event_motor_update)(bool state, int setpoint),
+    void (*event_pulses_get)(unsigned * motor_pulses, unsigned * table_pulses)
 )
 : m_event_config_store(event_config_store)
 , m_event_config_load(event_config_load)
@@ -35,6 +36,7 @@ G602::G602(
 , m_event_lift_up(event_lift_up)
 , m_event_lift_down(event_lift_down)
 , m_event_motor_update(event_motor_update)
+, m_event_pulses_get(event_pulses_get)
 , m_time_now(0)
 , m_time_next(0)
 , m_sched()
@@ -269,6 +271,29 @@ void G602::P_task_awaiting_service_mode(
     G602_DEFINE_SELF();
     self->m_ctrl.mode_service_1(self);
     self->P_blinker_start(GBlinker::BlinkType::FAST6);
+}
+
+void G602::P_measures_start()
+{
+    unsigned motor_pulses;
+    unsigned table_pulses;
+    m_event_pulses_get(&motor_pulses, &table_pulses);
+
+    m_sched.shedule(
+            shed_task_id_ctrl,
+            m_time_now + ctrl_handler_period,
+            P_task_rotator_handler,
+            this
+    );
+
+    m_pid.reset();
+    m_time_next = P_rtcNextTimeGet();
+}
+
+void G602::P_measures_stop()
+{
+    m_sched.unshedule(shed_task_id_ctrl);
+    m_time_next = P_rtcNextTimeGet();
 }
 
 void G602::P_motor_update()

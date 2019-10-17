@@ -36,7 +36,8 @@ public:
         void (*event_strober)(bool on),
         void (*event_lift_up)(),
         void (*event_lift_down)(),
-        void (*event_motor_update)(bool state, int setpoint)
+        void (*event_motor_update)(bool state, int setpoint),
+        void (*event_pulses_get)(unsigned * motor_pulses, unsigned * table_pulses)
     );
     virtual ~G602();
     G602(const G602 &) = delete;
@@ -72,6 +73,7 @@ private:
     void (*m_event_lift_up)();
     void (*m_event_lift_down)();
     void (*m_event_motor_update)(bool state, int output);
+    void (*m_event_pulses_get)(unsigned * motor_pulses, unsigned * table_pulses);
 
     unsigned long m_time_now;
     unsigned long m_time_next;
