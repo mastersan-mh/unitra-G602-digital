@@ -269,9 +269,6 @@ void G602::P_task_awaiting_service_mode(
     G602_DEFINE_SELF();
     self->m_ctrl.mode_service_1(self);
     self->P_blinker_start(GBlinker::BlinkType::FAST6);
-
-    app::Ctrl::RunMode mode_new = self->m_ctrl.runModeGet();
-    self->P_rpc_eventModeChanged(mode_new);
 }
 
 void G602::P_motor_update()
@@ -281,16 +278,11 @@ void G602::P_motor_update()
     P_measures_start();
 }
 
-void G602::P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& data, void * args)
+void G602::P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData &data, void * args)
 {
     G602_DEFINE_SELF();
     switch(event)
     {
-        case app::Ctrl::Event::ERRORS_UPDATE:
-        {
-            break;
-        }
-
         case app::Ctrl::Event::WARNINGS_UPDATE:
         {
             bool blink_speed_to_low  = TO_BOOL(data.WARNINGS_UPDATE.warnings & CTRL_WARNING_SPEED_TOO_LOW);
@@ -343,6 +335,12 @@ void G602::P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& data
         case app::Ctrl::Event::LIFT_DOWN:
         {
             self->m_event_lift_down();
+            break;
+        }
+
+        case app::Ctrl::Event::RUNMODE_CHANGED:
+        {
+            self->P_rpc_eventModeChanged(data.RUNMODE_CHANGED.runMode);
             break;
         }
 
@@ -439,12 +437,6 @@ void G602::P_event_start(void * args)
             break;
         }
     }
-
-    app::Ctrl::RunMode mode_new = self->m_ctrl.runModeGet();
-    if(mode != mode_new)
-    {
-        self->P_rpc_eventModeChanged(mode_new);
-    }
 }
 
 void G602::P_event_stop(void * args)
@@ -512,12 +504,6 @@ void G602::P_event_stop(void * args)
             self->P_blinker_start(GBlinker::BlinkType::BRAKING);
             break;
         }
-    }
-
-    app::Ctrl::RunMode mode_new = self->m_ctrl.runModeGet();
-    if(mode != mode_new)
-    {
-        self->P_rpc_eventModeChanged(mode_new);
     }
 }
 

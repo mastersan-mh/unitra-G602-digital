@@ -26,33 +26,6 @@ public:
         INVALID_MODE, /* Unable to execute command in this mode */
     };
 
-    enum class Event
-    {
-        ERRORS_UPDATE,
-        WARNINGS_UPDATE,
-        MOTOR_ON,
-        MOTOR_OFF,
-        MOTOR_SETPOINT_UPDATE,
-        LIFT_UP,
-        LIFT_DOWN,
-    };
-
-    typedef union
-    {
-        struct
-        {
-            unsigned errors;
-        } ERRORS_UPDATE;
-        struct
-        {
-            unsigned warnings;
-        } WARNINGS_UPDATE;
-        struct
-        {
-            speed_t setpoint;
-        } MOTOR_SETPOINT_UPDATE;
-    }  EventData;
-
     enum class RunMode
     {
         NORMAL_STOPPED,
@@ -71,6 +44,34 @@ public:
         MODE_LOW,
         MODE_HIGH,
     };
+
+    enum class Event
+    {
+        WARNINGS_UPDATE,
+        MOTOR_ON,
+        MOTOR_OFF,
+        MOTOR_SETPOINT_UPDATE,
+        LIFT_UP,
+        LIFT_DOWN,
+        RUNMODE_CHANGED,
+    };
+
+    typedef union
+    {
+        struct
+        {
+            unsigned warnings;
+        } WARNINGS_UPDATE;
+        struct
+        {
+            speed_t setpoint;
+        } MOTOR_SETPOINT_UPDATE;
+        struct
+        {
+            RunMode runMode;
+        } RUNMODE_CHANGED;
+    }  EventData;
+
 #define CTRL_BASESPEEDMODE__NUM (static_cast<int>(BaselineSpeedMode::MODE_HIGH) + 1)
 
     Ctrl() = delete;
@@ -87,7 +88,7 @@ public:
     Ctrl(const Ctrl&) = delete;
     Ctrl& operator=(const Ctrl&) = delete;
 
-    ~Ctrl();
+    virtual ~Ctrl();
     /**
      * @brief Выбор базовой скорости
      */
@@ -188,8 +189,6 @@ private:
     speed_t P_speed_baseline_get() const;
 
     void P_event(Event event, const EventData& data, void * args) const;
-    void P_event_errors_set(unsigned err, void * args);
-    void P_event_errors_clear(unsigned err, void * args);
     void P_event_warnings_set(unsigned warn, void * args);
     void P_event_warnings_clean(unsigned warn, void * args);
     void P_event_motor_on(void * args);
@@ -197,6 +196,8 @@ private:
     void P_event_motor_setpoint_update(Ctrl::speed_t setpoint, void * args);
     void P_event_lift_up(void * args);
     void P_event_lift_down(void * args);
+    void P_event_runmode_changed(RunMode runMode, void * args);
+    RunMode P_runModeGet(State state);
 
     Error P_fsm(Command cmd, const CommandData & data, void * args);
 

@@ -38,7 +38,7 @@ public:
         void (*event_lift_down)(),
         void (*event_motor_update)(bool state, int setpoint)
     );
-    ~G602();
+    virtual ~G602();
     G602(const G602 &) = delete;
     G602& operator= (const G602 &) = delete;
 

@@ -19,28 +19,6 @@ void Ctrl::P_event(Event event, const EventData& data, void * args) const
     }
 }
 
-void Ctrl::P_event_errors_set(unsigned err, void * args)
-{
-    unsigned old = m_state_errors;
-    m_state_errors |= err;
-    if(m_state_errors != old)
-    {
-        m_eventData.ERRORS_UPDATE.errors = m_state_errors;
-        P_event(Event::ERRORS_UPDATE, m_eventData, args);
-    }
-}
-
-void Ctrl::P_event_errors_clear(unsigned err, void * args)
-{
-    unsigned old = m_state_errors;
-    m_state_errors &= ~err;
-    if(m_state_errors != old)
-    {
-        m_eventData.ERRORS_UPDATE.errors = m_state_errors;
-        P_event(Event::ERRORS_UPDATE, m_eventData, args);
-    }
-}
-
 void Ctrl::P_event_warnings_set(unsigned warn, void * args)
 {
     unsigned old = m_state_warnings;
@@ -92,6 +70,30 @@ void Ctrl::P_event_lift_down(void * args)
     P_event(Event::LIFT_DOWN, m_eventData, args);
 }
 
+void Ctrl::P_event_runmode_changed(RunMode runMode, void * args)
+{
+    m_eventData.RUNMODE_CHANGED.runMode = runMode;
+    P_event(Event::RUNMODE_CHANGED, m_eventData, args);
+}
+
+Ctrl::RunMode Ctrl::P_runModeGet(State state)
+{
+    static RunMode table[] =
+    {
+        [ARRAY_INDEX(State::INIT                 )] = RunMode::NORMAL_STOPPED,
+        [ARRAY_INDEX(State::NORMAL_STOPPED       )] = RunMode::NORMAL_STOPPED,
+        [ARRAY_INDEX(State::NORMAL_STARTED_AUTO  )] = RunMode::NORMAL_STARTED_AUTO,
+        [ARRAY_INDEX(State::NORMAL_STARTED_MANUAL)] = RunMode::NORMAL_STARTED_MANUAL,
+        [ARRAY_INDEX(State::SERVICE_MODE1_STOPPED)] = RunMode::SERVICE_MODE1_STOPPED,
+        [ARRAY_INDEX(State::SERVICE_MODE1_STARTED)] = RunMode::SERVICE_MODE1_STARTED,
+        [ARRAY_INDEX(State::SERVICE_MODE2_STOPPED)] = RunMode::SERVICE_MODE2_STOPPED,
+        [ARRAY_INDEX(State::SERVICE_MODE2_STARTED)] = RunMode::SERVICE_MODE2_STARTED,
+        [ARRAY_INDEX(State::SERVICE_MODE3_STOPPED)] = RunMode::SERVICE_MODE3_STOPPED,
+        [ARRAY_INDEX(State::SERVICE_MODE3_STARTED)] = RunMode::SERVICE_MODE3_STARTED,
+    };
+    return table[ARRAY_INDEX(state)];
+}
+
 Ctrl::Error Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
 {
     State next_state = m_state;
@@ -113,7 +115,7 @@ Ctrl::Error Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
              Ctrl::speed_t speed = P_speed_baseline_get();
              P_event_motor_setpoint_update(speed, args);
              next_state = State::NORMAL_STOPPED;
-            break;
+             break;
         }
 
         case State::NORMAL_STOPPED:
@@ -906,7 +908,13 @@ Ctrl::Error Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
 
     }
 
+    RunMode runMode_old = P_runModeGet(m_state);
+    RunMode runMode_new = P_runModeGet(next_state);
     m_state = next_state;
+    if(runMode_old != runMode_new)
+    {
+        P_event_runmode_changed(runMode_new, args);
+    }
     return Error::OK;
 }
 
@@ -1037,20 +1045,7 @@ Ctrl::Error Ctrl::stopTriggeredSet(bool triggered, void * args)
 
 Ctrl::RunMode Ctrl::runModeGet()
 {
-    switch(m_state)
-    {
-        case State::INIT   : return RunMode::NORMAL_STOPPED;
-        case State::NORMAL_STOPPED: return RunMode::NORMAL_STOPPED;
-        case State::NORMAL_STARTED_AUTO: return RunMode::NORMAL_STARTED_AUTO;
-        case State::NORMAL_STARTED_MANUAL: return RunMode::NORMAL_STARTED_MANUAL;
-        case State::SERVICE_MODE1_STOPPED: return RunMode::SERVICE_MODE1_STOPPED;
-        case State::SERVICE_MODE1_STARTED: return RunMode::SERVICE_MODE1_STARTED;
-        case State::SERVICE_MODE2_STOPPED: return RunMode::SERVICE_MODE2_STOPPED;
-        case State::SERVICE_MODE2_STARTED: return RunMode::SERVICE_MODE2_STARTED;
-        case State::SERVICE_MODE3_STOPPED: return RunMode::SERVICE_MODE3_STOPPED;
-        case State::SERVICE_MODE3_STARTED: return RunMode::SERVICE_MODE3_STARTED;
-    }
-    return RunMode::NORMAL_STOPPED;
+    return Ctrl::P_runModeGet(m_state);
 }
 
 int Ctrl::errorsGet() const
