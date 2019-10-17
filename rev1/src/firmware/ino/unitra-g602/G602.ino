@@ -79,8 +79,6 @@ G602::G602(
     m_pid.KiSet(m_Ki);
     m_pid.KdSet(m_Kd);
     m_pid.reset();
-
-    P_ctrl_start();
 }
 
 G602::~G602()
