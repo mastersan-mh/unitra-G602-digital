@@ -28,7 +28,7 @@ G602::G602(
     void (*event_lift_up)(),
     void (*event_lift_down)(),
     void (*event_motor_update)(bool state, int setpoint),
-    void (*event_pulses_get)(unsigned * motor_pulses, unsigned * table_pulses)
+    void (*event_pulses_get)(unsigned * dmotor_pulses, unsigned * dtable_pulses)
 )
 : m_event_config_store(event_config_store)
 , m_event_config_load(event_config_load)
@@ -80,7 +80,7 @@ G602::G602(
     m_pid.KdSet(m_Kd);
     m_pid.reset();
 
-    P_measures_start();
+    P_ctrl_start();
 }
 
 G602::~G602()
@@ -273,16 +273,127 @@ void G602::P_task_awaiting_service_mode(
     self->P_blinker_start(GBlinker::BlinkType::FAST6);
 }
 
-void G602::P_measures_start()
+void G602::P_task_ctrl(
+        size_t id,
+        GTime_t time,
+        UNUSED GTime_t now,
+        G602Scheduler & sched,
+        void * args
+)
 {
-    unsigned motor_pulses;
-    unsigned table_pulses;
-    m_event_pulses_get(&motor_pulses, &table_pulses);
+    G602_DEFINE_SELF();
+
+    unsigned motor_dpulses;
+    unsigned table_dpulses;
+
+    self->m_event_pulses_get(&motor_dpulses, &table_dpulses);
+
+    self->m_pulses.append(table_dpulses);
+
+    struct
+    {
+        unsigned pulses_sum;
+        unsigned amount;
+        unsigned ppm;
+    } meas;
+
+    meas.pulses_sum = 0;
+    meas.amount = 0;
+
+    SWindow::reverse_const_iterator it;
+    for(
+            it = self->m_pulses.rcbegin();
+            it != self->m_pulses.rcend();
+            --it
+    )
+    {
+        meas.pulses_sum += (*it);
+        ++(meas.amount);
+    }
+
+#define SPEED_PPM(dpulses, dtime) \
+        ( \
+                ((unsigned long)dpulses * 1000 * 60) / \
+                ((unsigned long)dtime) \
+        )
+
+    meas.ppm = (unsigned)SPEED_PPM(meas.pulses_sum, ctrl_handler_period * meas.amount);
+
+    int speed_pv_ppm = (int)meas.ppm;
+
+    self->m_ctrl.actualSpeedUpdate(speed_pv_ppm, self);
+
+    bool motor_state;
+    app::Ctrl::speed_t table_setpoint;
+    self->m_ctrl.motorGet(&motor_state, &table_setpoint);
+    app::Ctrl::speed_t speed_sp = (motor_state ? table_setpoint : 0);
+
+    Fixed sp;
+    Fixed pv;
+    Fixed ctrl;
+    sp.set(speed_sp);
+    pv.set(speed_pv_ppm);
+
+    ctrl = self->m_pid.calculate(sp, pv);
+
+#if 1
+    fixed32_t ctrl_raw = ctrl.toRawFixed();
+    if(ctrl_raw < 0) ctrl_raw = 0;
+    // DEBUG_PRINT("ctrl_raw = "); DEBUG_PRINTLN(ctrl_raw);
+
+    int ctrl_int = (int)(ctrl_raw >> 16); /* cut-off frac */
+    // DEBUG_PRINT("ctrl_int = "); DEBUG_PRINTLN(ctrl_int);
+
+    int motor_output = constrain(ctrl_int, 0, 255);
+#else
+    int motor_output = (int)map(
+            speed_sp,
+            G602_SPEED_MIN,
+            G602_SPEED_MAX,
+            0,
+            255
+    );
+
+    if(!motor_state) motor_output = 0;
+#endif
+
+    self->m_event_motor_update(motor_state, motor_output);
+
+    if(self->m_permanent_process_send)
+    {
+        self->P_rpc_eventSPPV(time, (uint16_t)speed_sp, (uint16_t)speed_pv_ppm, (fixed32_t)ctrl_raw);
+    }
+
+#if 0
+    DEBUG_PRINT("[ ");
+    DEBUG_PRINT(now);
+    DEBUG_PRINT(" ]");
+
+    DEBUG_PRINT("\t"); DEBUG_PRINT(meas.ppm);
+
+    DEBUG_PRINT("\tp"); DEBUG_PRINT(table_dpulses);
+
+    DEBUG_PRINTLN();
+#endif
+
+    sched.shedule(
+            id,
+            time + ctrl_handler_period,
+            P_task_ctrl,
+            args
+    );
+}
+
+void G602::P_ctrl_start()
+{
+    unsigned motor_dpulses;
+    unsigned table_dpulses;
+    m_event_pulses_get(&motor_dpulses, &table_dpulses);
 
     m_sched.shedule(
             shed_task_id_ctrl,
             m_time_now + ctrl_handler_period,
-            P_task_rotator_handler,
+            P_task_ctrl,
             this
     );
 
@@ -290,7 +401,7 @@ void G602::P_measures_start()
     m_time_next = P_rtcNextTimeGet();
 }
 
-void G602::P_measures_stop()
+void G602::P_ctrl_stop()
 {
     m_sched.unshedule(shed_task_id_ctrl);
     m_time_next = P_rtcNextTimeGet();
@@ -299,8 +410,8 @@ void G602::P_measures_stop()
 void G602::P_motor_update()
 {
     /* reset the measure and control tasks */
-    P_measures_stop();
-    P_measures_start();
+    P_ctrl_stop();
+    P_ctrl_start();
 }
 
 void G602::P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData &data, void * args)

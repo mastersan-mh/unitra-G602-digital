@@ -66,7 +66,7 @@ private:
 
     typedef nostd::Fixed32 Fixed;
     typedef nostd::PidRecurrent<Fixed> PID;
-    typedef nostd::SlidingWindow<unsigned, 60> SWindow;
+    typedef nostd::SlidingWindow<unsigned, 15> SWindow;
 
     void (*m_event_config_store)(const uint8_t * conf, size_t size);
     void (*m_event_config_load)(uint8_t * conf, size_t size, bool * empty);
@@ -74,7 +74,7 @@ private:
     void (*m_event_lift_up)();
     void (*m_event_lift_down)();
     void (*m_event_motor_update)(bool state, int output);
-    void (*m_event_pulses_get)(unsigned * motor_pulses, unsigned * table_pulses);
+    void (*m_event_pulses_get)(unsigned * motor_dpulses, unsigned * table_dpulses);
 
     unsigned long m_time_now;
     unsigned long m_time_next;
@@ -112,9 +112,9 @@ private:
     void P_blinker_stop(GBlinker::BlinkType type);
     static void P_task_blinker(nostd::size_t id, GTime_t time, GTime_t now, G602Scheduler & sched, void * args);
     static void P_task_awaiting_service_mode(nostd::size_t id, GTime_t time, GTime_t now, G602Scheduler & sched, void * args);
-    static void P_task_rotator_handler(nostd::size_t id, GTime_t time, GTime_t now, G602Scheduler & sched, void * args);
-    void P_measures_start();
-    void P_measures_stop();
+    static void P_task_ctrl(nostd::size_t id, GTime_t time, GTime_t now, G602Scheduler & sched, void * args);
+    void P_ctrl_start();
+    void P_ctrl_stop();
 
     void P_motor_update();
     static void P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& data, void * args);

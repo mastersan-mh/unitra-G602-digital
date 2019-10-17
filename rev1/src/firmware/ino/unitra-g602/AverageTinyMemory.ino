@@ -8,7 +8,7 @@
 
 AverageTinyMemory::AverageTinyMemory(unsigned char factor)
 {
-    this->mean = 0;
+    this->m_mean = 0;
     factorSet(factor);
 }
 
@@ -23,40 +23,40 @@ void AverageTinyMemory::factorSet(unsigned char factor)
     {
         FATAL(NOSTD_ERR_OUT_OF_RANGE);
     }
-    this->value_prev = 0;
-    this->factor = factor;
-    this->len = 0;
-    this->value_weight = 0;
+    m_value_prev = 0;
+    m_factor = factor;
+    m_len = 0;
+    m_value_weight = 0;
 }
 
 void AverageTinyMemory::appendValue(int value)
 {
-    if(factor == 0)
+    if(m_factor == 0)
     {
-        mean = value;
-        len = 0;
+        m_mean = value;
+        m_len = 0;
         return;
     }
 
-    if(value_prev == value)
+    if(m_value_prev == value)
     {
-        ++value_weight;
+        ++m_value_weight;
     }
     else
     {
-        value_weight = 1;
-        value_prev = value;
+        m_value_weight = 1;
+        m_value_prev = value;
     }
 
-    if(len < factor)
+    if(m_len < m_factor)
     {
-        ++len;
+        ++m_len;
     }
 
-    mean = (mean * (len - value_weight) + value * value_weight) / len;
+    m_mean = (m_mean * (m_len - m_value_weight) + value * m_value_weight) / m_len;
 }
 
 int AverageTinyMemory::averageGet()
 {
-    return mean;
+    return m_mean;
 }

@@ -20,11 +20,11 @@ public:
     void appendValue(int value);
     int averageGet();
 private:
-    int mean;
-    int value_prev;
-    unsigned char factor;
-    unsigned char len;
-    unsigned char value_weight;
+    int m_mean;
+    int m_value_prev;
+    unsigned char m_factor;
+    unsigned char m_len;
+    unsigned char m_value_weight;
 };
 
 

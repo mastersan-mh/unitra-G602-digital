@@ -7,6 +7,8 @@
 #define DI_MOTOR_DEBOUNCE_TIME (2U)
 #define DI_TABLE_DEBOUNCE_TIME (100U)
 
+#define DI_POTENTIOMETER_FACTOR 10
+
 /* irq 0 (digital pin 2) */
 #define PIN_DI_2_INTERRUPT (0U)
 /* irq 1 (digital pin 3) */

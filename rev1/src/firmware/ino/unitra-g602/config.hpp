@@ -39,12 +39,8 @@ pins_arduino.h:
 #   include <Arduino.h>
 #endif
 
-
-
-#define FACTOR 10
-
-#define DEBUG
-#define GDInputDebounced_DEBUG
+/* #define DEBUG */
+/* #define GDInputDebounced_DEBUG */
 
 #if (! defined(DEBUG))
 #   define DEBUG_INIT_GLOBAL()
