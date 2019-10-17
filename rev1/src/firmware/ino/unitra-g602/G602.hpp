@@ -57,6 +57,7 @@ public:
     void manualSpeedSet(int speed);
 private:
 
+    /* WARNING: Before add the new task_id, check the <G602_SHEDULER_TASKS__NUM> */
     static const nostd::size_t shed_task_id_blinker = 0;
     static const nostd::size_t shed_task_id_service_mode_awaiting = 1;
     static const nostd::size_t shed_task_id_ctrl = 2;

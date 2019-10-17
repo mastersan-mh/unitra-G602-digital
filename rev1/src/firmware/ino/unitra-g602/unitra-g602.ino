@@ -272,7 +272,7 @@ typedef struct
     unsigned long rpm;
 } tmp_measure_t;
 
-static tmp_measure_t measures[G602_ROTATE_MEASURES__NUM] = {};
+static tmp_measure_t meas;
 
 void G602::P_task_rotator_handler(
         size_t id,
@@ -287,9 +287,6 @@ void G602::P_task_rotator_handler(
     struct pulse motor_pulses;
     struct pulse table_pulses;
 
-
-    unsigned long time_delta = ctrl_handler_period;
-
     P_pulses_all_get(&motor_pulses, &table_pulses, true);
 
     // rotate_pulse_counter_t motor_pulses_diff = motor_pulses.pulses;
@@ -297,25 +294,10 @@ void G602::P_task_rotator_handler(
 
     self->m_pulses.append(table_pulses_diff);
 
-    static unsigned periods_amount[G602_ROTATE_MEASURES__NUM] =
-    {
-            1,
-            5,
-            15,
-            30,
-            60,
-    };
+    static unsigned periods_amount = 15;
 
-    tmp_measure_t * meas;
-
-    unsigned i;
-    for(i = 0; i < G602_ROTATE_MEASURES__NUM; ++i)
-    {
-        meas = &measures[i];
-        meas->pulses_sum = 0;
-        meas->amount = 0;
-    };
-
+    meas.pulses_sum = 0;
+    meas.amount = 0;
 
     unsigned vindex = 0;
     SWindow::reverse_const_iterator it;
@@ -325,15 +307,11 @@ void G602::P_task_rotator_handler(
             --it, ++vindex
     )
     {
-        for(i = 0; i < G602_ROTATE_MEASURES__NUM; ++i)
+        if(vindex < periods_amount)
         {
-            if(vindex < periods_amount[i])
-            {
-                meas = &measures[i];
-                meas->pulses_sum += (*it);
-                ++(meas->amount);
-            }
-        };
+            meas.pulses_sum += (*it);
+            ++(meas.amount);
+        }
     }
 
 #define SPEED_PPM(dpulses, dtime) \
@@ -348,19 +326,11 @@ void G602::P_task_rotator_handler(
                 ((unsigned long)(dtime) * G602_TABLE_PULSES_PER_REV) \
         )
 
-    for(i = 0; i < G602_ROTATE_MEASURES__NUM; ++i)
-    {
-        meas = &measures[i];
-        meas->ppm = SPEED_PPM(meas->pulses_sum, time_delta * meas->amount);
-        meas->rpm = SPEED_RPM(meas->pulses_sum, time_delta * meas->amount);
-        meas->amount = 0;
+    meas.ppm = SPEED_PPM(meas.pulses_sum, ctrl_handler_period * meas.amount);
+    meas.rpm = SPEED_RPM(meas.pulses_sum, ctrl_handler_period * meas.amount);
+    meas.amount = 0;
 
-    };
-
-    i = 2; /* 15 sec */
-    meas = &measures[i];
-
-    int speed_pv_ppm = (int)meas->ppm;
+    int speed_pv_ppm = (int)meas.ppm;
 
     self->m_ctrl.actualSpeedUpdate(speed_pv_ppm, self);
 
@@ -408,22 +378,14 @@ void G602::P_task_rotator_handler(
 #if 0
     DEBUG_PRINT(now);
 
-    for(i = 0; i < G602_ROTATE_MEASURES__NUM; ++i)
-    {
-        meas = &measures[i];
-        DEBUG_PRINT("\t");
+    DEBUG_PRINT("\t[ ");
+    DEBUG_PRINT(ctrl_handler_period * periods_amount);
+    DEBUG_PRINT(" ]");
 
-        unsigned long time_delta = ctrl_handler_period;
-
-        DEBUG_PRINT("[ ");
-        DEBUG_PRINT(time_delta * periods_amount[i]);
-        DEBUG_PRINT(" ]");
-
-        DEBUG_PRINT("\t");
-        DEBUG_PRINT(meas->ppm);
-        DEBUG_PRINT(" ");
-        DEBUG_PRINT(meas->rpm);
-    }
+    DEBUG_PRINT("\t");
+    DEBUG_PRINT(meas.ppm);
+    DEBUG_PRINT("\t");
+    DEBUG_PRINT(meas.rpm);
 
     DEBUG_PRINT("\tp ");
     DEBUG_PRINT(table_pulses.pulses);
@@ -432,9 +394,10 @@ void G602::P_task_rotator_handler(
 
     DEBUG_PRINTLN();
 #endif
+
     sched.shedule(
             id,
-            time + time_delta,
+            time + ctrl_handler_period,
             P_task_rotator_handler,
             &g602
     );

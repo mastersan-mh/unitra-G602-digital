@@ -33,8 +33,7 @@
 #define G602_EVENT_MODE_CHANGED 0x00
 #define G602_EVENT_SPPV 0x01
 
-#define G602_ROTATE_MEASURES__NUM 5
-#define G602_SHEDULER_TASKS__NUM 10
+#define G602_SHEDULER_TASKS__NUM 3
 
 /* Amount of impulses per revolution */
 #define G602_ENGINE_PULSES_PER_REV 6
