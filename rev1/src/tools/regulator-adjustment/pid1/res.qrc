@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/">
+        <file>images/success.png</file>
+        <file>images/timeout.png</file>
+        <file>images/uploading.png</file>
+        <file>images/error.png</file>
+    </qresource>
+</RCC>

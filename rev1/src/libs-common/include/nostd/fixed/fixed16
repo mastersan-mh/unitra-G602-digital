@@ -1,0 +1,6 @@
+/**
+ * @file fixed16.hpp
+ * @brief Export class to manipulate fixedpoint numbers with 16 (8+8) bits width
+ */
+
+#include <nostd/fixed/fixed16.hpp>
