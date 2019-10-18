@@ -17,13 +17,12 @@
 #include <nostd.h>
 #include <stdint.h>
 
+#define G602_WINDOW_SIZE 8
+
 typedef nostd::SchedulerSoft< G602_SHEDULER_TASKS__NUM, GTime_t > G602Scheduler;
 
 class G602
 {
-#define G602_DEFINE_SELF() \
-    G602 * self = static_cast<G602*>(args)
-
 #define ARRAY_INDEX(x) static_cast<unsigned int>(x)
 
 public:
@@ -66,7 +65,7 @@ private:
 
     typedef nostd::Fixed32 Fixed;
     typedef nostd::PidRecurrent<Fixed> PID;
-    typedef nostd::SlidingWindow<unsigned, 15> SWindow;
+    typedef nostd::SlidingWindow<unsigned, G602_WINDOW_SIZE> SWindow;
 
     void (*m_event_config_store)(const uint8_t * conf, size_t size);
     void (*m_event_config_load)(uint8_t * conf, size_t size, bool * empty);
