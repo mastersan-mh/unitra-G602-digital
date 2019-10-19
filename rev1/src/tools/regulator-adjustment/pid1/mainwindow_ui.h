@@ -414,6 +414,13 @@ public:
         QPushButton * tryRight;
         QPushButton * setCenterToRight;
 
+        struct
+        {
+            QRadioButton *Kp;
+            QRadioButton *Ki;
+            QRadioButton *Kd;
+        } Kswitch;
+
         QGroupBox * Kselector;
     } selection;
 
@@ -434,10 +441,6 @@ public:
         QLabel * PID_power;
     } indication;
 
-    QRadioButton *Kselector_radio1_Kp;
-    QRadioButton *Kselector_radio2_Ki;
-    QRadioButton *Kselector_radio3_Kd;
-
     CSetpointWidget * m_setpoint;
 
 #ifdef APP_USE_CGRAPH
@@ -457,17 +460,17 @@ private:
         QGroupBox *groupBox = new QGroupBox(QStringLiteral("Select to try"), parent);
 
         groupBox->setTitle("");
-        Kselector_radio1_Kp = new QRadioButton(QStringLiteral("K&p"), parent);
-        Kselector_radio1_Kp->setShortcut(QStringLiteral("Alt+P"));
-        Kselector_radio2_Ki = new QRadioButton(QStringLiteral("K&i"), parent);
-        Kselector_radio2_Ki->setShortcut(QStringLiteral("Alt+I"));
-        Kselector_radio3_Kd = new QRadioButton(QStringLiteral("K&d"), parent);
-        Kselector_radio3_Kd->setShortcut(QStringLiteral("Alt+D"));
+        selection.Kswitch.Kp = new QRadioButton(QStringLiteral("K&p"), parent);
+        selection.Kswitch.Kp->setShortcut(QStringLiteral("Alt+P"));
+        selection.Kswitch.Ki = new QRadioButton(QStringLiteral("K&i"), parent);
+        selection.Kswitch.Ki->setShortcut(QStringLiteral("Alt+I"));
+        selection.Kswitch.Kd = new QRadioButton(QStringLiteral("K&d"), parent);
+        selection.Kswitch.Kd->setShortcut(QStringLiteral("Alt+D"));
 
         QVBoxLayout *vbox = new QVBoxLayout(parent);
-        vbox->addWidget(Kselector_radio1_Kp);
-        vbox->addWidget(Kselector_radio2_Ki);
-        vbox->addWidget(Kselector_radio3_Kd);
+        vbox->addWidget(selection.Kswitch.Kp);
+        vbox->addWidget(selection.Kswitch.Ki);
+        vbox->addWidget(selection.Kswitch.Kd);
         vbox->addStretch(1);
         groupBox->setLayout(vbox);
 

@@ -229,15 +229,15 @@ MainWindow::MainWindow(QWidget *parent)
                 );
 
     QObject::connect(
-                m_ui->Kselector_radio1_Kp, SIGNAL(toggled(bool)),
+                m_ui->selection.Kswitch.Kp, SIGNAL(toggled(bool)),
                 this, SLOT(Kselector_Kp_select(bool))
                 );
     QObject::connect(
-                m_ui->Kselector_radio2_Ki, SIGNAL(toggled(bool)),
+                m_ui->selection.Kswitch.Ki, SIGNAL(toggled(bool)),
                 this, SLOT(Kselector_Ki_select(bool))
                 );
     QObject::connect(
-                m_ui->Kselector_radio3_Kd, SIGNAL(toggled(bool)),
+                m_ui->selection.Kswitch.Kd, SIGNAL(toggled(bool)),
                 this, SLOT(Kselector_Kd_select(bool))
                 );
 
@@ -262,7 +262,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_ui->selection.rightValue->setValue(PIDK_SELECTION_VALUE_DEFAULT_MAX);
     m_ui->m_setpoint->setValue(MANUAL_SETPOINT_INITIAL_VALUE);
     m_ui->tab.simulation->setpointMode_radio1->setChecked(true);
-    m_ui->Kselector_radio1_Kp->setChecked(true);
+    m_ui->selection.Kswitch.Kp->setChecked(true);
     m_ui->pidK->setValueKp(PID_Kp);
     m_ui->pidK->setValueKi(PID_Ki);
     m_ui->pidK->setValueKd(PID_Kd);
