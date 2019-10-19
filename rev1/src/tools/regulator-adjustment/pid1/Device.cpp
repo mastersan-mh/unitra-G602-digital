@@ -136,6 +136,11 @@ void Device::request_08_process_stop()
     P_rpc_request_08_process_stop(ReqMode::MANUAL);
 }
 
+void Device::confStore()
+{
+    P_rpc_request_09_conf_store(ReqMode::MANUAL);
+}
+
 void Device::devConnect()
 {
     P_invalidate_all();
@@ -282,6 +287,12 @@ void Device::P_rpc_replyReceived(uint16_t ruid, uint8_t funcId, uint8_t err, con
             good = true;
             break;
         }
+        case FUNC_09_CONF_STORE:
+        {
+            emit ready_confStored(false, err);
+            good = true;
+            break;
+        }
         default: good = true;
     }
 
@@ -298,6 +309,7 @@ void Device::P_rpc_replyReceived(uint16_t ruid, uint8_t funcId, uint8_t err, con
             case FUNC_06_SPEED_PV_R   : break;
             case FUNC_07_PROCESS_START: P_reload_07_process_start(); break;
             case FUNC_08_PROCESS_STOP : break;
+            case FUNC_09_CONF_STORE   : break;
             default: ;
         }
     }
@@ -347,6 +359,7 @@ void Device::P_rpc_request_timedout(uint16_t ruid, uint8_t funcId)
             case FUNC_06_SPEED_PV_R   : emit ready_speedPVRead(true, 0, 0.0); break;
             case FUNC_07_PROCESS_START: emit ready_processStart(true, 0); break;
             case FUNC_08_PROCESS_STOP : emit ready_processStop(true, 0); break;
+            case FUNC_09_CONF_STORE   : emit ready_confStored(true, 0); break;
             default: ;
         }
     }
@@ -366,6 +379,7 @@ void Device::P_rpc_request_timedout(uint16_t ruid, uint8_t funcId)
             case FUNC_06_SPEED_PV_R   : break;
             case FUNC_07_PROCESS_START: P_reload_07_process_start(); break;
             case FUNC_08_PROCESS_STOP : break;
+            case FUNC_09_CONF_STORE   : break;
             default: ;
         }
     }
@@ -508,6 +522,13 @@ void Device::P_rpc_request_07_process_start(ReqMode reqmode)
 void Device::P_rpc_request_08_process_stop(ReqMode reqmode)
 {
     uint8_t funcId = FUNC_08_PROCESS_STOP;
+    QVector<uint16_t> argv;
+    return P_rpc_request_common(funcId, argv, reqmode);
+}
+
+void Device::P_rpc_request_09_conf_store(ReqMode reqmode)
+{
+    uint8_t funcId = FUNC_09_CONF_STORE;
     QVector<uint16_t> argv;
     return P_rpc_request_common(funcId, argv, reqmode);
 }

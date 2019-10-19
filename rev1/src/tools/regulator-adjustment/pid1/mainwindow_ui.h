@@ -173,7 +173,6 @@ public:
     QLabel * m_devicePPR;
     QLabel * m_deviceStatusLabel;
     Console *m_console;
-    QPushButton * m_buttonReq1;
     QPushButton * m_buttonReq2;
     QPushButton * m_buttonReq3;
     QPushButton * m_buttonReq4;
@@ -181,6 +180,7 @@ public:
     QPushButton * m_buttonReq6;
     QPushButton * m_buttonReq7;
     QPushButton * m_buttonReq8;
+    QPushButton * m_buttonReq9;
 
     DeviceViewModel *m_reqstat_model;
     QPushButton * m_buttonClearBad;
@@ -204,7 +204,6 @@ public:
         m_console->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
         m_console->setEnabled(false);
 
-        m_buttonReq1 = new QPushButton("01_MODE_CURRENT_R", this);
         m_buttonReq2 = new QPushButton("02_KOEF_R", this);
         m_buttonReq3 = new QPushButton("03_KOEF_W", this);
         m_buttonReq4 = new QPushButton("04_SPEED_SP_R", this);
@@ -212,6 +211,7 @@ public:
         m_buttonReq6 = new QPushButton("06_SPEED_PV_R", this);
         m_buttonReq7 = new QPushButton("07_PROCESS_START", this);
         m_buttonReq8 = new QPushButton("08_PROCESS_STOP", this);
+        m_buttonReq9 = new QPushButton("09_CONF_STORE", this);
 
         m_reqstat = new QListView(this);
 
@@ -224,21 +224,21 @@ public:
         QGridLayout *mainLayout = new QGridLayout;
 
         mainLayout->addWidget(m_devicePPR        , 0, 0, 1, 1);
-        mainLayout->addWidget(m_deviceStatusLabel, 0, 1, 1, 1);
-        mainLayout->addWidget(m_console          , 1, 0, 8, 2);
+        mainLayout->addWidget(m_deviceStatusLabel, 0, 1, 1, 2);
+        mainLayout->addWidget(m_console          , 1, 0, 8, 3);
 
-        mainLayout->addWidget(m_buttonReq1, 0, 2, 1, 1);
-        mainLayout->addWidget(m_buttonReq2, 1, 2, 1, 1);
-        mainLayout->addWidget(m_buttonReq3, 2, 2, 1, 1);
-        mainLayout->addWidget(m_buttonReq4, 3, 2, 1, 1);
-        mainLayout->addWidget(m_buttonReq5, 4, 2, 1, 1);
-        mainLayout->addWidget(m_buttonReq6, 5, 2, 1, 1);
-        mainLayout->addWidget(m_buttonReq7, 6, 2, 1, 1);
-        mainLayout->addWidget(m_buttonReq8, 7, 2, 1, 1);
+        mainLayout->addWidget(m_buttonReq2, 0, 3, 1, 1);
+        mainLayout->addWidget(m_buttonReq3, 1, 3, 1, 1);
+        mainLayout->addWidget(m_buttonReq4, 2, 3, 1, 1);
+        mainLayout->addWidget(m_buttonReq5, 3, 3, 1, 1);
+        mainLayout->addWidget(m_buttonReq6, 4, 3, 1, 1);
+        mainLayout->addWidget(m_buttonReq7, 5, 3, 1, 1);
+        mainLayout->addWidget(m_buttonReq8, 6, 3, 1, 1);
+        mainLayout->addWidget(m_buttonReq9, 7, 3, 1, 1);
 
-        mainLayout->addWidget(m_reqstat       , 0, 3, 7, 2);
-        mainLayout->addWidget(m_buttonClearBad, 7, 3, 1, 1);
-        mainLayout->addWidget(m_buttonClearAll, 7, 4, 1, 1);
+        mainLayout->addWidget(m_reqstat       , 0, 4, 7, 2);
+        mainLayout->addWidget(m_buttonClearBad, 7, 4, 1, 1);
+        mainLayout->addWidget(m_buttonClearAll, 7, 5, 1, 1);
 
         setLayout(mainLayout);
     }

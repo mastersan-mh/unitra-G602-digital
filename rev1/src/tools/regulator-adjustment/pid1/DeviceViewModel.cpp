@@ -67,6 +67,7 @@ QVariant DeviceViewModel::data(const QModelIndex &index, int role) const
                 [Device::FuncId::FUNC_06_SPEED_PV_R   ] = "speed_PV_r",
                 [Device::FuncId::FUNC_07_PROCESS_START] = "proc start",
                 [Device::FuncId::FUNC_08_PROCESS_STOP ] = "proc stop",
+                [Device::FuncId::FUNC_09_CONF_STORE   ] = "Conf store",
             };
 
             static const QVector<QString> reqModeStr =

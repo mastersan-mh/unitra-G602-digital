@@ -153,9 +153,9 @@ private slots:
     void P_dev_ready_speedPVRead(bool timedout, unsigned err, double pv);
     void P_dev_ready_processStart(bool timedout, unsigned err);
     void P_dev_ready_processStop(bool timedout, unsigned err);
+    void P_dev_ready_confStored(bool timedout, unsigned err);
 
     void P_writeRawData(const QByteArray &data);
-    void P_button_rpc_request_1_mode_r(bool);
     void P_button_rpc_request_2_koef_r(bool);
     void P_button_rpc_request_3_koef_w(bool);
     void P_button_rpc_request_4_speed_SP_r(bool);
@@ -163,6 +163,7 @@ private slots:
     void P_button_rpc_request_6_speed_PV_r(bool);
     void P_button_rpc_request_7_process_start(bool);
     void P_button_rpc_request_8_process_stop(bool);
+    void P_button_rpc_request_9_conf_store(bool);
 
     void P_button_driveReqstat_clearBad(bool);
     void P_button_driveReqstat_clearAll(bool);

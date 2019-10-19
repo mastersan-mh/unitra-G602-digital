@@ -133,7 +133,8 @@ MainWindow::MainWindow(QWidget *parent)
     QObject::connect(m_device, SIGNAL(ready_speedSetpointWrite(bool, unsigned)                 ), this, SLOT(P_dev_ready_speedSetpointWrite(bool, unsigned)                 ));
     QObject::connect(m_device, SIGNAL(ready_speedPVRead(bool, unsigned, double)                ), this, SLOT(P_dev_ready_speedPVRead(bool, unsigned, double)                ));
     QObject::connect(m_device, SIGNAL(ready_processStart(bool, unsigned)                       ), this, SLOT(P_dev_ready_processStart(bool, unsigned)                       ));
-    QObject::connect(m_device, SIGNAL(ready_processStop(bool, unsigned)                        ), this, SLOT(P_dev_ready_processStop(bool, unsigned)                       ));
+    QObject::connect(m_device, SIGNAL(ready_processStop(bool, unsigned)                        ), this, SLOT(P_dev_ready_processStop(bool, unsigned)                        ));
+    QObject::connect(m_device, SIGNAL(ready_confStored(bool, unsigned)                         ), this, SLOT(P_dev_ready_confStored(bool, unsigned)                         ));
 
     QObject::connect(
                 m_ui->selection.leftValue, SIGNAL(valueChanged(double)),
@@ -176,10 +177,6 @@ MainWindow::MainWindow(QWidget *parent)
                 );
 
     QObject::connect(
-                m_ui->tab.device->m_buttonReq1, SIGNAL(clicked(bool)),
-                this, SLOT(P_button_rpc_request_1_mode_r(bool))
-                );
-    QObject::connect(
                 m_ui->tab.device->m_buttonReq2, SIGNAL(clicked(bool)),
                 this, SLOT(P_button_rpc_request_2_koef_r(bool))
                 );
@@ -206,6 +203,10 @@ MainWindow::MainWindow(QWidget *parent)
     QObject::connect(
                 m_ui->tab.device->m_buttonReq8, SIGNAL(clicked(bool)),
                 this, SLOT(P_button_rpc_request_8_process_stop(bool))
+                );
+    QObject::connect(
+                m_ui->tab.device->m_buttonReq9, SIGNAL(clicked(bool)),
+                this, SLOT(P_button_rpc_request_9_conf_store(bool))
                 );
 
     QObject::connect(
@@ -547,10 +548,11 @@ void MainWindow::P_dev_ready_processStop(bool timedout, unsigned err)
     if(err) return;
 }
 
-void MainWindow::P_button_rpc_request_1_mode_r(bool)
+void MainWindow::P_dev_ready_confStored(bool timedout, unsigned err)
 {
-    m_device->runModeRead();
     m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
+    if(timedout) return;
+    if(err) return;
 }
 
 void MainWindow::P_button_rpc_request_2_koef_r(bool)
@@ -605,6 +607,12 @@ void MainWindow::P_button_rpc_request_7_process_start(bool)
 void MainWindow::P_button_rpc_request_8_process_stop(bool)
 {
     m_device->request_08_process_stop();
+    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
+}
+
+void MainWindow::P_button_rpc_request_9_conf_store(bool)
+{
+    m_device->confStore();
     m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
 }
 
