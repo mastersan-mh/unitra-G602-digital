@@ -320,12 +320,26 @@ void G602::P_task_ctrl(
 
     int speed_pv_ppm = (int)meas.ppm;
 
-    self->m_ctrl.actualSpeedUpdate(speed_pv_ppm, self);
-
     bool motor_state;
     app::Ctrl::speed_t table_setpoint;
     self->m_ctrl.motorGet(&motor_state, &table_setpoint);
     app::Ctrl::speed_t speed_sp = (motor_state ? table_setpoint : 0);
+
+    /* filter */
+    int speed_pv_ppm_filtered;
+    if(
+            speed_sp - G602_TABLE_PULSES_PER_REV / 2 <= speed_pv_ppm &&
+            speed_pv_ppm <= speed_sp + G602_TABLE_PULSES_PER_REV / 2
+    )
+    {
+        speed_pv_ppm_filtered = speed_sp;
+    }
+    else
+    {
+        speed_pv_ppm_filtered = speed_pv_ppm;
+    }
+
+    self->m_ctrl.actualSpeedUpdate(speed_pv_ppm_filtered, self);
 
     Fixed sp;
     Fixed pv;
