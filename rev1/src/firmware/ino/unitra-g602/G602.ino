@@ -4,6 +4,9 @@
 
 #include "G602.hpp"
 
+#define G602_DEFINE_SELF() \
+    G602 * self = static_cast<G602*>(args)
+
 #define TO_BOOL(x) ((x) != 0)
 
 static const uint16_t P_run_modes[] =
@@ -191,10 +194,9 @@ void G602::P_config_load()
     m_event_config_load(conf, sizeof(conf), &empty);
     if(empty)
     {
-        /* 1 minute to stable speed */
-        m_Kp.set(1.17187500);
-        m_Ki.set(0.03906250);
-        m_Kd.set(2.50000000);
+        m_Kp.set(G602_PID_DEFAULT_KP);
+        m_Ki.set(G602_PID_DEFAULT_KI);
+        m_Kd.set(G602_PID_DEFAULT_KD);
     }
     else
     {
@@ -298,11 +300,10 @@ void G602::P_task_ctrl(
     meas.pulses_sum = 0;
     meas.amount = 0;
 
-    SWindow::reverse_const_iterator it;
     for(
-            it = self->m_pulses.rcbegin();
-            it != self->m_pulses.rcend();
-            --it
+            SWindow::const_iterator it = self->m_pulses.cbegin();
+            it != self->m_pulses.cend();
+            ++it
     )
     {
         meas.pulses_sum += (*it);
@@ -319,12 +320,26 @@ void G602::P_task_ctrl(
 
     int speed_pv_ppm = (int)meas.ppm;
 
-    self->m_ctrl.actualSpeedUpdate(speed_pv_ppm, self);
-
     bool motor_state;
     app::Ctrl::speed_t table_setpoint;
     self->m_ctrl.motorGet(&motor_state, &table_setpoint);
     app::Ctrl::speed_t speed_sp = (motor_state ? table_setpoint : 0);
+
+    /* filter */
+    int speed_pv_ppm_filtered;
+    if(
+            speed_sp - G602_TABLE_PULSES_PER_REV / 2 <= speed_pv_ppm &&
+            speed_pv_ppm <= speed_sp + G602_TABLE_PULSES_PER_REV / 2
+    )
+    {
+        speed_pv_ppm_filtered = speed_sp;
+    }
+    else
+    {
+        speed_pv_ppm_filtered = speed_pv_ppm;
+    }
+
+    self->m_ctrl.actualSpeedUpdate(speed_pv_ppm_filtered, self);
 
     Fixed sp;
     Fixed pv;
@@ -334,7 +349,6 @@ void G602::P_task_ctrl(
 
     ctrl = self->m_pid.calculate(sp, pv);
 
-#if 1
     fixed32_t ctrl_raw = ctrl.toRawFixed();
     if(ctrl_raw < 0) ctrl_raw = 0;
     // DEBUG_PRINT("ctrl_raw = "); DEBUG_PRINTLN(ctrl_raw);
@@ -342,6 +356,7 @@ void G602::P_task_ctrl(
     int ctrl_int = (int)(ctrl_raw >> 16); /* cut-off frac */
     // DEBUG_PRINT("ctrl_int = "); DEBUG_PRINTLN(ctrl_int);
 
+#if 1
     int motor_output = constrain(ctrl_int, 0, 255);
 #else
     int motor_output = (int)map(
@@ -367,10 +382,8 @@ void G602::P_task_ctrl(
     DEBUG_PRINT(now);
     DEBUG_PRINT(" ]");
 
+    DEBUG_PRINT("\t"); DEBUG_PRINT(table_dpulses);
     DEBUG_PRINT("\t"); DEBUG_PRINT(meas.ppm);
-
-    DEBUG_PRINT("\tp"); DEBUG_PRINT(table_dpulses);
-
     DEBUG_PRINTLN();
 #endif
 
@@ -380,6 +393,7 @@ void G602::P_task_ctrl(
             P_task_ctrl,
             args
     );
+    self->m_time_next = self->P_rtcNextTimeGet();
 }
 
 void G602::P_ctrl_start()
@@ -394,9 +408,8 @@ void G602::P_ctrl_start()
             P_task_ctrl,
             this
     );
-
-    m_pid.reset();
     m_time_next = P_rtcNextTimeGet();
+    m_pid.reset();
 }
 
 void G602::P_ctrl_stop()

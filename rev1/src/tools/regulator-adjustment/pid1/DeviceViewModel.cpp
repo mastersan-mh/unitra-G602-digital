@@ -116,8 +116,7 @@ void DeviceViewModel::update(const Device::ReqStatuses & data)
 
     for(Device::ReqStatuses::const_iterator it = m_data.cbegin(); it != m_data.cend(); ++it)
     {
-        uint8_t ruid = it.key();
-        m_index.append(ruid);
+        m_index.append(it.key());
     }
 
     int affect_size = (size > m_prev_size ? size : m_prev_size);
