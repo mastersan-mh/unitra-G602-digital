@@ -294,7 +294,6 @@ void MainWindow::P_openSerialPort()
     m_serial->setFlowControl(p.flowControl);
     if (m_serial->open(QIODevice::ReadWrite))
     {
-            m_ui->tab.device->m_console->setEnabled(true);
             m_ui->mainMenu.actionConnect->setEnabled(false);
             m_ui->mainMenu.actionDisconnect->setEnabled(true);
             m_ui->mainMenu.actionConfigure->setEnabled(false);
@@ -323,7 +322,6 @@ void MainWindow::P_closeSerialPort()
         m_serial->close();
     }
     m_device->devDisconnect();
-    m_ui->tab.device->m_console->setEnabled(false);
     m_ui->mainMenu.actionConnect->setEnabled(true);
     m_ui->mainMenu.actionDisconnect->setEnabled(false);
     m_ui->mainMenu.actionConfigure->setEnabled(true);
@@ -385,7 +383,6 @@ void MainWindow::P_runModeChange(bool simulation)
     m_valuesOut.clear();
     m_processVariable = 0.0;
 
-    int len_max;
     if(simulation)
     {
         m_runMode = RunMode::SIMULATION;
@@ -422,6 +419,7 @@ void MainWindow::P_device_status_update(Device::RunMode mode) const
 
 void MainWindow::P_writeRawData(const QByteArray &data)
 {
+    m_ui->tab.device->m_console->putData(data);
     m_serial->write(data);
 }
 
@@ -481,6 +479,7 @@ void MainWindow::P_dev_ready_SPPV(unsigned long time_ms, double sp, double pv, d
 
 void MainWindow::P_dev_ready_pulsesRead(bool timedout, unsigned err, unsigned ppr)
 {
+    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
     if(err) return;
     m_ui->tab.device->m_devicePPR->setText(QString("%1").arg(ppr));
@@ -488,9 +487,9 @@ void MainWindow::P_dev_ready_pulsesRead(bool timedout, unsigned err, unsigned pp
 
 void MainWindow::P_dev_ready_runModeRead(bool timedout, unsigned err, Device::RunMode mode)
 {
+    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
     if(err) return;
-    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
     P_device_reqstats_update();
     P_device_status_update(timedout ? Device::RunMode::UNKNOWN : mode);
 }
@@ -514,6 +513,7 @@ void MainWindow::P_dev_ready_pidKoefWrite(bool timedout, unsigned err)
 
 void MainWindow::P_dev_ready_speedSetpointRead(bool timedout, unsigned err, double sp)
 {
+    Q_UNUSED(sp);
     m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
     if(err) return;
@@ -528,6 +528,7 @@ void MainWindow::P_dev_ready_speedSetpointWrite(bool timedout, unsigned err)
 
 void MainWindow::P_dev_ready_speedPVRead(bool timedout, unsigned err, double pv)
 {
+    Q_UNUSED(pv);
     m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
     if(err) return;

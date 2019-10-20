@@ -54,7 +54,6 @@ protected:
     virtual void mousePressEvent(QMouseEvent *e);
     virtual void mouseDoubleClickEvent(QMouseEvent *e);
     virtual void contextMenuEvent(QContextMenuEvent *e);
-
 };
 
 #endif // CONSOLE_H

@@ -202,16 +202,15 @@ public:
 
         m_console = new Console(this);
         m_console->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
-        m_console->setEnabled(false);
 
-        m_buttonReq2 = new QPushButton("02_KOEF_R", this);
-        m_buttonReq3 = new QPushButton("03_KOEF_W", this);
-        m_buttonReq4 = new QPushButton("04_SPEED_SP_R", this);
-        m_buttonReq5 = new QPushButton("05_SPEED_SP_W", this);
-        m_buttonReq6 = new QPushButton("06_SPEED_PV_R", this);
-        m_buttonReq7 = new QPushButton("07_PROCESS_START", this);
-        m_buttonReq8 = new QPushButton("08_PROCESS_STOP", this);
-        m_buttonReq9 = new QPushButton("09_CONF_STORE", this);
+        m_buttonReq2 = new QPushButton(QStringLiteral("KOEF_R"), this);
+        m_buttonReq3 = new QPushButton(QStringLiteral("KOEF_W"), this);
+        m_buttonReq4 = new QPushButton(QStringLiteral("SPEED_SP_R"), this);
+        m_buttonReq5 = new QPushButton(QStringLiteral("SPEED_SP_W"), this);
+        m_buttonReq6 = new QPushButton(QStringLiteral("SPEED_PV_R"), this);
+        m_buttonReq7 = new QPushButton(QStringLiteral("PROCESS_START"), this);
+        m_buttonReq8 = new QPushButton(QStringLiteral("PROCESS_STOP"), this);
+        m_buttonReq9 = new QPushButton(QStringLiteral("CONF_STORE"), this);
 
         m_reqstat = new QListView(this);
 

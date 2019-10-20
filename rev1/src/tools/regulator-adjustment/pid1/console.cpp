@@ -46,7 +46,7 @@ Console::Console(QWidget *parent)
     p.setColor(QPalette::Base, Qt::black);
     p.setColor(QPalette::Text, Qt::green);
     setPalette(p);
-
+    QPlainTextEdit::setLineWrapMode(QPlainTextEdit::NoWrap);
 }
 
 void Console::putData(const QByteArray &data)
@@ -59,20 +59,7 @@ void Console::putData(const QByteArray &data)
 
 void Console::keyPressEvent(QKeyEvent *e)
 {
-    switch (e->key())
-    {
-        case Qt::Key_Backspace:
-        case Qt::Key_Left:
-        case Qt::Key_Right:
-        case Qt::Key_Up:
-        case Qt::Key_Down:
-            break;
-        default:
-        {
-            QPlainTextEdit::keyPressEvent(e);
-            emit getData(e->text().toLocal8Bit());
-        }
-    }
+    Q_UNUSED(e)
 }
 
 void Console::mousePressEvent(QMouseEvent *e)
@@ -90,3 +77,4 @@ void Console::contextMenuEvent(QContextMenuEvent *e)
 {
     Q_UNUSED(e)
 }
+

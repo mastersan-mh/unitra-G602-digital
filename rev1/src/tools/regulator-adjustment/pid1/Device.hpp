@@ -154,7 +154,7 @@ private:
 
     QMap<uint16_t /* ruid */ , uint8_t /* funcId, unused */ > m_autoqueue; /**< Очередь из ожидающих автоматических запросов */
 
-    void P_rpc_request_common(uint8_t funcId, const QVector<uint16_t> & argv, ReqMode reqmode);
+    void P_rpc_request_common(enum FuncId funcId, const QVector<uint16_t> & argv, ReqMode reqmode);
 
     void P_rpc_request_00_ppr_r(ReqMode reqmode);
     void P_rpc_request_01_mode_r(ReqMode reqmode);
@@ -170,7 +170,6 @@ private:
     void P_rpc_request_08_process_stop(ReqMode reqmode);
     void P_rpc_request_09_conf_store(ReqMode reqmode);
 
-    bool P_enabled_runMode_service3();
     void P_invalidate_all();
 
     void P_reload_00_ppr_r();

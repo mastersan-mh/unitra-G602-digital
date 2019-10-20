@@ -186,7 +186,7 @@ void Device::P_rpc_replyReceived(uint16_t ruid, uint8_t funcId, uint8_t err, con
         m_autoqueue.remove(ruid);
     }
 
-    bool good = false;
+    bool success = false;
     switch(funcId)
     {
         case FUNC_00_PULSES_R:
@@ -195,7 +195,7 @@ void Device::P_rpc_replyReceived(uint16_t ruid, uint8_t funcId, uint8_t err, con
             m_ppr.value = resv[0];
             m_ppr.valid = true;
             emit ready_pulsesRead(false, err, m_ppr.value);
-            good = true;
+            success = true;
             break;
         }
         case FUNC_01_MODE_R:
@@ -207,7 +207,7 @@ void Device::P_rpc_replyReceived(uint16_t ruid, uint8_t funcId, uint8_t err, con
             else
             {
                 m_mode = P_convert_device_mode(resv[0]);
-                good = true;
+                success = true;
             }
             emit ready_runModeRead(false, err, m_mode);
             break;
@@ -234,13 +234,13 @@ void Device::P_rpc_replyReceived(uint16_t ruid, uint8_t funcId, uint8_t err, con
                 Kd = f32_Kd.toDouble();
             }
             emit ready_pidKoefRead(false, err, Kp, Ki, Kd);
-            good = true;
+            success = true;
             break;
         }
         case FUNC_03_KOEF_W:
         {
             emit ready_pidKoefWrite(false, err);
-            good = true;
+            success = true;
             break;
         }
         case FUNC_04_SPEED_SP_R:
@@ -251,13 +251,13 @@ void Device::P_rpc_replyReceived(uint16_t ruid, uint8_t funcId, uint8_t err, con
                 double sp = resv[0] / m_ppr.value;
                 emit ready_speedSetpointRead(false, err, sp);
             }
-            good = true;
+            success = true;
             break;
         }
         case FUNC_05_SPEED_SP_W:
         {
             emit ready_speedSetpointWrite(false, err);
-            good = true;
+            success = true;
             break;
         }
         case FUNC_06_SPEED_PV_R:
@@ -268,7 +268,7 @@ void Device::P_rpc_replyReceived(uint16_t ruid, uint8_t funcId, uint8_t err, con
                 double pv = resv[0] / m_ppr.value;
                 emit ready_speedPVRead(false, err, pv);
             }
-            good = true;
+            success = true;
             break;
         }
         case FUNC_07_PROCESS_START:
@@ -278,25 +278,25 @@ void Device::P_rpc_replyReceived(uint16_t ruid, uint8_t funcId, uint8_t err, con
                 m_prosess_started = true;
             }
             emit ready_processStart(false, err);
-            good = true;
+            success = true;
             break;
         }
         case FUNC_08_PROCESS_STOP:
         {
             emit ready_processStop(false, err);
-            good = true;
+            success = true;
             break;
         }
         case FUNC_09_CONF_STORE:
         {
             emit ready_confStored(false, err);
-            good = true;
+            success = true;
             break;
         }
-        default: good = true;
+        default: success = true;
     }
 
-    if(!good && reqmode == ReqMode::AUTO)
+    if(!success && reqmode == ReqMode::AUTO)
     {
         switch(funcId)
         {
@@ -385,14 +385,6 @@ void Device::P_rpc_request_timedout(uint16_t ruid, uint8_t funcId)
     }
 }
 
-bool Device::P_enabled_runMode_service3()
-{
-    return (
-                m_mode == RunMode::SERVICE_MODE3_STOPPED ||
-                m_mode == RunMode::SERVICE_MODE3_STARTED
-                );
-}
-
 void Device::P_invalidate_all()
 {
     m_ppr.valid  = false;
@@ -433,11 +425,11 @@ void Device::P_reload_07_process_start()
     }
 }
 
-void Device::P_rpc_request_common(uint8_t funcId, const QVector<uint16_t> & argv, ReqMode reqmode)
+void Device::P_rpc_request_common(enum FuncId funcId, const QVector<uint16_t> & argv, ReqMode reqmode)
 {
     uint16_t ruid = m_rpc.requestSend(funcId, argv);
     struct req_status stat;
-    stat.funcId = (enum FuncId)funcId;
+    stat.funcId = funcId;
     stat.reqmode = reqmode;
     stat.res = ReqResult::AWAITING;
     m_statuses[ruid] = stat;
@@ -449,28 +441,28 @@ void Device::P_rpc_request_common(uint8_t funcId, const QVector<uint16_t> & argv
 
 void Device::P_rpc_request_00_ppr_r(ReqMode reqmode)
 {
-    uint8_t funcId = FUNC_00_PULSES_R;
+    enum FuncId funcId = FUNC_00_PULSES_R;
     QVector<uint16_t> argv;
     return P_rpc_request_common(funcId, argv, reqmode);
 }
 
 void Device::P_rpc_request_01_mode_r(ReqMode reqmode)
 {
-    uint8_t funcId = FUNC_01_MODE_R;
+    enum FuncId funcId = FUNC_01_MODE_R;
     QVector<uint16_t> argv;
     return P_rpc_request_common(funcId, argv, reqmode);
 }
 
 void Device::P_rpc_request_02_koef_r(ReqMode reqmode)
 {
-    uint8_t funcId = FUNC_02_KOEF_R;
+    enum FuncId funcId = FUNC_02_KOEF_R;
     QVector<uint16_t> argv;
     return P_rpc_request_common(funcId, argv, reqmode);
 }
 
 void Device::P_rpc_request_03_koef_w(double Kp, double Ki, double Kd, ReqMode reqmode)
 {
-    uint8_t funcId = FUNC_03_KOEF_W;
+    enum FuncId funcId = FUNC_03_KOEF_W;
     QVector<uint16_t> argv;
 
     nostd::Fixed32 f32_Kp(Kp);
@@ -492,14 +484,14 @@ void Device::P_rpc_request_03_koef_w(double Kp, double Ki, double Kd, ReqMode re
 
 void Device::P_rpc_request_04_speed_SP_r(ReqMode reqmode)
 {
-    uint8_t funcId = FUNC_04_SPEED_SP_R;
+    enum FuncId funcId = FUNC_04_SPEED_SP_R;
     QVector<uint16_t> argv;
     return P_rpc_request_common(funcId, argv, reqmode);
 }
 
 void Device::P_rpc_request_05_speed_SP_w(uint16_t speed, ReqMode reqmode)
 {
-    uint8_t funcId = FUNC_05_SPEED_SP_W;
+    enum FuncId funcId = FUNC_05_SPEED_SP_W;
     QVector<uint16_t> argv;
     argv.append(speed);
     return P_rpc_request_common(funcId, argv, reqmode);
@@ -507,28 +499,28 @@ void Device::P_rpc_request_05_speed_SP_w(uint16_t speed, ReqMode reqmode)
 
 void Device::P_rpc_request_06_speed_PV_r(ReqMode reqmode)
 {
-    uint8_t funcId = FUNC_06_SPEED_PV_R;
+    enum FuncId funcId = FUNC_06_SPEED_PV_R;
     QVector<uint16_t> argv;
     return P_rpc_request_common(funcId, argv, reqmode);
 }
 
 void Device::P_rpc_request_07_process_start(ReqMode reqmode)
 {
-    uint8_t funcId = FUNC_07_PROCESS_START;
+    enum FuncId funcId = FUNC_07_PROCESS_START;
     QVector<uint16_t> argv;
     return P_rpc_request_common(funcId, argv, reqmode);
 }
 
 void Device::P_rpc_request_08_process_stop(ReqMode reqmode)
 {
-    uint8_t funcId = FUNC_08_PROCESS_STOP;
+    enum FuncId funcId = FUNC_08_PROCESS_STOP;
     QVector<uint16_t> argv;
     return P_rpc_request_common(funcId, argv, reqmode);
 }
 
 void Device::P_rpc_request_09_conf_store(ReqMode reqmode)
 {
-    uint8_t funcId = FUNC_09_CONF_STORE;
+    enum FuncId funcId = FUNC_09_CONF_STORE;
     QVector<uint16_t> argv;
     return P_rpc_request_common(funcId, argv, reqmode);
 }
