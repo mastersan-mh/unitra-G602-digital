@@ -78,7 +78,7 @@ void Ctrl::P_event_runmode_changed(RunMode runMode, void * args)
 
 Ctrl::RunMode Ctrl::P_runModeGet(State state)
 {
-    static RunMode table[] =
+    static const RunMode table[] =
     {
         [ARRAY_INDEX(State::INIT                 )] = RunMode::NORMAL_STOPPED,
         [ARRAY_INDEX(State::NORMAL_STOPPED       )] = RunMode::NORMAL_STOPPED,
@@ -273,6 +273,7 @@ Ctrl::Error Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
                     m_state_allowed_autostop = true;
                     if(m_state_autostop_triggered)
                     {
+                        P_event_warnings_clean(CTRL_WARNING_ALL, args);
                         P_event_motor_off(args);
                         P_event_lift_up(args);
                     }
@@ -288,6 +289,7 @@ Ctrl::Error Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
                     m_state_autostop_triggered = true;
                     if(m_state_allowed_autostop)
                     {
+                        P_event_warnings_clean(CTRL_WARNING_ALL, args);
                         P_event_motor_off(args);
                         P_event_lift_up(args);
                         next_state = State::NORMAL_STOPPED;
@@ -299,6 +301,7 @@ Ctrl::Error Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
                     m_state_autostop_triggered = false;
                     if(m_state_allowed_autostop)
                     {
+                        P_event_warnings_clean(CTRL_WARNING_ALL, args);
                         P_event_motor_off(args);
                         P_event_lift_up(args);
                         next_state = State::NORMAL_STOPPED;
@@ -382,6 +385,7 @@ Ctrl::Error Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
                     m_state_allowed_autostop = true;
                     if(m_state_autostop_triggered)
                     {
+                        P_event_warnings_clean(CTRL_WARNING_ALL, args);
                         P_event_motor_off(args);
                         P_event_lift_up(args);
                     }
@@ -397,6 +401,7 @@ Ctrl::Error Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
                     m_state_autostop_triggered = true;
                     if(m_state_allowed_autostop)
                     {
+                        P_event_warnings_clean(CTRL_WARNING_ALL, args);
                         P_event_motor_off(args);
                         P_event_lift_up(args);
                         next_state = State::NORMAL_STOPPED;
@@ -408,6 +413,7 @@ Ctrl::Error Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
                     m_state_autostop_triggered = false;
                     if(m_state_allowed_autostop)
                     {
+                        P_event_warnings_clean(CTRL_WARNING_ALL, args);
                         P_event_motor_off(args);
                         P_event_lift_up(args);
                         next_state = State::NORMAL_STOPPED;
