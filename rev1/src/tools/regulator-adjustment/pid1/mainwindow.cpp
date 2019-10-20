@@ -133,40 +133,41 @@ MainWindow::MainWindow(QWidget *parent)
     QObject::connect(m_device, SIGNAL(ready_speedSetpointWrite(bool, unsigned)                 ), this, SLOT(P_dev_ready_speedSetpointWrite(bool, unsigned)                 ));
     QObject::connect(m_device, SIGNAL(ready_speedPVRead(bool, unsigned, double)                ), this, SLOT(P_dev_ready_speedPVRead(bool, unsigned, double)                ));
     QObject::connect(m_device, SIGNAL(ready_processStart(bool, unsigned)                       ), this, SLOT(P_dev_ready_processStart(bool, unsigned)                       ));
-    QObject::connect(m_device, SIGNAL(ready_processStop(bool, unsigned)                        ), this, SLOT(P_dev_ready_processStop(bool, unsigned)                       ));
+    QObject::connect(m_device, SIGNAL(ready_processStop(bool, unsigned)                        ), this, SLOT(P_dev_ready_processStop(bool, unsigned)                        ));
+    QObject::connect(m_device, SIGNAL(ready_confStored(bool, unsigned)                         ), this, SLOT(P_dev_ready_confStored(bool, unsigned)                         ));
 
     QObject::connect(
-                m_ui->selection.leftValue, SIGNAL(valueChanged(double)),
+                m_ui->Ktry.leftValue, SIGNAL(valueChanged(double)),
                 this, SLOT(selection_leftValue_changed(double))
                 );
 
     QObject::connect(
-                m_ui->selection.tryLeft, SIGNAL(clicked(bool)),
+                m_ui->Ktry.tryLeft, SIGNAL(clicked(bool)),
                 this, SLOT(selection_tryLeft_clicked(bool))
                 );
 
     QObject::connect(
-                m_ui->selection.setCenterToLeft, SIGNAL(clicked(bool)),
+                m_ui->Ktry.setCenterToLeft, SIGNAL(clicked(bool)),
                 this, SLOT(selection_setCenterToLeft_clicked(bool))
                 );
 
     QObject::connect(
-                m_ui->selection.tryCenter, SIGNAL(clicked(bool)),
+                m_ui->Ktry.tryCenter, SIGNAL(clicked(bool)),
                 this, SLOT(selection_tryCenter_clicked(bool))
                 );
 
     QObject::connect(
-                m_ui->selection.rightValue, SIGNAL(valueChanged(double)),
+                m_ui->Ktry.rightValue, SIGNAL(valueChanged(double)),
                 this, SLOT(selection_rightValue_changed(double))
                 );
 
     QObject::connect(
-                m_ui->selection.tryRight, SIGNAL(clicked(bool)),
+                m_ui->Ktry.tryRight, SIGNAL(clicked(bool)),
                 this, SLOT(selection_tryRight_clicked(bool))
                 );
 
     QObject::connect(
-                m_ui->selection.setCenterToRight, SIGNAL(clicked(bool)),
+                m_ui->Ktry.setCenterToRight, SIGNAL(clicked(bool)),
                 this, SLOT(selection_setCenterToRight_clicked(bool))
                 );
 
@@ -175,10 +176,6 @@ MainWindow::MainWindow(QWidget *parent)
                 this, SLOT(pidK_changed(double, double, double))
                 );
 
-    QObject::connect(
-                m_ui->tab.device->m_buttonReq1, SIGNAL(clicked(bool)),
-                this, SLOT(P_button_rpc_request_1_mode_r(bool))
-                );
     QObject::connect(
                 m_ui->tab.device->m_buttonReq2, SIGNAL(clicked(bool)),
                 this, SLOT(P_button_rpc_request_2_koef_r(bool))
@@ -207,6 +204,10 @@ MainWindow::MainWindow(QWidget *parent)
                 m_ui->tab.device->m_buttonReq8, SIGNAL(clicked(bool)),
                 this, SLOT(P_button_rpc_request_8_process_stop(bool))
                 );
+    QObject::connect(
+                m_ui->tab.device->m_buttonReq9, SIGNAL(clicked(bool)),
+                this, SLOT(P_button_rpc_request_9_conf_store(bool))
+                );
 
     QObject::connect(
                 m_ui->tab.device->m_buttonClearBad, SIGNAL(clicked(bool)),
@@ -228,15 +229,15 @@ MainWindow::MainWindow(QWidget *parent)
                 );
 
     QObject::connect(
-                m_ui->Kselector_radio1_Kp, SIGNAL(toggled(bool)),
+                m_ui->Kswitch.Kp, SIGNAL(toggled(bool)),
                 this, SLOT(Kselector_Kp_select(bool))
                 );
     QObject::connect(
-                m_ui->Kselector_radio2_Ki, SIGNAL(toggled(bool)),
+                m_ui->Kswitch.Ki, SIGNAL(toggled(bool)),
                 this, SLOT(Kselector_Ki_select(bool))
                 );
     QObject::connect(
-                m_ui->Kselector_radio3_Kd, SIGNAL(toggled(bool)),
+                m_ui->Kswitch.Kd, SIGNAL(toggled(bool)),
                 this, SLOT(Kselector_Kd_select(bool))
                 );
 
@@ -257,11 +258,11 @@ MainWindow::MainWindow(QWidget *parent)
     P_device_status_update(Device::RunMode::UNKNOWN);
 
     P_setpointFuncSetValue(MANUAL_SETPOINT_INITIAL_VALUE);
-    m_ui->selection.leftValue->setValue(PIDK_SELECTION_VALUE_DEFAULT_MIN);
-    m_ui->selection.rightValue->setValue(PIDK_SELECTION_VALUE_DEFAULT_MAX);
+    m_ui->Ktry.leftValue->setValue(PIDK_SELECTION_VALUE_DEFAULT_MIN);
+    m_ui->Ktry.rightValue->setValue(PIDK_SELECTION_VALUE_DEFAULT_MAX);
     m_ui->m_setpoint->setValue(MANUAL_SETPOINT_INITIAL_VALUE);
     m_ui->tab.simulation->setpointMode_radio1->setChecked(true);
-    m_ui->Kselector_radio1_Kp->setChecked(true);
+    m_ui->Kswitch.Kp->setChecked(true);
     m_ui->pidK->setValueKp(PID_Kp);
     m_ui->pidK->setValueKi(PID_Ki);
     m_ui->pidK->setValueKd(PID_Kd);
@@ -293,8 +294,6 @@ void MainWindow::P_openSerialPort()
     m_serial->setFlowControl(p.flowControl);
     if (m_serial->open(QIODevice::ReadWrite))
     {
-            m_ui->tab.device->m_console->setEnabled(true);
-            m_ui->tab.device->m_console->setLocalEchoEnabled(p.localEchoEnabled);
             m_ui->mainMenu.actionConnect->setEnabled(false);
             m_ui->mainMenu.actionDisconnect->setEnabled(true);
             m_ui->mainMenu.actionConfigure->setEnabled(false);
@@ -323,7 +322,6 @@ void MainWindow::P_closeSerialPort()
         m_serial->close();
     }
     m_device->devDisconnect();
-    m_ui->tab.device->m_console->setEnabled(false);
     m_ui->mainMenu.actionConnect->setEnabled(true);
     m_ui->mainMenu.actionDisconnect->setEnabled(false);
     m_ui->mainMenu.actionConfigure->setEnabled(true);
@@ -385,7 +383,6 @@ void MainWindow::P_runModeChange(bool simulation)
     m_valuesOut.clear();
     m_processVariable = 0.0;
 
-    int len_max;
     if(simulation)
     {
         m_runMode = RunMode::SIMULATION;
@@ -422,6 +419,7 @@ void MainWindow::P_device_status_update(Device::RunMode mode) const
 
 void MainWindow::P_writeRawData(const QByteArray &data)
 {
+    m_ui->tab.device->m_console->putData(data);
     m_serial->write(data);
 }
 
@@ -481,6 +479,7 @@ void MainWindow::P_dev_ready_SPPV(unsigned long time_ms, double sp, double pv, d
 
 void MainWindow::P_dev_ready_pulsesRead(bool timedout, unsigned err, unsigned ppr)
 {
+    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
     if(err) return;
     m_ui->tab.device->m_devicePPR->setText(QString("%1").arg(ppr));
@@ -488,9 +487,9 @@ void MainWindow::P_dev_ready_pulsesRead(bool timedout, unsigned err, unsigned pp
 
 void MainWindow::P_dev_ready_runModeRead(bool timedout, unsigned err, Device::RunMode mode)
 {
+    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
     if(err) return;
-    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
     P_device_reqstats_update();
     P_device_status_update(timedout ? Device::RunMode::UNKNOWN : mode);
 }
@@ -514,6 +513,7 @@ void MainWindow::P_dev_ready_pidKoefWrite(bool timedout, unsigned err)
 
 void MainWindow::P_dev_ready_speedSetpointRead(bool timedout, unsigned err, double sp)
 {
+    Q_UNUSED(sp);
     m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
     if(err) return;
@@ -528,6 +528,7 @@ void MainWindow::P_dev_ready_speedSetpointWrite(bool timedout, unsigned err)
 
 void MainWindow::P_dev_ready_speedPVRead(bool timedout, unsigned err, double pv)
 {
+    Q_UNUSED(pv);
     m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
     if(timedout) return;
     if(err) return;
@@ -547,10 +548,11 @@ void MainWindow::P_dev_ready_processStop(bool timedout, unsigned err)
     if(err) return;
 }
 
-void MainWindow::P_button_rpc_request_1_mode_r(bool)
+void MainWindow::P_dev_ready_confStored(bool timedout, unsigned err)
 {
-    m_device->runModeRead();
     m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
+    if(timedout) return;
+    if(err) return;
 }
 
 void MainWindow::P_button_rpc_request_2_koef_r(bool)
@@ -605,6 +607,12 @@ void MainWindow::P_button_rpc_request_7_process_start(bool)
 void MainWindow::P_button_rpc_request_8_process_stop(bool)
 {
     m_device->request_08_process_stop();
+    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
+}
+
+void MainWindow::P_button_rpc_request_9_conf_store(bool)
+{
+    m_device->confStore();
     m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
 }
 
@@ -696,19 +704,19 @@ void MainWindow::P_setpointFuncSetValue(int value)
 
 void MainWindow::selection_leftValue_changed(double value)
 {
-    double mid = (m_ui->selection.rightValue->value() + value) / 2;
-    m_ui->selection.centerValue->setValue(mid);
+    double mid = (m_ui->Ktry.rightValue->value() + value) / 2;
+    m_ui->Ktry.centerValue->setValue(mid);
 }
 
 void MainWindow::selection_rightValue_changed(double value)
 {
-    double mid = (value + m_ui->selection.leftValue->value()) / 2;
-    m_ui->selection.centerValue->setValue(mid);
+    double mid = (value + m_ui->Ktry.leftValue->value()) / 2;
+    m_ui->Ktry.centerValue->setValue(mid);
 }
 
 void MainWindow::selection_tryLeft_clicked(bool)
 {
-    double val = m_ui->selection.leftValue->value();
+    double val = m_ui->Ktry.leftValue->value();
     switch(m_kselector)
     {
     case PID_K_Selector::Kp: m_ui->pidK->setValueKp(val); break;
@@ -719,7 +727,7 @@ void MainWindow::selection_tryLeft_clicked(bool)
 
 void MainWindow::selection_tryCenter_clicked(bool)
 {
-    double val = m_ui->selection.centerValue->value();
+    double val = m_ui->Ktry.centerValue->value();
     switch(m_kselector)
     {
     case PID_K_Selector::Kp: m_ui->pidK->setValueKp(val); break;
@@ -730,7 +738,7 @@ void MainWindow::selection_tryCenter_clicked(bool)
 
 void MainWindow::selection_tryRight_clicked(bool)
 {
-    double val = m_ui->selection.rightValue->value();
+    double val = m_ui->Ktry.rightValue->value();
     switch(m_kselector)
     {
     case PID_K_Selector::Kp: m_ui->pidK->setValueKp(val); break;
@@ -741,15 +749,15 @@ void MainWindow::selection_tryRight_clicked(bool)
 
 void MainWindow::selection_setCenterToLeft_clicked(bool)
 {
-    m_ui->selection.leftValue->setValue(
-                m_ui->selection.centerValue->value()
+    m_ui->Ktry.leftValue->setValue(
+                m_ui->Ktry.centerValue->value()
                 );
 }
 
 void MainWindow::selection_setCenterToRight_clicked(bool)
 {
-    m_ui->selection.rightValue->setValue(
-                m_ui->selection.centerValue->value()
+    m_ui->Ktry.rightValue->setValue(
+                m_ui->Ktry.centerValue->value()
                 );
 }
 
@@ -866,7 +874,7 @@ void MainWindow::P_indication_update(double setpoint, double processVariable, do
     double sp_pv_diff = (double)((double)setpoint - processVariable);
     double sp_pv_diff_abs = fabs(sp_pv_diff);
 
-    m_ui->indication.processVariable->setText(QString("process variable = %1").arg(processVariable));
+    m_ui->indication.processVariable->setText(QString("PV = %1").arg(processVariable));
     m_ui->indication.PV_amplitude->setText(QString("PV amplitude = %1").arg(PV_amplitude));
     m_ui->indication.diff_SP_PV->setText(QString("SP - PV = %1 (%2% SP) (SP %3 PV)")
                                          .arg(sp_pv_diff_abs, 0, 'g', 9)

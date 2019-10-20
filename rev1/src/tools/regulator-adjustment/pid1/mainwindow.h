@@ -143,19 +143,19 @@ private slots:
     /** @brief Прочитать кадр данных для Device */
     void P_readFrame();
     void P_dev_ready_runModeChanged(Device::RunMode mode);
-    void P_dev_ready_SPPV(unsigned long time_ms, double sp, double pv, double out);
+    void P_dev_ready_SPPV(unsigned long time_ms, double defaultSizePolicy, double pv, double out);
     void P_dev_ready_pulsesRead(bool timedout, unsigned err, unsigned ppr);
     void P_dev_ready_runModeRead(bool timedout, unsigned err, Device::RunMode mode);
     void P_dev_ready_pidKoefRead(bool timedout, unsigned err, double Kp, double Ki, double Kd);
     void P_dev_ready_pidKoefWrite(bool timedout, unsigned err);
-    void P_dev_ready_speedSetpointRead(bool timedout, unsigned err, double sp);
+    void P_dev_ready_speedSetpointRead(bool timedout, unsigned err, double defaultSizePolicy);
     void P_dev_ready_speedSetpointWrite(bool timedout, unsigned err);
     void P_dev_ready_speedPVRead(bool timedout, unsigned err, double pv);
     void P_dev_ready_processStart(bool timedout, unsigned err);
     void P_dev_ready_processStop(bool timedout, unsigned err);
+    void P_dev_ready_confStored(bool timedout, unsigned err);
 
     void P_writeRawData(const QByteArray &data);
-    void P_button_rpc_request_1_mode_r(bool);
     void P_button_rpc_request_2_koef_r(bool);
     void P_button_rpc_request_3_koef_w(bool);
     void P_button_rpc_request_4_speed_SP_r(bool);
@@ -163,6 +163,7 @@ private slots:
     void P_button_rpc_request_6_speed_PV_r(bool);
     void P_button_rpc_request_7_process_start(bool);
     void P_button_rpc_request_8_process_stop(bool);
+    void P_button_rpc_request_9_conf_store(bool);
 
     void P_button_driveReqstat_clearBad(bool);
     void P_button_driveReqstat_clearAll(bool);

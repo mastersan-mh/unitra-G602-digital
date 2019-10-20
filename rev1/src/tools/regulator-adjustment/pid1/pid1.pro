@@ -12,8 +12,8 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets \
 TARGET = pid1
 TEMPLATE = app
 
-QMAKE_CFLAGS += -Wno-expansion-to-defined
-QMAKE_CXXFLAGS += -Wno-expansion-to-defined
+QMAKE_CFLAGS += -Wno-expansion-to-defined -Wall -Wextra
+QMAKE_CXXFLAGS += -Wno-expansion-to-defined -Wall -Wextra
 
 #DEFINES += PID_DISCRETE
 #DEFINES += PID_RECURRENT

@@ -67,6 +67,7 @@ QVariant DeviceViewModel::data(const QModelIndex &index, int role) const
                 [Device::FuncId::FUNC_06_SPEED_PV_R   ] = "speed_PV_r",
                 [Device::FuncId::FUNC_07_PROCESS_START] = "proc start",
                 [Device::FuncId::FUNC_08_PROCESS_STOP ] = "proc stop",
+                [Device::FuncId::FUNC_09_CONF_STORE   ] = "Conf store",
             };
 
             static const QVector<QString> reqModeStr =
@@ -79,7 +80,7 @@ QVariant DeviceViewModel::data(const QModelIndex &index, int role) const
             uint16_t ruid = m_index.at(row);
             const struct Device::req_status &stat = m_data[ruid];
 
-            return QString("[%2] %3 %4")
+            return QString("[%1] %2 [%3]")
                     .arg(ruid, 4, 16, QLatin1Char('0'))
                     .arg(strs[stat.funcId])
                     .arg(reqModeStr[static_cast<int>(stat.reqmode)]);

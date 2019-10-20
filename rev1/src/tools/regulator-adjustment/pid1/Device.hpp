@@ -43,6 +43,7 @@ public:
         FUNC_06_SPEED_PV_R    = 0x06,
         FUNC_07_PROCESS_START = 0x07,
         FUNC_08_PROCESS_STOP  = 0x08,
+        FUNC_09_CONF_STORE    = 0x09,
     };
 
     enum
@@ -100,6 +101,7 @@ public:
     void speedPVRead();
     void request_07_process_start();
     void request_08_process_stop();
+    void confStore();
 
 signals:
     void ready_dataToSend(const QByteArray &);
@@ -115,6 +117,7 @@ signals:
     void ready_speedPVRead(bool timedout, unsigned err, double pv);
     void ready_processStart(bool timedout, unsigned err);
     void ready_processStop(bool timedout, unsigned err);
+    void ready_confStored(bool timedout, unsigned err);
 public slots:
     void devConnect();
     void devDisconnect();
@@ -151,7 +154,7 @@ private:
 
     QMap<uint16_t /* ruid */ , uint8_t /* funcId, unused */ > m_autoqueue; /**< Очередь из ожидающих автоматических запросов */
 
-    void P_rpc_request_common(uint8_t funcId, const QVector<uint16_t> & argv, ReqMode reqmode);
+    void P_rpc_request_common(enum FuncId funcId, const QVector<uint16_t> & argv, ReqMode reqmode);
 
     void P_rpc_request_00_ppr_r(ReqMode reqmode);
     void P_rpc_request_01_mode_r(ReqMode reqmode);
@@ -165,8 +168,8 @@ private:
     void P_rpc_request_06_speed_PV_r(ReqMode reqmode);
     void P_rpc_request_07_process_start(ReqMode reqmode);
     void P_rpc_request_08_process_stop(ReqMode reqmode);
+    void P_rpc_request_09_conf_store(ReqMode reqmode);
 
-    bool P_enabled_runMode_service3();
     void P_invalidate_all();
 
     void P_reload_00_ppr_r();

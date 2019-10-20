@@ -49,17 +49,11 @@ public:
 
     void putData(const QByteArray &data);
 
-    void setLocalEchoEnabled(bool set);
-
 protected:
     virtual void keyPressEvent(QKeyEvent *e);
     virtual void mousePressEvent(QMouseEvent *e);
     virtual void mouseDoubleClickEvent(QMouseEvent *e);
     virtual void contextMenuEvent(QContextMenuEvent *e);
-
-private:
-    bool localEchoEnabled;
-
 };
 
 #endif // CONSOLE_H
