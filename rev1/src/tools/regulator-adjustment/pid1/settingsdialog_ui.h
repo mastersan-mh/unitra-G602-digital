@@ -46,9 +46,6 @@ public:
     QHBoxLayout *horizontalLayout;
     QSpacerItem *horizontalSpacer;
     QPushButton *applyButton;
-    QGroupBox *additionalOptionsGroupBox;
-    QVBoxLayout *verticalLayout;
-    QCheckBox *localEchoCheckBox;
 
     void setupUi(QDialog *SettingsDialog)
     {
@@ -129,7 +126,6 @@ public:
 
         gridLayout->addWidget(pidLabel, 6, 0, 1, 1);
 
-
         gridLayout_3->addWidget(selectBox, 0, 0, 1, 1);
 
         horizontalLayout = new QHBoxLayout();
@@ -142,15 +138,6 @@ public:
         horizontalLayout->addWidget(applyButton);
 
         gridLayout_3->addLayout(horizontalLayout, 2, 0, 1, 2);
-
-        additionalOptionsGroupBox = new QGroupBox(SettingsDialog);
-        verticalLayout = new QVBoxLayout(additionalOptionsGroupBox);
-        localEchoCheckBox = new QCheckBox(additionalOptionsGroupBox);
-        localEchoCheckBox->setChecked(true);
-
-        verticalLayout->addWidget(localEchoCheckBox);
-
-        gridLayout_3->addWidget(additionalOptionsGroupBox, 1, 0, 1, 2);
 
         SettingsDialog->setWindowTitle(QStringLiteral("Settings"));
         parametersBox->setTitle(QStringLiteral("Select Parameters"));
@@ -167,8 +154,6 @@ public:
         vidLabel->setText(QStringLiteral("Vendor ID:"));
         pidLabel->setText(QStringLiteral("Product ID:"));
         applyButton->setText(QStringLiteral("Apply"));
-        additionalOptionsGroupBox->setTitle(QStringLiteral("Additional options"));
-        localEchoCheckBox->setText(QStringLiteral("Local echo"));
 
     }
 

@@ -295,7 +295,6 @@ void MainWindow::P_openSerialPort()
     if (m_serial->open(QIODevice::ReadWrite))
     {
             m_ui->tab.device->m_console->setEnabled(true);
-            m_ui->tab.device->m_console->setLocalEchoEnabled(p.localEchoEnabled);
             m_ui->mainMenu.actionConnect->setEnabled(false);
             m_ui->mainMenu.actionDisconnect->setEnabled(true);
             m_ui->mainMenu.actionConfigure->setEnabled(false);
