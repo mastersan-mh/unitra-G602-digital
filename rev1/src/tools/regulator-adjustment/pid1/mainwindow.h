@@ -143,12 +143,12 @@ private slots:
     /** @brief Прочитать кадр данных для Device */
     void P_readFrame();
     void P_dev_ready_runModeChanged(Device::RunMode mode);
-    void P_dev_ready_SPPV(unsigned long time_ms, double sp, double pv, double out);
+    void P_dev_ready_SPPV(unsigned long time_ms, double defaultSizePolicy, double pv, double out);
     void P_dev_ready_pulsesRead(bool timedout, unsigned err, unsigned ppr);
     void P_dev_ready_runModeRead(bool timedout, unsigned err, Device::RunMode mode);
     void P_dev_ready_pidKoefRead(bool timedout, unsigned err, double Kp, double Ki, double Kd);
     void P_dev_ready_pidKoefWrite(bool timedout, unsigned err);
-    void P_dev_ready_speedSetpointRead(bool timedout, unsigned err, double sp);
+    void P_dev_ready_speedSetpointRead(bool timedout, unsigned err, double defaultSizePolicy);
     void P_dev_ready_speedSetpointWrite(bool timedout, unsigned err);
     void P_dev_ready_speedPVRead(bool timedout, unsigned err, double pv);
     void P_dev_ready_processStart(bool timedout, unsigned err);
