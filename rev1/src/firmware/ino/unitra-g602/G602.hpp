@@ -17,8 +17,6 @@
 #include <nostd.h>
 #include <stdint.h>
 
-#define G602_WINDOW_SIZE 8
-
 typedef nostd::SchedulerSoft< G602_SHEDULER_TASKS__NUM, GTime_t > G602Scheduler;
 
 class G602
@@ -61,7 +59,10 @@ private:
     static const nostd::size_t shed_task_id_service_mode_awaiting = 1;
     static const nostd::size_t shed_task_id_ctrl = 2;
     static const unsigned long service_mode_enter_awaiting_time = 5000; /**< time to wait to enter service mode, ms */
-    static const unsigned long ctrl_handler_period = 1000;
+    static const unsigned long ctrl_handler_period = 750;
+    static const unsigned long ctrl_window_time = 7500;
+
+#define G602_WINDOW_SIZE  (ctrl_window_time / ctrl_handler_period)
 
     typedef nostd::Fixed32 Fixed;
     typedef nostd::PidRecurrent<Fixed> PID;

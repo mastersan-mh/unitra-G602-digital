@@ -293,12 +293,10 @@ void G602::P_task_ctrl(
     struct
     {
         unsigned pulses_sum;
-        unsigned amount;
         unsigned ppm;
     } meas;
 
     meas.pulses_sum = 0;
-    meas.amount = 0;
 
     for(
             SWindow::const_iterator it = self->m_pulses.cbegin();
@@ -307,16 +305,18 @@ void G602::P_task_ctrl(
     )
     {
         meas.pulses_sum += (*it);
-        ++(meas.amount);
     }
 
-#define SPEED_PPM(dpulses, dtime) \
+    unsigned window_len = self->m_pulses.length();
+
+    /** @brief Speed: Pulses Per Period to Pulses Per Minute */
+#define SPEED_PPM(pulses, period) \
         ( \
-                ((unsigned long)dpulses * 1000 * 60) / \
-                ((unsigned long)dtime) \
+                ((unsigned long)(pulses) * 1000UL * 60UL) / \
+                ((unsigned long)(period)) \
         )
 
-    meas.ppm = (unsigned)SPEED_PPM(meas.pulses_sum, ctrl_handler_period * meas.amount);
+    meas.ppm = (unsigned)SPEED_PPM(meas.pulses_sum, ctrl_handler_period * window_len);
 
     int speed_pv_ppm = (int)meas.ppm;
 
@@ -327,6 +327,7 @@ void G602::P_task_ctrl(
 
     /* filter */
     int speed_pv_ppm_filtered;
+#ifdef G602_USE_FILTER
     if(
             speed_sp - G602_TABLE_PULSES_PER_REV / 2 <= speed_pv_ppm &&
             speed_pv_ppm <= speed_sp + G602_TABLE_PULSES_PER_REV / 2
@@ -338,6 +339,9 @@ void G602::P_task_ctrl(
     {
         speed_pv_ppm_filtered = speed_pv_ppm;
     }
+#else
+    speed_pv_ppm_filtered = speed_pv_ppm;
+#endif
 
     self->m_ctrl.actualSpeedUpdate(speed_pv_ppm_filtered, self);
 
@@ -402,6 +406,9 @@ void G602::P_ctrl_start()
     unsigned table_dpulses;
     m_event_pulses_get(&motor_dpulses, &table_dpulses);
 
+    m_pid.reset();
+    m_pulses.reset();
+
     m_sched.shedule(
             shed_task_id_ctrl,
             m_time_now + ctrl_handler_period,
@@ -409,7 +416,6 @@ void G602::P_ctrl_start()
             this
     );
     m_time_next = P_rtcNextTimeGet();
-    m_pid.reset();
 }
 
 void G602::P_ctrl_stop()
@@ -678,7 +684,6 @@ void G602::P_rpc_send(const uint8_t * data, unsigned data_size, void * args)
 {
     G602_DEFINE_SELF();
     self->m_comm.writeFrame(data, data_size);
-
 }
 
 /**
@@ -794,6 +799,7 @@ uint8_t G602::P_rpc_func_03_koef_w(
     self->m_pid.KiSet(self->m_Ki);
     self->m_pid.KdSet(self->m_Kd);
     self->m_pid.reset();
+    self->m_pulses.reset();
 
     return GRPC_REPLY_ERR_OK;
 }

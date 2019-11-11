@@ -62,4 +62,7 @@
 #define G602_PID_DEFAULT_KI 0.039062500
 #define G602_PID_DEFAULT_KD 0.312500000
 
+/* Use the speed error indication filter */
+#define G602_USE_FILTER
+
 #endif
