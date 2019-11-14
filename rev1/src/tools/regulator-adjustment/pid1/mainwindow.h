@@ -41,6 +41,10 @@ private slots:
     /* установить значение функции уставки */
     void P_setpointValueChanged(int value);
 
+    void P_setpointSet0(bool);
+    void P_setpointSet33(bool);
+    void P_setpointSet45(bool);
+
     void P_tickEventSimulation();
     void P_tickEventCommon();
     void P_indication_update(double setpoint, double processVariable, double PV_amplitude);

@@ -392,7 +392,7 @@ public:
 
     QStatusBar *statusBar;
 
-    QHBoxLayout *centralWLayout;
+    QHBoxLayout *centralHLayout;
 
     QGridLayout *ctrl1_Layout;
 
@@ -440,7 +440,16 @@ public:
         QLabel * PID_power;
     } indication;
 
-    CSetpointWidget * m_setpoint;
+
+    struct
+    {
+        QVBoxLayout * layout;
+        QLabel * setpoint_actual;
+        CSetpointWidget * setpoint;
+        QPushButton * set45;
+        QPushButton * set33;
+        QPushButton * set0;
+    } m_sp;
 
 #ifdef APP_USE_CGRAPH
     CGraph * graph;
@@ -554,12 +563,12 @@ public:
         } UI_LEVEL_END(statusBar);
 
         central = new QWidget(MainWindow);
-        centralWLayout = new QHBoxLayout(central);
-        central->setLayout(centralWLayout);
+        centralHLayout = new QHBoxLayout(central);
+        central->setLayout(centralHLayout);
         UI_LEVEL_BEGIN(central)
         {
             ctrl1_Layout = new QGridLayout(central);
-            centralWLayout->addLayout(ctrl1_Layout);
+            centralHLayout->addLayout(ctrl1_Layout);
             UI_LEVEL_BEGIN(ctrl1_Layout)
             {
                 /* pid */
@@ -679,17 +688,32 @@ public:
             } UI_LEVEL_END(ctrl1_Layout);
 
             /* setpoint */
-            m_setpoint = new CSetpointWidget(MainWindow);
-            centralWLayout->addWidget(m_setpoint);
+            UI_LEVEL_BEGIN(m_sp)
+            {
+                m_sp.setpoint_actual = new QLabel(MainWindow);
+                m_sp.setpoint_actual->setToolTip(QStringLiteral("Actual setpoint"));
+                m_sp.setpoint_actual->setFrameStyle(QFrame::Box | QFrame::Sunken);
+                m_sp.setpoint = new CSetpointWidget(MainWindow);
+                m_sp.setpoint->setMinimum(MANUAL_SETPOINT_MIN);
+                m_sp.setpoint->setMaximum(MANUAL_SETPOINT_MAX);
+                m_sp.set0 = new QPushButton(QStringLiteral("0"), MainWindow);
+                m_sp.set33 = new QPushButton(QStringLiteral("33"), MainWindow);
+                m_sp.set45 = new QPushButton(QStringLiteral("45"), MainWindow);
 
-            m_setpoint->setMinimum(MANUAL_SETPOINT_MIN);
-            m_setpoint->setMaximum(MANUAL_SETPOINT_MAX);
+                m_sp.layout = new QVBoxLayout();
+                m_sp.layout->addWidget(m_sp.setpoint_actual);
+                m_sp.layout->addWidget(m_sp.setpoint);
+                m_sp.layout->addWidget(m_sp.set45);
+                m_sp.layout->addWidget(m_sp.set33);
+                m_sp.layout->addWidget(m_sp.set0);
+            } UI_LEVEL_END(m_sp);
 
+            centralHLayout->addLayout(m_sp.layout);
 
             /* cplot widget */
             cplot = new QCustomPlot(central);
             cplot->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-            centralWLayout->addWidget(cplot);
+            centralHLayout->addWidget(cplot);
 
         } UI_LEVEL_END(m_central);
 

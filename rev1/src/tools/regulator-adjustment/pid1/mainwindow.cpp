@@ -247,8 +247,23 @@ MainWindow::MainWindow(QWidget *parent)
                 );
 
     QObject::connect(
-                m_ui->m_setpoint, SIGNAL(valueChanged(int)),
+                m_ui->m_sp.setpoint, SIGNAL(valueChanged(int)),
                 this, SLOT(P_setpointValueChanged(int))
+                );
+
+    QObject::connect(
+                m_ui->m_sp.set0, SIGNAL(clicked(bool)),
+                this, SLOT(P_setpointSet0(bool))
+                );
+
+    QObject::connect(
+                m_ui->m_sp.set33, SIGNAL(clicked(bool)),
+                this, SLOT(P_setpointSet33(bool))
+                );
+
+    QObject::connect(
+                m_ui->m_sp.set45, SIGNAL(clicked(bool)),
+                this, SLOT(P_setpointSet45(bool))
                 );
 
     m_ui->mainMenu.actionRunMode->setChecked(true); /* to able to emit signal */
@@ -260,7 +275,7 @@ MainWindow::MainWindow(QWidget *parent)
     P_setpointFuncSetValue(MANUAL_SETPOINT_INITIAL_VALUE);
     m_ui->Ktry.leftValue->setValue(PIDK_SELECTION_VALUE_DEFAULT_MIN);
     m_ui->Ktry.rightValue->setValue(PIDK_SELECTION_VALUE_DEFAULT_MAX);
-    m_ui->m_setpoint->setValue(MANUAL_SETPOINT_INITIAL_VALUE);
+    m_ui->m_sp.setpoint->setValue(MANUAL_SETPOINT_INITIAL_VALUE);
     m_ui->tab.simulation->setpointMode_radio1->setChecked(true);
     m_ui->Kswitch.Kp->setChecked(true);
     m_ui->pidK->setValueKp(PID_Kp);
@@ -304,9 +319,9 @@ void MainWindow::P_openSerialPort()
 
             if(m_runMode == RunMode::DEVICE)
             {
+                m_ui->m_sp.setpoint->setValue(0);
                 P_runMode_device_plot_clear();
             }
-
     }
     else
     {
@@ -454,7 +469,7 @@ void MainWindow::P_dev_ready_SPPV(unsigned long time_ms, double sp, double pv, d
 
     m_processVariable = pv;
     m_ui->indication.PID_power->setText(QString("PID output = %1").arg(out));
-
+    m_ui->m_sp.setpoint_actual->setText(QString("%1").arg(sp));
 
     m_plot_start = AXIS_X_MIN;
     m_plot_end = AXIS_X_MAX;
@@ -663,7 +678,7 @@ void MainWindow::setpoint_AutoModeSelected(bool toggled)
 
 void MainWindow::setpoint_valueSet(int value)
 {
-    m_ui->m_setpoint->setValue(value);
+    m_ui->m_sp.setpoint->setValue(value);
 }
 
 void MainWindow::P_setpointValueChanged(int value)
@@ -688,6 +703,21 @@ void MainWindow::P_setpointValueChanged(int value)
             break;
         }
     }
+}
+
+void MainWindow::P_setpointSet0(bool)
+{
+    m_ui->m_sp.setpoint->setValue(0);
+}
+
+void MainWindow::P_setpointSet33(bool)
+{
+    m_ui->m_sp.setpoint->setValue(33);
+}
+
+void MainWindow::P_setpointSet45(bool)
+{
+    m_ui->m_sp.setpoint->setValue(45);
 }
 
 void MainWindow::P_setpointFuncSetValue(int value)
