@@ -1,8 +1,5 @@
-#ifndef CTRL_H_INCLUDED_
-#define CTRL_H_INCLUDED_
-
-namespace app
-{
+#ifndef CTRL_HPP_INCLUDED_
+#define CTRL_HPP_INCLUDED_
 
 //#define CTRL_DEBUG
 
@@ -233,5 +230,4 @@ public:
 
 };
 
-} /* namespace app */
-#endif /* CTRL_H_INCLUDED_ */
+#endif /* CTRL_HPP_INCLUDED_ */

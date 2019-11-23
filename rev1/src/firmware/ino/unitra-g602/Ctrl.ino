@@ -3,9 +3,6 @@
 
 #define ARRAY_INDEX(x) static_cast<unsigned int>(x)
 
-namespace app
-{
-
 Ctrl::speed_t Ctrl::P_speed_baseline_get() const
 {
     return m_speed_baselines[ARRAY_INDEX(m_speed_baseline_mode)];
@@ -1072,5 +1069,3 @@ void Ctrl::debug_get(internal_state_t * state) const
     state->m_speed_SP_manual_delta = m_speed_SP_manual_delta;
 }
 #endif
-
-}
