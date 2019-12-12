@@ -52,14 +52,14 @@ MainWindow::MainWindow(QWidget *parent)
     m_pid = new PID_recurrent_Fixed32(nostd::Fixed32(0.0), nostd::Fixed32(0.0), nostd::Fixed32(0.0));
 #endif
 
-    m_processVariable = 0.0;
+    m_sim_processVariable = 0.0;
 
     m_timer = new QTimer();
     m_timer->setSingleShot(false);
     //timer->setTimerType(Qt::PreciseTimer);
     QObject::connect(m_timer, SIGNAL(timeout()), this, SLOT(P_tickEventSimulation()));
 
-    m_time = 0;
+    m_sim_time_ms = 0;
 
     m_kselector = PID_K_Selector::Kp;
     m_paused = false;
@@ -247,8 +247,23 @@ MainWindow::MainWindow(QWidget *parent)
                 );
 
     QObject::connect(
-                m_ui->m_setpoint, SIGNAL(valueChanged(int)),
+                m_ui->m_sp.setpoint, SIGNAL(valueChanged(int)),
                 this, SLOT(P_setpointValueChanged(int))
+                );
+
+    QObject::connect(
+                m_ui->m_sp.set0, SIGNAL(clicked(bool)),
+                this, SLOT(P_setpointSet0(bool))
+                );
+
+    QObject::connect(
+                m_ui->m_sp.set33, SIGNAL(clicked(bool)),
+                this, SLOT(P_setpointSet33(bool))
+                );
+
+    QObject::connect(
+                m_ui->m_sp.set45, SIGNAL(clicked(bool)),
+                this, SLOT(P_setpointSet45(bool))
                 );
 
     m_ui->mainMenu.actionRunMode->setChecked(true); /* to able to emit signal */
@@ -260,7 +275,7 @@ MainWindow::MainWindow(QWidget *parent)
     P_setpointFuncSetValue(MANUAL_SETPOINT_INITIAL_VALUE);
     m_ui->Ktry.leftValue->setValue(PIDK_SELECTION_VALUE_DEFAULT_MIN);
     m_ui->Ktry.rightValue->setValue(PIDK_SELECTION_VALUE_DEFAULT_MAX);
-    m_ui->m_setpoint->setValue(MANUAL_SETPOINT_INITIAL_VALUE);
+    m_ui->m_sp.setpoint->setValue(MANUAL_SETPOINT_INITIAL_VALUE);
     m_ui->tab.simulation->setpointMode_radio1->setChecked(true);
     m_ui->Kswitch.Kp->setChecked(true);
     m_ui->pidK->setValueKp(PID_Kp);
@@ -304,9 +319,9 @@ void MainWindow::P_openSerialPort()
 
             if(m_runMode == RunMode::DEVICE)
             {
-                P_runMode_device_plot_clear();
+                m_ui->m_sp.setpoint->setValue(0);
+                P_plot_clear();
             }
-
     }
     else
     {
@@ -330,12 +345,11 @@ void MainWindow::P_closeSerialPort()
 
 void MainWindow::P_device_reqstats_update()
 {
-    QMap<uint16_t, struct Device::req_status> stats = m_device->requestsStatGet();
-
+    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
 }
 
 
-void MainWindow::P_runMode_device_plot_clear()
+void MainWindow::P_plot_clear()
 {
     int len_max;
     len_max = 200;
@@ -351,51 +365,24 @@ void MainWindow::P_runMode_device_plot_clear()
 
 }
 
-void MainWindow::P_runMode_simulatin_plot_clear()
-{
-    int len_max;
-    len_max = (AXIS_X_MAX - AXIS_X_MIN) * 1000 / INTERVAL_MS;
-
-    m_axis_x.sizeSet(len_max);
-    m_valuesSetpoint.sizeSet(len_max);
-    m_valuesPV.sizeSet(len_max);
-    m_valuesOut.sizeSet(len_max);
-
-    m_axis_x.clear();
-    m_valuesSetpoint.clear();
-    m_valuesPV.clear();
-    m_valuesOut.clear();
-
-    m_plot_start = AXIS_X_MIN;
-    m_plot_end = AXIS_X_MAX;
-    m_simulatuion_value = AXIS_X_MIN;
-
-}
-
-
 void MainWindow::P_runModeChange(bool simulation)
 {
     m_ui->tab.device->setEnabled(!simulation);
     m_ui->tab.simulation->setEnabled(simulation);
-    m_axis_x.clear();
-    m_valuesSetpoint.clear();
-    m_valuesPV.clear();
-    m_valuesOut.clear();
-    m_processVariable = 0.0;
+    m_sim_processVariable = 0.0;
 
+    P_plot_clear();
     if(simulation)
     {
+        m_sim_time_ms = 0;
+        m_timer->start(SIMULATION_DT_MS);
         m_runMode = RunMode::SIMULATION;
-        P_runMode_simulatin_plot_clear();
-        m_timer->start(INTERVAL_MS);
     }
     else
     {
         m_timer->stop();
         m_runMode = RunMode::DEVICE;
-        P_runMode_device_plot_clear();
     }
-
 
     P_tickEventCommon();
 
@@ -452,34 +439,20 @@ void MainWindow::P_dev_ready_runModeChanged(Device::RunMode mode)
 void MainWindow::P_dev_ready_SPPV(unsigned long time_ms, double sp, double pv, double out)
 {
 
-    m_processVariable = pv;
     m_ui->indication.PID_power->setText(QString("PID output = %1").arg(out));
-
-
-    m_plot_start = AXIS_X_MIN;
-    m_plot_end = AXIS_X_MAX;
+    m_ui->m_sp.setpoint_actual->setText(QString("%1").arg(sp));
 
     m_axis_x.append((double)time_ms / 1000.0);
     m_valuesSetpoint.append(sp);
-    m_valuesPV.append(m_processVariable);
+    m_valuesPV.append(pv);
     m_valuesOut.append(out);
 
-    const QVector <double> &axis_x_vals = m_axis_x.get();
-
-    int size = axis_x_vals.size();
-    double begin = axis_x_vals[0];
-    double end   = axis_x_vals[size > 0 ? size - 1 : 0];
-
-    m_time = time_ms;
-
-    m_plot_start = begin;
-    m_plot_end   = end;
     P_tickEventCommon();
 }
 
 void MainWindow::P_dev_ready_pulsesRead(bool timedout, unsigned err, unsigned ppr)
 {
-    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
+    P_device_reqstats_update();
     if(timedout) return;
     if(err) return;
     m_ui->tab.device->m_devicePPR->setText(QString("%1").arg(ppr));
@@ -487,16 +460,15 @@ void MainWindow::P_dev_ready_pulsesRead(bool timedout, unsigned err, unsigned pp
 
 void MainWindow::P_dev_ready_runModeRead(bool timedout, unsigned err, Device::RunMode mode)
 {
-    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
+    P_device_reqstats_update();
     if(timedout) return;
     if(err) return;
-    P_device_reqstats_update();
     P_device_status_update(timedout ? Device::RunMode::UNKNOWN : mode);
 }
 
 void MainWindow::P_dev_ready_pidKoefRead(bool timedout, unsigned err, double Kp, double Ki, double Kd)
 {
-    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
+    P_device_reqstats_update();
     if(timedout) return;
     if(err) return;
     m_ui->pidK->setValueKp(Kp);
@@ -506,7 +478,7 @@ void MainWindow::P_dev_ready_pidKoefRead(bool timedout, unsigned err, double Kp,
 
 void MainWindow::P_dev_ready_pidKoefWrite(bool timedout, unsigned err)
 {
-    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
+    P_device_reqstats_update();
     if(timedout) return;
     if(err) return;
 }
@@ -514,14 +486,14 @@ void MainWindow::P_dev_ready_pidKoefWrite(bool timedout, unsigned err)
 void MainWindow::P_dev_ready_speedSetpointRead(bool timedout, unsigned err, double sp)
 {
     Q_UNUSED(sp);
-    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
+    P_device_reqstats_update();
     if(timedout) return;
     if(err) return;
 }
 
 void MainWindow::P_dev_ready_speedSetpointWrite(bool timedout, unsigned err)
 {
-    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
+    P_device_reqstats_update();
     if(timedout) return;
     if(err) return;
 }
@@ -529,28 +501,28 @@ void MainWindow::P_dev_ready_speedSetpointWrite(bool timedout, unsigned err)
 void MainWindow::P_dev_ready_speedPVRead(bool timedout, unsigned err, double pv)
 {
     Q_UNUSED(pv);
-    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
+    P_device_reqstats_update();
     if(timedout) return;
     if(err) return;
 }
 
 void MainWindow::P_dev_ready_processStart(bool timedout, unsigned err)
 {
-    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
+    P_device_reqstats_update();
     if(timedout) return;
     if(err) return;
 }
 
 void MainWindow::P_dev_ready_processStop(bool timedout, unsigned err)
 {
-    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
+    P_device_reqstats_update();
     if(timedout) return;
     if(err) return;
 }
 
 void MainWindow::P_dev_ready_confStored(bool timedout, unsigned err)
 {
-    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
+    P_device_reqstats_update();
     if(timedout) return;
     if(err) return;
 }
@@ -558,7 +530,7 @@ void MainWindow::P_dev_ready_confStored(bool timedout, unsigned err)
 void MainWindow::P_button_rpc_request_2_koef_r(bool)
 {
     m_device->pidKoefRead();
-    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
+    P_device_reqstats_update();
 }
 
 void MainWindow::P_button_rpc_request_3_koef_w(bool)
@@ -568,13 +540,13 @@ void MainWindow::P_button_rpc_request_3_koef_w(bool)
                 m_ui->pidK->valueKi(),
                 m_ui->pidK->valueKd()
                 );
-    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
+    P_device_reqstats_update();
 }
 
 void MainWindow::P_button_rpc_request_4_speed_SP_r(bool)
 {
     m_device->speedSetpointRead();
-    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
+    P_device_reqstats_update();
 }
 
 void MainWindow::P_button_rpc_request_5_speed_SP_w(bool)
@@ -589,43 +561,43 @@ void MainWindow::P_button_rpc_request_5_speed_SP_w(bool)
         m_ui->statusBar->showMessage(tr("Device info not ready"));
     }
 
-    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
+    P_device_reqstats_update();
 }
 
 void MainWindow::P_button_rpc_request_6_speed_PV_r(bool)
 {
     m_device->speedPVRead();
-    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
+    P_device_reqstats_update();
 }
 
 void MainWindow::P_button_rpc_request_7_process_start(bool)
 {
     m_device->request_07_process_start();
-    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
+    P_device_reqstats_update();
 }
 
 void MainWindow::P_button_rpc_request_8_process_stop(bool)
 {
     m_device->request_08_process_stop();
-    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
+    P_device_reqstats_update();
 }
 
 void MainWindow::P_button_rpc_request_9_conf_store(bool)
 {
     m_device->confStore();
-    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
+    P_device_reqstats_update();
 }
 
 void MainWindow::P_button_driveReqstat_clearBad(bool)
 {
     m_device->requestsStatClear(Device::ReqResult::TIMEOUT);
-    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
+    P_device_reqstats_update();
 }
 
 void MainWindow::P_button_driveReqstat_clearAll(bool)
 {
     m_device->requestsStatClearAll();
-    m_ui->tab.device->m_reqstat_model->update(m_device->requestsStatGet());
+    P_device_reqstats_update();
 }
 
 void MainWindow::pidK_changed(double Kp, double Ki, double Kd)
@@ -652,18 +624,18 @@ void MainWindow::pidK_changed(double Kp, double Ki, double Kd)
 void MainWindow::setpoint_ManualModeSelected(bool toggled)
 {
     if(!toggled) return;
-    m_setpoint_manual = true;
+    m_sim_setpoint_manual = true;
 }
 
 void MainWindow::setpoint_AutoModeSelected(bool toggled)
 {
     if(!toggled) return;
-    m_setpoint_manual = false;
+    m_sim_setpoint_manual = false;
 }
 
 void MainWindow::setpoint_valueSet(int value)
 {
-    m_ui->m_setpoint->setValue(value);
+    m_ui->m_sp.setpoint->setValue(value);
 }
 
 void MainWindow::P_setpointValueChanged(int value)
@@ -688,6 +660,21 @@ void MainWindow::P_setpointValueChanged(int value)
             break;
         }
     }
+}
+
+void MainWindow::P_setpointSet0(bool)
+{
+    m_ui->m_sp.setpoint->setValue(0);
+}
+
+void MainWindow::P_setpointSet33(bool)
+{
+    m_ui->m_sp.setpoint->setValue(33);
+}
+
+void MainWindow::P_setpointSet45(bool)
+{
+    m_ui->m_sp.setpoint->setValue(45);
 }
 
 void MainWindow::P_setpointFuncSetValue(int value)
@@ -719,9 +706,9 @@ void MainWindow::selection_tryLeft_clicked(bool)
     double val = m_ui->Ktry.leftValue->value();
     switch(m_kselector)
     {
-    case PID_K_Selector::Kp: m_ui->pidK->setValueKp(val); break;
-    case PID_K_Selector::Ki: m_ui->pidK->setValueKi(val); break;
-    case PID_K_Selector::Kd: m_ui->pidK->setValueKd(val); break;
+        case PID_K_Selector::Kp: m_ui->pidK->setValueKp(val); break;
+        case PID_K_Selector::Ki: m_ui->pidK->setValueKi(val); break;
+        case PID_K_Selector::Kd: m_ui->pidK->setValueKd(val); break;
     }
 }
 
@@ -799,7 +786,7 @@ void MainWindow::P_tickEventSimulation()
     if(!m_paused)
     {
 
-        if(!m_setpoint_manual)
+        if(!m_sim_setpoint_manual)
         {
             int sp_auto = 50;
             setpoint_valueSet(sp_auto);
@@ -810,29 +797,20 @@ void MainWindow::P_tickEventSimulation()
 #elif defined(PID_RECURRENT)
         double power = pid->calculate(setpoint, processVariable);
 #elif defined(PID_RECURRENT_FIXED32)
-        double power = m_pid->calculate(nostd::Fixed32(m_sim_setpoint), nostd::Fixed32(m_processVariable)).toDouble();
+        double power = m_pid->calculate(nostd::Fixed32(m_sim_setpoint), nostd::Fixed32(m_sim_processVariable)).toDouble();
 #endif
 
-        m_processVariable = m_engine->process(power);
-        m_ui->indication.PID_power->setText(QString("PID output = %1").arg(power));
+        m_sim_processVariable = m_engine->process(power);
 
+        unsigned long time_ms = m_sim_time_ms;
+        double sp = m_sim_setpoint;
+        double pv = m_sim_processVariable;
+        double out = power;
+        P_dev_ready_SPPV(time_ms, sp, pv, out);
 
-        if(m_axis_x.isFull())
-        {
-            m_plot_start += (INTERVAL_MS / 1000.0);
-            m_plot_end += (INTERVAL_MS / 1000.0);
-        }
-
-        m_axis_x.append(m_simulatuion_value);
-        m_valuesSetpoint.append(m_sim_setpoint);
-        m_valuesPV.append(m_processVariable);
-        m_valuesOut.append(power);
-        m_simulatuion_value += (INTERVAL_MS / 1000.0);
-        m_time += INTERVAL_MS;
+        m_sim_time_ms += INTERVAL_MS;
 
     }
-
-    P_tickEventCommon();
 }
 
 void MainWindow::P_tickEventCommon()
@@ -894,7 +872,6 @@ void MainWindow::P_replot(
         )
 {
     /* fill the axis-X values */
-
     m_ui->plotSetpoint->setData(axis_x, vSetpoint);
     m_ui->plotPV->setData(axis_x, vPV);
     m_ui->plotOut->setData(axis_x, vOut);
@@ -926,6 +903,23 @@ void MainWindow::P_replot(
     {
         m_ui->cplot->yAxis->setRange(AXIS_Y_MIN, AXIS_Y_MAX);
     }
+
+    const QVector <double> &axis_x_vals = m_axis_x.get();
+    int size = axis_x_vals.size();
+    double m_plot_start;
+    double m_plot_end;
+
+    if(size == 0)
+    {
+        m_plot_start = 0.0;
+        m_plot_end   = 0.0;
+    }
+    else
+    {
+        m_plot_start = axis_x_vals[0];
+        m_plot_end   = axis_x_vals[size - 1];
+    }
+
     m_ui->cplot->xAxis->setRange(m_plot_start, m_plot_end);
 
     m_ui->cplot->replot();

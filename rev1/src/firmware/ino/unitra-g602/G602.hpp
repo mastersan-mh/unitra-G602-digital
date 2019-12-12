@@ -81,7 +81,7 @@ private:
 
     G602Scheduler m_sched;
     GBlinker m_blinker;
-    app::Ctrl m_ctrl;
+    Ctrl m_ctrl;
     GDInputDebounced m_di_gauge_stop;
     GDInputDebounced m_di_btn_speed_mode;
     GDInputDebounced m_di_btn_autostop;
@@ -117,7 +117,7 @@ private:
     void P_ctrl_stop();
 
     void P_motor_update();
-    static void P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData& data, void * args);
+    static void P_ctrl_event(Ctrl::Event event, const Ctrl::EventData& data, void * args);
     static void P_event_stopSet(void * args);
     static void P_event_stopUnset(void * args);
     static void P_event_speedMode45(void * args);
@@ -143,7 +143,7 @@ private:
     static uint8_t P_rpc_func_09_conf_store(unsigned argc, uint16_t * argv, unsigned * resc, uint16_t * resv, void * args);
 
     /** @brief Update the actual speed */
-    void P_rpc_eventModeChanged(app::Ctrl::RunMode runMode);
+    void P_rpc_eventModeChanged(Ctrl::RunMode runMode);
     void P_rpc_eventSPPV(GTime_t time, uint16_t sp, uint16_t pv, fixed32_t out);
 
 };

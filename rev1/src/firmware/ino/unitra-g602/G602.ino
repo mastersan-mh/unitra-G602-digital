@@ -11,15 +11,15 @@
 
 static const uint16_t P_run_modes[] =
 {
-        [ARRAY_INDEX(app::Ctrl::RunMode::NORMAL_STOPPED       )] = 0x1000, /* 1.1: stopped */
-        [ARRAY_INDEX(app::Ctrl::RunMode::NORMAL_STARTED_AUTO  )] = 0x1001, /* 1.2: auto */
-        [ARRAY_INDEX(app::Ctrl::RunMode::NORMAL_STARTED_MANUAL)] = 0x1002, /* 1.3: manual */
-        [ARRAY_INDEX(app::Ctrl::RunMode::SERVICE_MODE1_STOPPED)] = 0x2100, /* 2.1: stopped */
-        [ARRAY_INDEX(app::Ctrl::RunMode::SERVICE_MODE1_STARTED)] = 0x2101, /* 2.1: started */
-        [ARRAY_INDEX(app::Ctrl::RunMode::SERVICE_MODE2_STOPPED)] = 0x2200, /* 2.2: stopped */
-        [ARRAY_INDEX(app::Ctrl::RunMode::SERVICE_MODE2_STARTED)] = 0x2201, /* 2.2: started */
-        [ARRAY_INDEX(app::Ctrl::RunMode::SERVICE_MODE3_STOPPED)] = 0x2300, /* 2.3: stopped */
-        [ARRAY_INDEX(app::Ctrl::RunMode::SERVICE_MODE3_STARTED)] = 0x2301, /* 2.3: started */
+        [ARRAY_INDEX(Ctrl::RunMode::NORMAL_STOPPED       )] = 0x1000, /* 1.1: stopped */
+        [ARRAY_INDEX(Ctrl::RunMode::NORMAL_STARTED_AUTO  )] = 0x1001, /* 1.2: auto */
+        [ARRAY_INDEX(Ctrl::RunMode::NORMAL_STARTED_MANUAL)] = 0x1002, /* 1.3: manual */
+        [ARRAY_INDEX(Ctrl::RunMode::SERVICE_MODE1_STOPPED)] = 0x2100, /* 2.1: stopped */
+        [ARRAY_INDEX(Ctrl::RunMode::SERVICE_MODE1_STARTED)] = 0x2101, /* 2.1: started */
+        [ARRAY_INDEX(Ctrl::RunMode::SERVICE_MODE2_STOPPED)] = 0x2200, /* 2.2: stopped */
+        [ARRAY_INDEX(Ctrl::RunMode::SERVICE_MODE2_STARTED)] = 0x2201, /* 2.2: started */
+        [ARRAY_INDEX(Ctrl::RunMode::SERVICE_MODE3_STOPPED)] = 0x2300, /* 2.3: stopped */
+        [ARRAY_INDEX(Ctrl::RunMode::SERVICE_MODE3_STARTED)] = 0x2301, /* 2.3: started */
 };
 
 G602::G602(
@@ -106,7 +106,7 @@ void G602::loop()
     }
 
 #ifdef CTRL_DEBUG
-    app::Ctrl::internal_state_t state;
+    Ctrl::internal_state_t state;
     g602.m_ctrl.debug_get(&state);
     DEBUG_PRINT("m_state = "); DEBUG_PRINT((int)state.m_state);
     DEBUG_PRINT("; m_speed_manual_delta = "); DEBUG_PRINT((int)state.m_speed_manual_delta);
@@ -145,7 +145,7 @@ void G602::manualSpeedSet(int speed)
     m_ctrl.speedManualSet(speed, this);
 }
 
-void G602::P_rpc_eventModeChanged(app::Ctrl::RunMode runMode)
+void G602::P_rpc_eventModeChanged(Ctrl::RunMode runMode)
 {
     uint8_t resc = 1;
     uint16_t resv[1] = { P_run_modes[ARRAY_INDEX(runMode)] };
@@ -321,9 +321,9 @@ void G602::P_task_ctrl(
     int speed_pv_ppm = (int)meas.ppm;
 
     bool motor_state;
-    app::Ctrl::speed_t table_setpoint;
+    Ctrl::speed_t table_setpoint;
     self->m_ctrl.motorGet(&motor_state, &table_setpoint);
-    app::Ctrl::speed_t speed_sp = (motor_state ? table_setpoint : 0);
+    Ctrl::speed_t speed_sp = (motor_state ? table_setpoint : 0);
 
     /* filter */
     int speed_pv_ppm_filtered;
@@ -431,12 +431,12 @@ void G602::P_motor_update()
     P_ctrl_start();
 }
 
-void G602::P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData &data, void * args)
+void G602::P_ctrl_event(Ctrl::Event event, const Ctrl::EventData &data, void * args)
 {
     G602_DEFINE_SELF();
     switch(event)
     {
-        case app::Ctrl::Event::WARNINGS_UPDATE:
+        case Ctrl::Event::WARNINGS_UPDATE:
         {
             bool blink_speed_to_low  = TO_BOOL(data.WARNINGS_UPDATE.warnings & CTRL_WARNING_SPEED_TOO_LOW);
             bool blink_speed_to_high = TO_BOOL(data.WARNINGS_UPDATE.warnings & CTRL_WARNING_SPEED_TOO_HIGH);
@@ -462,36 +462,36 @@ void G602::P_ctrl_event(app::Ctrl::Event event, const app::Ctrl::EventData &data
             break;
         }
 
-        case app::Ctrl::Event::MOTOR_ON:
+        case Ctrl::Event::MOTOR_ON:
         {
             self->P_motor_update();
             break;
         }
 
-        case app::Ctrl::Event::MOTOR_OFF:
+        case Ctrl::Event::MOTOR_OFF:
         {
             self->P_motor_update();
             break;
         }
 
-        case app::Ctrl::Event::MOTOR_SETPOINT_UPDATE:
+        case Ctrl::Event::MOTOR_SETPOINT_UPDATE:
         {
             break;
         }
 
-        case app::Ctrl::Event::LIFT_UP:
+        case Ctrl::Event::LIFT_UP:
         {
             self->m_event_lift_up();
             break;
         }
 
-        case app::Ctrl::Event::LIFT_DOWN:
+        case Ctrl::Event::LIFT_DOWN:
         {
             self->m_event_lift_down();
             break;
         }
 
-        case app::Ctrl::Event::RUNMODE_CHANGED:
+        case Ctrl::Event::RUNMODE_CHANGED:
         {
             self->P_rpc_eventModeChanged(data.RUNMODE_CHANGED.runMode);
             break;
@@ -516,13 +516,13 @@ void G602::P_event_stopUnset(void * args)
 void G602::P_event_speedMode45(void * args)
 {
     G602_DEFINE_SELF();
-    self->m_ctrl.baselineSpeedModeSet(app::Ctrl::BaselineSpeedMode::MODE_HIGH, self);
+    self->m_ctrl.baselineSpeedModeSet(Ctrl::BaselineSpeedMode::MODE_HIGH, self);
 }
 
 void G602::P_event_speedMode33(void * args)
 {
     G602_DEFINE_SELF();
-    self->m_ctrl.baselineSpeedModeSet(app::Ctrl::BaselineSpeedMode::MODE_LOW, self);
+    self->m_ctrl.baselineSpeedModeSet(Ctrl::BaselineSpeedMode::MODE_LOW, self);
 }
 
 void G602::P_event_autostopEnable(void * args)
@@ -541,51 +541,51 @@ void G602::P_event_start(void * args)
 {
     G602_DEFINE_SELF();
 
-    app::Ctrl::RunMode mode = self->m_ctrl.runModeGet();
+    Ctrl::RunMode mode = self->m_ctrl.runModeGet();
     switch(mode)
     {
-        case app::Ctrl::RunMode::NORMAL_STOPPED:
+        case Ctrl::RunMode::NORMAL_STOPPED:
         {
             self->m_ctrl.start(self);
             self->P_blinker_start(GBlinker::BlinkType::ACCELERATING);
             break;
         }
-        case app::Ctrl::RunMode::NORMAL_STARTED_AUTO:
+        case Ctrl::RunMode::NORMAL_STARTED_AUTO:
         {
             self->m_ctrl.start(self);
             self->P_blinker_start(GBlinker::BlinkType::B3TIME);
             break;
         }
-        case app::Ctrl::RunMode::NORMAL_STARTED_MANUAL:
+        case Ctrl::RunMode::NORMAL_STARTED_MANUAL:
         {
             self->m_ctrl.start(self);
             self->P_blinker_start(GBlinker::BlinkType::B1TIME);
             break;
         }
-        case app::Ctrl::RunMode::SERVICE_MODE1_STOPPED:
+        case Ctrl::RunMode::SERVICE_MODE1_STOPPED:
         {
             self->m_ctrl.start(self);
             break;
         }
-        case app::Ctrl::RunMode::SERVICE_MODE1_STARTED:
+        case Ctrl::RunMode::SERVICE_MODE1_STARTED:
         {
             break;
         }
-        case app::Ctrl::RunMode::SERVICE_MODE2_STOPPED:
-        {
-            self->m_ctrl.start(self);
-            break;
-        }
-        case app::Ctrl::RunMode::SERVICE_MODE2_STARTED:
-        {
-            break;
-        }
-        case app::Ctrl::RunMode::SERVICE_MODE3_STOPPED:
+        case Ctrl::RunMode::SERVICE_MODE2_STOPPED:
         {
             self->m_ctrl.start(self);
             break;
         }
-        case app::Ctrl::RunMode::SERVICE_MODE3_STARTED:
+        case Ctrl::RunMode::SERVICE_MODE2_STARTED:
+        {
+            break;
+        }
+        case Ctrl::RunMode::SERVICE_MODE3_STOPPED:
+        {
+            self->m_ctrl.start(self);
+            break;
+        }
+        case Ctrl::RunMode::SERVICE_MODE3_STARTED:
         {
             break;
         }
@@ -596,10 +596,10 @@ void G602::P_event_stop(void * args)
 {
     G602_DEFINE_SELF();
 
-    app::Ctrl::RunMode mode = self->m_ctrl.runModeGet();
+    Ctrl::RunMode mode = self->m_ctrl.runModeGet();
     switch(mode)
     {
-        case app::Ctrl::RunMode::NORMAL_STOPPED:
+        case Ctrl::RunMode::NORMAL_STOPPED:
         {
             self->m_sched.shedule(
                 shed_task_id_service_mode_awaiting,
@@ -609,49 +609,49 @@ void G602::P_event_stop(void * args)
             );
             break;
         }
-        case app::Ctrl::RunMode::NORMAL_STARTED_AUTO:
+        case Ctrl::RunMode::NORMAL_STARTED_AUTO:
         {
             self->m_ctrl.stop(self);
             self->P_blinker_start(GBlinker::BlinkType::BRAKING);
             break;
         }
-        case app::Ctrl::RunMode::NORMAL_STARTED_MANUAL:
+        case Ctrl::RunMode::NORMAL_STARTED_MANUAL:
         {
             self->m_ctrl.stop(self);
             self->P_blinker_start(GBlinker::BlinkType::BRAKING);
             break;
         }
-        case app::Ctrl::RunMode::SERVICE_MODE1_STOPPED:
+        case Ctrl::RunMode::SERVICE_MODE1_STOPPED:
         {
             self->m_ctrl.mode_service_2(self);
             self->P_blinker_start(GBlinker::BlinkType::B2TIME);
             break;
         }
-        case app::Ctrl::RunMode::SERVICE_MODE1_STARTED:
+        case Ctrl::RunMode::SERVICE_MODE1_STARTED:
         {
             self->m_ctrl.stop(self);
             self->P_blinker_start(GBlinker::BlinkType::BRAKING);
             break;
         }
-        case app::Ctrl::RunMode::SERVICE_MODE2_STOPPED:
+        case Ctrl::RunMode::SERVICE_MODE2_STOPPED:
         {
             self->m_ctrl.mode_service_3(self);
             self->P_blinker_start(GBlinker::BlinkType::B3TIME);
             break;
         }
-        case app::Ctrl::RunMode::SERVICE_MODE2_STARTED:
+        case Ctrl::RunMode::SERVICE_MODE2_STARTED:
         {
             self->m_ctrl.stop(self);
             self->P_blinker_start(GBlinker::BlinkType::BRAKING);
             break;
         }
-        case app::Ctrl::RunMode::SERVICE_MODE3_STOPPED:
+        case Ctrl::RunMode::SERVICE_MODE3_STOPPED:
         {
             self->m_ctrl.mode_normal(self);
             self->P_blinker_start(GBlinker::BlinkType::FAST6);
             break;
         }
-        case app::Ctrl::RunMode::SERVICE_MODE3_STARTED:
+        case Ctrl::RunMode::SERVICE_MODE3_STARTED:
         {
             self->m_ctrl.stop(self);
             self->P_blinker_start(GBlinker::BlinkType::BRAKING);
@@ -718,7 +718,7 @@ uint8_t G602::P_rpc_func_01_mode_current_r(
     G602_DEFINE_SELF();
     if(argc != 0) return GRPC_REPLY_ERR_INVALID_ARGUMENTS_AMOUNT;
 
-    app::Ctrl::RunMode runMode = self->m_ctrl.runModeGet();
+    Ctrl::RunMode runMode = self->m_ctrl.runModeGet();
 
     (*resc) = 1;
     resv[0] = P_run_modes[ARRAY_INDEX(runMode)];
@@ -771,10 +771,10 @@ uint8_t G602::P_rpc_func_03_koef_w(
 )
 {
     G602_DEFINE_SELF();
-    app::Ctrl::RunMode runMode = self->m_ctrl.runModeGet();
+    Ctrl::RunMode runMode = self->m_ctrl.runModeGet();
     if(!(
-            runMode == app::Ctrl::RunMode::SERVICE_MODE3_STOPPED ||
-            runMode == app::Ctrl::RunMode::SERVICE_MODE3_STARTED
+            runMode == Ctrl::RunMode::SERVICE_MODE3_STOPPED ||
+            runMode == Ctrl::RunMode::SERVICE_MODE3_STARTED
     ))
     {
         return GRPC_REPLY_ERR_INVALID_MODE;
@@ -818,7 +818,7 @@ uint8_t G602::P_rpc_func_04_speed_SP_r(
     G602_DEFINE_SELF();
     if(argc != 0) return GRPC_REPLY_ERR_INVALID_ARGUMENTS_AMOUNT;
 
-    app::Ctrl::speed_t speed = self->m_ctrl.speedFreeGet();
+    Ctrl::speed_t speed = self->m_ctrl.speedFreeGet();
     (*resc) = 1;
     resv[0] = (uint16_t)speed;
 
@@ -838,10 +838,10 @@ uint8_t G602::P_rpc_func_05_speed_SP_w(
 )
 {
     G602_DEFINE_SELF();
-    app::Ctrl::RunMode runMode = self->m_ctrl.runModeGet();
+    Ctrl::RunMode runMode = self->m_ctrl.runModeGet();
     if(!(
-            runMode == app::Ctrl::RunMode::SERVICE_MODE3_STOPPED ||
-            runMode == app::Ctrl::RunMode::SERVICE_MODE3_STARTED
+            runMode == Ctrl::RunMode::SERVICE_MODE3_STOPPED ||
+            runMode == Ctrl::RunMode::SERVICE_MODE3_STARTED
     ))
     {
         return GRPC_REPLY_ERR_INVALID_MODE;
@@ -918,10 +918,10 @@ uint8_t G602::P_rpc_func_09_conf_store(
 )
 {
     G602_DEFINE_SELF();
-    app::Ctrl::RunMode runMode = self->m_ctrl.runModeGet();
+    Ctrl::RunMode runMode = self->m_ctrl.runModeGet();
     if(!(
-            runMode == app::Ctrl::RunMode::SERVICE_MODE3_STOPPED ||
-            runMode == app::Ctrl::RunMode::SERVICE_MODE3_STARTED
+            runMode == Ctrl::RunMode::SERVICE_MODE3_STOPPED ||
+            runMode == Ctrl::RunMode::SERVICE_MODE3_STARTED
     ))
     {
         return GRPC_REPLY_ERR_INVALID_MODE;

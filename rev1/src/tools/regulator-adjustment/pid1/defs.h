@@ -1,7 +1,8 @@
 #ifndef DEFS_H
 #define DEFS_H
 
-#define INTERVAL_MS 100
+#define SIMULATION_DELAY_MS 50 /* interval between simulation ticks. lower value -> faster simulation */
+#define INTERVAL_MS 750 /* interval of measures */
 
 #define MANUAL_SETPOINT_MIN (0)
 #define MANUAL_SETPOINT_MAX (51)

@@ -41,10 +41,13 @@ private slots:
     /* установить значение функции уставки */
     void P_setpointValueChanged(int value);
 
+    void P_setpointSet0(bool);
+    void P_setpointSet33(bool);
+    void P_setpointSet45(bool);
+
     void P_tickEventSimulation();
     void P_tickEventCommon();
     void P_indication_update(double setpoint, double processVariable, double PV_amplitude);
-
 
     /**
      * @param intervalx     Интервал между значениями по оси X, мс
@@ -72,13 +75,12 @@ private:
     Comm * m_comm;
     Device * m_device;
 
-    double m_processVariable;
-    bool m_setpoint_manual;
+    double m_sim_processVariable;
+    bool m_sim_setpoint_manual;
     int m_accumulated_values;
-    double m_simulatuion_value;
+    unsigned long m_sim_time_ms;
 
     QTimer * m_timer;
-    unsigned long m_time;
     bool m_paused;
 
     CTestMotor *m_engine;
@@ -96,9 +98,6 @@ private:
     CSlidingWindow m_valuesSetpoint;
     CSlidingWindow m_valuesPV;
     CSlidingWindow m_valuesOut;
-    double m_plot_start;
-    double m_plot_end;
-
 
 #ifdef APP_USE_CGRAPH
     QList<double> m_valuesSetpoint;
@@ -134,8 +133,7 @@ private slots:
 
     void P_device_reqstats_update();
 
-    void P_runMode_device_plot_clear();
-    void P_runMode_simulatin_plot_clear();
+    void P_plot_clear();
     void P_runModeChange(bool simulation);
 
     /** @brief Добавить сырые данные из m_serial в консоль и m_comm*/
