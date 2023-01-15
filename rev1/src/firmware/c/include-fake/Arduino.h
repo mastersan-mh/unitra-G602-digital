@@ -57,6 +57,7 @@ public:
     void println(unsigned short int);
     void println(long int);
     void println(unsigned long int);
+    void println(double);
     void print(const char *);
     void print(char);
     void print(unsigned char);
@@ -65,6 +66,7 @@ public:
     void print(unsigned short int);
     void print(long int);
     void print(unsigned long int);
+    void print(double);
 };
 extern CSerial Serial;
 

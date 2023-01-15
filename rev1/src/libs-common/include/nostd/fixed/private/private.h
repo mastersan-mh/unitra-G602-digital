@@ -28,8 +28,20 @@
 #define FIXED_MUL(xtype, xfracbits, xenclosingtype, a, b) \
     ( (xtype)( (xenclosingtype)(a) * (b) >> (xfracbits) ) )
 
+/**
+ * @brief Multiplication by integer value
+ */
+#define FIXED_MUL_BY_INT(xtype, a, b_integer) \
+    ( (xtype)( (a) * (b_integer) ) )
+
 #define FIXED_DIV(xtype, xfracbits, xenclosingtype, a, b) \
     ( (xtype)( ( ((xenclosingtype)(a)) << (xfracbits) ) / (b) ) )
+
+/**
+ * @brief Division by integer value
+ */
+#define FIXED_DIV_BY_INT(xtype, a, b_integer) \
+    ( (xtype)( (a) / (b_integer) ) )
 
 /**
  * @brief Init FIXED value by integer part.

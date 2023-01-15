@@ -165,7 +165,7 @@ private:
     /**
      * @param speed     speed, pulses/minute
      */
-    void P_rpc_request_05_speed_SP_w(uint16_t speed, ReqMode reqmode);
+    void P_rpc_request_05_speed_SP_w(double speed, ReqMode reqmode);
     void P_rpc_request_06_speed_PV_r(ReqMode reqmode);
     void P_rpc_request_07_process_start(ReqMode reqmode);
     void P_rpc_request_08_process_stop(ReqMode reqmode);

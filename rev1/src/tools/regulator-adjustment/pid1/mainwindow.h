@@ -39,7 +39,7 @@ private slots:
     void pause_unpause(bool);
 
     /* установить значение функции уставки */
-    void P_setpointValueChanged(int value);
+    void P_setpointValueChanged(double value);
 
     void P_setpointSet0(bool);
     void P_setpointSet33(bool);

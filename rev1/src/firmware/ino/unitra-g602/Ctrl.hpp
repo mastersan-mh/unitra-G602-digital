@@ -8,14 +8,16 @@
 
 #define CTRL_WARNING_ALL (CTRL_WARNING_SPEED_TOO_LOW | CTRL_WARNING_SPEED_TOO_HIGH)
 
+#include "Speed.hpp"
+
+#include <nostd.h>
+
 /**
  * @brief Class-controller
  */
 class Ctrl
 {
 public:
-    typedef int speed_t;
-
     enum class Error
     {
         OK,
@@ -53,21 +55,25 @@ public:
         RUNMODE_CHANGED,
     };
 
-    typedef union
+    struct EventData
     {
-        struct
+        ~EventData(){};
+        union
         {
-            unsigned warnings;
-        } WARNINGS_UPDATE;
-        struct
-        {
-            speed_t setpoint;
-        } MOTOR_SETPOINT_UPDATE;
-        struct
-        {
-            RunMode runMode;
-        } RUNMODE_CHANGED;
-    }  EventData;
+            struct
+            {
+                unsigned warnings{};
+            } WARNINGS_UPDATE;
+            struct
+            {
+                Speed setpoint;
+            } MOTOR_SETPOINT_UPDATE;
+            struct
+            {
+                RunMode runMode;
+            } RUNMODE_CHANGED;
+        };
+    };
 
 #define CTRL_BASESPEEDMODE__NUM (static_cast<int>(BaselineSpeedMode::MODE_HIGH) + 1)
 
@@ -80,8 +86,8 @@ public:
      * Gparam baseSpeedHigh     Базовая скорость: высокая
      */
     Ctrl(
-            speed_t baseSpeedLow,
-            speed_t baseSpeedHigh,
+            Speed baseSpeedLow,
+            Speed baseSpeedHigh,
             void (*eventFunc)(Event event, const EventData& data, void * args),
             void * args
     );
@@ -93,19 +99,19 @@ public:
     /**
      * @brief Вручную задать отклонение скорости от выбраной базовой скорости
      */
-    Error speedManualSet(speed_t speed, void * args);
+    Error speedManualSet(Speed speed, void * args);
 
     /**
      * @brief Get setpoint of freespeed
      */
-    speed_t speedFreeGet();
+    Speed speedFreeGet();
     /**
      * @brief Свободное задание скорости для SERVICE_MODE_3
      * @note не зависит от baseline
      */
-    Error speedFreeSet(speed_t speed, void * args);
+    Error speedFreeSet(Speed speed, void * args);
 
-    void motorGet(bool * motor_state, speed_t * motor_setpoint);
+    void motorGet(bool * motor_state, Speed * motor_setpoint);
 
     Error autostopAllowSet(bool allow_autostop, void * args);
 
@@ -123,7 +129,11 @@ public:
     /**
      * @param speed     Current table speed
      */
-    void actualSpeedUpdate(speed_t speed, void * args);
+    void actualSpeedUpdate(Speed speed, void * args);
+    Speed actualSpeed()
+    {
+        return m_speed_PV;
+    }
 
     /**
      * @brief сработал датчик автостопа?
@@ -163,12 +173,12 @@ private:
         {
             struct
             {
-                speed_t speed;
+                Speed speed;
             } SPEED_MANUAL_UPDATE;
 
             struct
             {
-                speed_t speed;
+                Speed speed;
             } SPEED_FREE_UPDATE;
         };
     };
@@ -189,7 +199,7 @@ private:
 
     /* init vars */
     void (*m_eventFunc)(Event event, const EventData& data, void * args);
-    speed_t m_speed_baselines[CTRL_BASESPEEDMODE__NUM]{};
+    Speed m_speed_baselines[CTRL_BASESPEEDMODE__NUM]{};
 
     State m_state = State::INIT; /**< Finite State Machine state */
     unsigned m_state_errors = 0; /**< bitmap of errors */
@@ -198,23 +208,23 @@ private:
     bool m_state_autostop_triggered = false;
 
     /* user control variables */
-    speed_t m_speed_SP_manual_delta = 0;
-    speed_t m_speed_SP_free = 0;
+    Speed m_speed_SP_manual_delta{};
+    Speed m_speed_SP_free{};
+    Speed m_speed_PV{};
     BaselineSpeedMode m_speed_baseline_mode = BaselineSpeedMode::MODE_LOW;
     bool m_motor_state_cached = false; /*on/off */
-    speed_t m_motor_speed_SP_cached = 0;
+    Speed m_motor_speed_SP_cached{};
 
     CommandData m_cmdData{};
     EventData m_eventData{};
 
-    speed_t P_speed_baseline_get() const;
-
+    Speed P_speed_baseline_get() const;
     void P_event(Event event, const EventData& data, void * args) const;
     void P_event_warnings_set(unsigned warn, void * args);
     void P_event_warnings_clean(unsigned warn, void * args);
     void P_event_motor_on(void * args);
     void P_event_motor_off(void * args);
-    void P_event_motor_setpoint_update(Ctrl::speed_t setpoint, void * args);
+    void P_event_motor_setpoint_update(Speed setpoint, void * args);
     void P_event_lift_up(void * args);
     void P_event_lift_down(void * args);
     void P_event_runmode_changed(RunMode runMode, void * args);
@@ -227,7 +237,7 @@ public:
     typedef struct
     {
         State m_state;
-        speed_t m_speed_SP_manual_delta;
+        Speed m_speed_SP_manual_delta;
     } internal_state_t;
     void debug_get(internal_state_t * state) const;
 #endif

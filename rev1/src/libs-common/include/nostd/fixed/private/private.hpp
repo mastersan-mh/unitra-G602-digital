@@ -112,31 +112,43 @@ public:
         return FixedPoint(FIXED_MUL(TFixed, TFracbits, TEnclosingtype, m_value, right.m_value), tag_raw);
     }
 
+    template<typename Tright_integer>
+    constexpr FixedPoint operator*(const Tright_integer& right) const noexcept
+    {
+        return FixedPoint(FIXED_MUL_BY_INT(TFixed, m_value, right), tag_raw);
+    }
+
     constexpr FixedPoint operator/(const FixedPoint& right) const noexcept
     {
         return FixedPoint(FIXED_DIV(TFixed, TFracbits, TEnclosingtype, m_value, right.m_value), tag_raw);
     }
 
+    template<typename Tright_integer>
+    constexpr FixedPoint operator/(const Tright_integer& right) const noexcept
+    {
+        return FixedPoint(FIXED_DIV_BY_INT(TFixed, m_value, right), tag_raw);
+    }
+
     /* <FixedPoint> <op>= <FixedPoint> */
-    constexpr FixedPoint& operator+=(const FixedPoint& right) noexcept
+    FixedPoint& operator+=(const FixedPoint& right) noexcept
     {
         m_value += right.m_value;
         return *this;
     }
 
-    constexpr FixedPoint& operator-=(const FixedPoint& right) noexcept
+    FixedPoint& operator-=(const FixedPoint& right) noexcept
     {
         m_value -= right.m_value;
         return *this;
     }
 
-    constexpr FixedPoint& operator*=(const FixedPoint& right) noexcept
+    FixedPoint& operator*=(const FixedPoint& right) noexcept
     {
         m_value = FIXED_MUL(TFixed, TFracbits, TEnclosingtype, m_value, right.m_value);
         return *this;
     }
 
-    constexpr FixedPoint& operator/=(const FixedPoint& right) noexcept
+    FixedPoint& operator/=(const FixedPoint& right) noexcept
     {
         m_value = FIXED_DIV(TFixed, TFracbits, TEnclosingtype, m_value, right.m_value);
         return *this;

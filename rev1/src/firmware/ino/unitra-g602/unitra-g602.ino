@@ -59,11 +59,20 @@ DEBUG_INIT_GLOBAL();
 //#define rotate_pulse_counter_t unsigned int
 using rotate_pulse_counter_t = unsigned int;
 
-static unsigned long time;
-static unsigned long time_prev = 0;
-static unsigned long cycletime = 0;
+static unsigned long g_time;
+static unsigned long g_time_prev = 0;
+static unsigned long c_cycletime = 0;
 
-void dump_u8(const uint8_t * data, unsigned size)
+template<typename T>
+T utils_map(T x, T in_min, T in_max, T out_min, T out_max)
+{
+    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
+void dump_u8(
+        const uint8_t * data ARG_UNUSED,
+        unsigned size
+)
 {
     unsigned i;
     DEBUG_PRINT("  size8 = ");
@@ -77,7 +86,10 @@ void dump_u8(const uint8_t * data, unsigned size)
     }
 }
 
-void dump_u16(const uint16_t * data, unsigned size)
+void dump_u16(
+        const uint16_t * data ARG_UNUSED,
+        unsigned size
+)
 {
     unsigned i;
     DEBUG_PRINT("  size16 = ");
@@ -220,7 +232,7 @@ static void P_pulses_get(unsigned * motor_dpulses, unsigned * table_dpulses)
     (*table_dpulses) = t_pulse.pulses;
 
 #if 0
-    DEBUG_PRINT(time);
+    DEBUG_PRINT(g_time);
 
     DEBUG_PRINT("\tpulses ");
     DEBUG_PRINT(t_pulse.pulses);
@@ -233,8 +245,6 @@ static void P_pulses_get(unsigned * motor_dpulses, unsigned * table_dpulses)
 }
 
 static G602 g602(
-    G602_SPEED_BASELINE_LOW,
-    G602_SPEED_BASELINE_HIGH,
     P_config_store,
     P_config_load,
     P_event_strober,
@@ -246,14 +256,14 @@ static G602 g602(
 
 void P_pulses_init(volatile struct pulse * pulse)
 {
-    pulse->change_time = time;
+    pulse->change_time = g_time;
     pulse->pulses = 0;
     pulse->bounces = 0;
 }
 
 static void P_pulse_update(volatile struct pulse * pulse, unsigned long bounce_time)
 {
-    if(time - pulse->change_time >= bounce_time)
+    if(g_time - pulse->change_time >= bounce_time)
     {
         ++(pulse->pulses);
     }
@@ -261,7 +271,7 @@ static void P_pulse_update(volatile struct pulse * pulse, unsigned long bounce_t
     {
         ++(pulse->bounces);
     }
-    pulse->change_time = time;
+    pulse->change_time = g_time;
 }
 
 void drive_rotate_pulse_update(void)
@@ -282,7 +292,7 @@ void setup()
 
     DEBUG_PRINT_INIT();
 
-    time = millis();
+    g_time = millis();
 
     nostd::set_fatal(terminate_handler);
     /* INFO: разомкнуто = HIGH */
@@ -318,11 +328,11 @@ void setup()
 
 void loop()
 {
-    time_prev = time;
-    time = millis();
-    cycletime = time - time_prev;
+    g_time_prev = g_time;
+    g_time = millis();
+    c_cycletime = g_time - g_time_prev;
 
-    g602.timeSet(time);
+    g602.timeSet(g_time);
 
     /* sensors */
     g602.notifyGaugeStopSet(digitalRead(PIN_DI_GAUGE_STOP) == LOW);
@@ -338,12 +348,14 @@ void loop()
     int avg = potentiometer_avg.averageGet();
 
 #define POTENTIOMETER_TO_MANUAL_SPEED(xval) \
-        (int)map( \
-            xval, \
-            G602_POTENTIOMETER_MIN, G602_POTENTIOMETER_MAX, \
-            G602_SPEED_RANGE_MIN, G602_SPEED_RANGE_MAX \
+        utils_map( \
+                Speed(xval, Speed::tag_int), \
+                Speed(G602_POTENTIOMETER_MIN, Speed::tag_int), \
+                Speed(G602_POTENTIOMETER_MAX, Speed::tag_int), \
+                Speed(G602_SPEED_RANGE_MIN, Speed::tag_double), \
+                Speed(G602_SPEED_RANGE_MAX, Speed::tag_double) \
         )
-    int speed_manual = POTENTIOMETER_TO_MANUAL_SPEED(avg);
+    const Speed speed_manual = POTENTIOMETER_TO_MANUAL_SPEED(avg);
 
     g602.manualSpeedSet(speed_manual);
 

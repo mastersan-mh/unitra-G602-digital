@@ -13,6 +13,7 @@
 #include "GBlinker.hpp"
 #include "GComm.hpp"
 #include "GRPCServer.hpp"
+#include "Speed.hpp"
 
 #include <nostd.h>
 #include <stdint.h>
@@ -23,18 +24,32 @@ class G602
 {
 #define ARRAY_INDEX(x) static_cast<unsigned int>(x)
 
+    static constexpr Speed m_const_value1div2 = Speed(1, Speed::tag_int) / 2;
+
+    static constexpr unsigned m_conf_table_pulses_per_revolution = G602_TABLE_PULSES_PER_REV;
+    static constexpr Speed m_conf_baselineSpeedLow = Speed(G602_SPEED_BASELINE_LOW, Speed::tag_double);
+    static constexpr Speed m_conf_baselineSpeedHigh = Speed(G602_SPEED_BASELINE_HIGH, Speed::tag_double);
+
+    /* WARNING: Before add the new task_id, check the <G602_SHEDULER_TASKS__NUM> */
+    static constexpr nostd::size_t shed_task_id_blinker = 0;
+    static constexpr nostd::size_t shed_task_id_service_mode_awaiting = 1;
+    static constexpr nostd::size_t shed_task_id_ctrl = 2;
+
+    static constexpr unsigned long service_mode_enter_awaiting_time = 5000; /**< time to wait to enter service mode, ms */
+    static constexpr unsigned long ctrl_handler_period = 2250; /**< Length of control tact, ms */
+    static constexpr unsigned long ctrl_pulses_window_size = 1; /**< Window size, amount of elements */
+    static constexpr unsigned ctrl_send_factor = 0; /**< Window size, amount of elements */
+
 public:
     G602() = delete;
     G602(
-        int baselineSpeedLow,
-        int baselineSpeedHigh,
-        void (*event_config_store)(const uint8_t * conf, size_t size),
-        void (*event_config_load)(uint8_t * conf, size_t size, bool * empty),
-        void (*event_strober)(bool on),
-        void (*event_lift_up)(),
-        void (*event_lift_down)(),
-        void (*event_motor_update)(bool state, int setpoint),
-        void (*event_pulses_get)(unsigned * motor_pulses, unsigned * table_pulses)
+            void (*event_config_store)(const uint8_t * conf, size_t size),
+            void (*event_config_load)(uint8_t * conf, size_t size, bool * empty),
+            void (*event_strober)(bool on),
+            void (*event_lift_up)(),
+            void (*event_lift_down)(),
+            void (*event_motor_updatie)(bool state, int setpoint),
+            void (*event_pulses_get)(unsigned * motor_pulses, unsigned * table_pulses)
     );
     virtual ~G602();
     G602(const G602 &) = delete;
@@ -51,22 +66,11 @@ public:
     void notifyButtonStartSet(bool state);
     void notifyButtonStopSet(bool state);
     /** @brief Set manual speed relative to base speed */
-    void manualSpeedSet(int speed);
+    void manualSpeedSet(Speed speed);
 private:
 
-    /* WARNING: Before add the new task_id, check the <G602_SHEDULER_TASKS__NUM> */
-    static const nostd::size_t shed_task_id_blinker = 0;
-    static const nostd::size_t shed_task_id_service_mode_awaiting = 1;
-    static const nostd::size_t shed_task_id_ctrl = 2;
-    static const unsigned long service_mode_enter_awaiting_time = 5000; /**< time to wait to enter service mode, ms */
-    static const unsigned long ctrl_handler_period = 750;
-    static const unsigned long ctrl_window_time = 7500;
-
-#define G602_WINDOW_SIZE  (ctrl_window_time / ctrl_handler_period)
-
-    using Fixed = nostd::Fixed32;
-    using PID = nostd::PidRecurrent<Fixed>;
-    using SWindow = nostd::SlidingWindow<unsigned, G602_WINDOW_SIZE>;
+    using PID = nostd::PidRecurrent<Speed>;
+    using SWindowPulses = nostd::FastSum<unsigned, ctrl_pulses_window_size>;
 
     void (*m_event_config_store)(const uint8_t * conf, size_t size);
     void (*m_event_config_load)(uint8_t * conf, size_t size, bool * empty);
@@ -78,6 +82,7 @@ private:
 
     unsigned long m_time_now  = 0;
     unsigned long m_time_next = 0;
+    unsigned long m_send_counter = 0;
 
     G602Scheduler m_sched{};
     GBlinker m_blinker{};
@@ -96,13 +101,13 @@ private:
 
     bool m_permanent_process_send = false;
 
-    Fixed m_Kp{};
-    Fixed m_Ki{};
-    Fixed m_Kd{};
+    Speed m_Kp{};
+    Speed m_Ki{};
+    Speed m_Kd{};
 
     PID m_pid{};
 
-    SWindow m_pulses{}; /**< Amount of pulses per period <ctrl_handler_period> */
+    SWindowPulses m_pulses_sum{}; /**< Amount of pulses per period <ctrl_handler_period>, sum for period */
 
     void P_config_store();
     void P_config_load();
@@ -144,7 +149,7 @@ private:
 
     /** @brief Update the actual speed */
     void P_rpc_eventModeChanged(Ctrl::RunMode runMode);
-    void P_rpc_eventSPPV(GTime_t time, uint16_t sp, uint16_t pv, fixed32_t out);
+    void P_rpc_eventSPPV(GTime_t time, Speed sp, Speed pv, Speed out);
 
 };
 

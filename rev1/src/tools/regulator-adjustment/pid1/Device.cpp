@@ -109,9 +109,7 @@ void Device::speedSetpointRead()
 
 void Device::speedSetpointWrite(double rpm)
 {
-    if(!m_ppr.valid) throw Error::InvalidValue;
-
-    P_rpc_request_05_speed_SP_w(rpm * m_ppr.value, ReqMode::MANUAL);
+    P_rpc_request_05_speed_SP_w(rpm, ReqMode::MANUAL);
 }
 
 void Device::speedPVRead()
@@ -238,12 +236,10 @@ void Device::P_rpc_replyReceived(uint16_t ruid, uint8_t funcId, uint8_t err, con
         }
         case FUNC_04_SPEED_SP_R:
         {
-            if(resv.size() != 1) break;
-            if(m_ppr.valid)
-            {
-                double sp = resv[0] / m_ppr.value;
-                emit ready_speedSetpointRead(false, err, sp);
-            }
+            if(resv.size() != 2) break;
+            const nostd::Fixed32 sp_F32(BUILD32(resv[0], resv[1]), nostd::Fixed32::tag_raw);
+            const double sp = sp_F32.toDouble();
+            emit ready_speedSetpointRead(false, err, sp);
             success = true;
             break;
         }
@@ -255,12 +251,10 @@ void Device::P_rpc_replyReceived(uint16_t ruid, uint8_t funcId, uint8_t err, con
         }
         case FUNC_06_SPEED_PV_R:
         {
-            if(resv.size() != 1) break;
-            if(m_ppr.valid)
-            {
-                double pv = resv[0] / m_ppr.value;
-                emit ready_speedPVRead(false, err, pv);
-            }
+            if(resv.size() != 2) break;
+            const nostd::Fixed32 pv_F32((fixed32_t)BUILD32(resv[0], resv[1]), nostd::Fixed32::tag_raw);
+            const double pv = pv_F32.toDouble();
+            emit ready_speedPVRead(false, err, pv);
             success = true;
             break;
         }
@@ -321,13 +315,14 @@ void Device::P_rpc_eventReceived(uint8_t eventId, const QVector<uint16_t> &resv)
         }
         case EVENT_SPPV:
         {
-            if(!m_ppr.valid) break;
-            if(resv.size() != 6) break;
-            unsigned long time_ms = ((resv[0] << 16) | resv[1]);
-            double sp = (double)resv[2] / (double)m_ppr.value;
-            double pv = (double)resv[3] / (double)m_ppr.value;
-            nostd::Fixed32 f32_out(BUILD32(resv[4], resv[5]), nostd::Fixed32::tag_raw);
-            double out = f32_out.toDouble();
+            if(resv.size() != 8)
+            {
+                break;
+            }
+            unsigned long time_ms = BUILD32(resv[0], resv[1]);
+            const double sp  = nostd::Fixed32((fixed32_t)BUILD32(resv[2], resv[3]), nostd::Fixed32::tag_raw).toDouble();
+            const double pv  = nostd::Fixed32((fixed32_t)BUILD32(resv[4], resv[5]), nostd::Fixed32::tag_raw).toDouble();
+            const double out = nostd::Fixed32((fixed32_t)BUILD32(resv[6], resv[7]), nostd::Fixed32::tag_raw).toDouble();
             emit ready_SPPV(time_ms, sp, pv, out);
             break;
         }
@@ -478,11 +473,14 @@ void Device::P_rpc_request_04_speed_SP_r(ReqMode reqmode)
     return P_rpc_request_common(funcId, argv, reqmode);
 }
 
-void Device::P_rpc_request_05_speed_SP_w(uint16_t speed, ReqMode reqmode)
+void Device::P_rpc_request_05_speed_SP_w(double speed, ReqMode reqmode)
 {
-    enum FuncId funcId = FUNC_05_SPEED_SP_W;
+    const enum FuncId funcId = FUNC_05_SPEED_SP_W;
     QVector<uint16_t> argv;
-    argv.append(speed);
+
+    const fixed32_t raw_speed = nostd::Fixed32(speed, nostd::Fixed32::tag_double).toRawFixed();
+    argv.append(I32_HI(raw_speed));
+    argv.append(I32_LO(raw_speed));
     return P_rpc_request_common(funcId, argv, reqmode);
 }
 
