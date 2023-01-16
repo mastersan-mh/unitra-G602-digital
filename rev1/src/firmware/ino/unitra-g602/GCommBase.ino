@@ -94,18 +94,6 @@ static uint8_t P_digit_to_char(uint8_t value)
     return '*';
 }
 
-GCommBase::GCommBase()
-: m_state(State::S0_AWAIT)
-, m_buf()
-, m_buf_size()
-{
-}
-
-GCommBase::~GCommBase()
-{
-
-}
-
 GCommBase::Error GCommBase::readFrame(uint8_t * data, unsigned capacity, unsigned * size)
 {
     int avail;

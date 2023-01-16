@@ -29,18 +29,11 @@ static Device::RunMode P_convert_device_mode(uint16_t mode)
 
 Device::Device(QObject *parent)
     : QObject(parent)
-    , m_rpc()
-    , m_ppr()
-    , m_mode()
-    , m_koef()
-    , m_prosess_started()
-    , m_statuses()
-    , m_autoqueue()
 {
 
     m_rpc.timeoutSet(5000);
 
-    QObject::connect(&m_rpc, SIGNAL(ready_dataToSend(const QByteArray &))                                 , this, SIGNAL(ready_dataToSend(const QByteArray&)));
+    QObject::connect(&m_rpc, SIGNAL(ready_dataToSend(const QByteArray &))                                , this, SIGNAL(ready_dataToSend(const QByteArray&)));
     QObject::connect(&m_rpc, SIGNAL(replyReceived(uint16_t, uint8_t, uint8_t, const QVector<uint16_t> &)), this, SLOT(P_rpc_replyReceived(uint16_t, uint8_t, uint8_t, const QVector<uint16_t> &)));
     QObject::connect(&m_rpc, SIGNAL(eventReceived(uint8_t, const QVector<uint16_t> &))                   , this, SLOT(P_rpc_eventReceived(uint8_t, const QVector<uint16_t> &)));
     QObject::connect(&m_rpc, SIGNAL(replyTimeout(uint16_t, uint8_t))                                     , this, SLOT(P_rpc_request_timedout(uint16_t, uint8_t)));
@@ -226,9 +219,9 @@ void Device::P_rpc_replyReceived(uint16_t ruid, uint8_t funcId, uint8_t err, con
             }
             else
             {
-                nostd::Fixed32 f32_Kp((fixed32_t)BUILD32(resv[0], resv[1]));
-                nostd::Fixed32 f32_Ki((fixed32_t)BUILD32(resv[2], resv[3]));
-                nostd::Fixed32 f32_Kd((fixed32_t)BUILD32(resv[4], resv[5]));
+                const nostd::Fixed32 f32_Kp((fixed32_t)BUILD32(resv[0], resv[1]));
+                const nostd::Fixed32 f32_Ki((fixed32_t)BUILD32(resv[2], resv[3]));
+                const nostd::Fixed32 f32_Kd((fixed32_t)BUILD32(resv[4], resv[5]));
                 Kp = f32_Kp.toDouble();
                 Ki = f32_Ki.toDouble();
                 Kd = f32_Kd.toDouble();
@@ -465,13 +458,9 @@ void Device::P_rpc_request_03_koef_w(double Kp, double Ki, double Kd, ReqMode re
     enum FuncId funcId = FUNC_03_KOEF_W;
     QVector<uint16_t> argv;
 
-    nostd::Fixed32 f32_Kp(Kp);
-    nostd::Fixed32 f32_Ki(Ki);
-    nostd::Fixed32 f32_Kd(Kd);
-
-    fixed32_t raw_Kp = f32_Kp.toRawFixed();
-    fixed32_t raw_Ki = f32_Ki.toRawFixed();
-    fixed32_t raw_Kd = f32_Kd.toRawFixed();
+    const fixed32_t raw_Kp = nostd::Fixed32(Kp).toRawFixed();
+    const fixed32_t raw_Ki = nostd::Fixed32(Ki).toRawFixed();
+    const fixed32_t raw_Kd = nostd::Fixed32(Kd).toRawFixed();
 
     argv.append(I32_HI(raw_Kp));
     argv.append(I32_LO(raw_Kp));

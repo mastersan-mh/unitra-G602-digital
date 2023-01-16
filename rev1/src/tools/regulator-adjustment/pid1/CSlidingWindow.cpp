@@ -2,14 +2,8 @@
 
 CSlidingWindow::CSlidingWindow(int capacity)
     : m_size(capacity)
-    , m_vec()
 {
     m_vec.reserve(capacity);
-}
-
-CSlidingWindow::~CSlidingWindow()
-{
-
 }
 
 void CSlidingWindow::sizeSet(int size)

@@ -71,7 +71,10 @@ public:
     explicit SettingsDialog(QWidget *parent = 0);
     ~SettingsDialog();
 
-    Settings settings() const;
+    Settings settings() const
+    {
+        return m_currentSettings;
+    }
 
 private slots:
     void showPortInfo(int idx);
@@ -86,8 +89,8 @@ private:
 
 private:
     SettingsDialog_Ui *m_ui;
-    Settings currentSettings;
-    QIntValidator *intValidator;
+    Settings m_currentSettings;
+    QIntValidator *m_intValidator;
 };
 
 #endif // SETTINGSDIALOG_H

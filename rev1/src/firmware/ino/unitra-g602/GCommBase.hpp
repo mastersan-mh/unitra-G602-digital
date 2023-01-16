@@ -22,10 +22,11 @@ public:
         FAILED, /* error while frame reading */
     };
 
-    GCommBase();
-    virtual ~GCommBase();
     GCommBase(const GCommBase &) = delete;
     GCommBase& operator=(const GCommBase &) = delete;
+
+    GCommBase() = default;
+    virtual ~GCommBase() = default;
 
     /**
      * @brief Read entire frame
@@ -55,10 +56,10 @@ private:
         FAILED,
     };
 
-    State m_state;
+    State m_state = State::S0_AWAIT;
 
-    uint8_t m_buf[GCOMMBASE_BUF_SIZE]; /** temporary frame buffer */
-    unsigned m_buf_size;
+    uint8_t m_buf[GCOMMBASE_BUF_SIZE]{}; /** temporary frame buffer */
+    unsigned m_buf_size = 0;
 
     fsmResult P_fsm(char ch);
 

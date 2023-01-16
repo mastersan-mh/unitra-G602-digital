@@ -4,16 +4,6 @@
 namespace fan
 {
 
-Extreme::Extreme()
-    : m_valid(false)
-    , m_value()
-{
-}
-
-Extreme::~Extreme()
-{
-}
-
 void Extreme::reset()
 {
     m_valid = false;
@@ -69,18 +59,6 @@ PointsOrigins pointsOriginsGet(const QVector<double> points3)
     int c1 = pointsCompare(points3[1], points3[2]) + 1;
     int index = c0 * 3 + c1;
     return table[index];
-}
-
-FuncDescr::FuncDescr()
-    : m_ftype(FuncType::NON_MONOTONIC)
-    , m_pointDescrs()
-{
-
-}
-
-FuncDescr::~FuncDescr()
-{
-
 }
 
 FuncDescr::FuncType FuncDescr::typeGet() const

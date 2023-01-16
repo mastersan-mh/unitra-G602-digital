@@ -8,25 +8,12 @@
 
 #define UDATE_TIME_MS 50
 
-
-CGraphPlot::CGraphPlot(CGraph *owner_, const QColor &color_, const QList<double> &values_)
+void CGraphPlot::updatePlotValues(const QList<double> & values)
 {
-    owner = owner_;
-    color = color_;
-    values = values_;
-}
-
-CGraphPlot::~CGraphPlot()
-{
-
-}
-
-void CGraphPlot::updatePlotValues(const QList<double> & values_)
-{
-    values = values_;
-    if(owner != nullptr)
+    m_values = values;
+    if(m_owner != nullptr)
     {
-        owner->slotAlarmTimer();
+        m_owner->slotAlarmTimer();
     }
 }
 
@@ -249,13 +236,13 @@ void CGraph::slotAlarmTimer()
     foreach(CGraphPlot * plot, plots)
     {
         x = 0.0;
-        pen.setColor(plot->color);
+        pen.setColor(plot->m_color);
 
         QPainterPath * path = new QPainterPath();
 
         bool first = true;
 
-        foreach(double value, plot->values)
+        foreach(double value, plot->m_values)
         {
             if(first)
             {

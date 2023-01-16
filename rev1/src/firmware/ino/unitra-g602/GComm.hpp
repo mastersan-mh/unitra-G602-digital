@@ -23,9 +23,9 @@ public:
 
 private:
 
-    virtual unsigned bytesRawAvailable();
-    virtual int  byteReadRaw();
-    virtual void byteWriteRaw(uint8_t byte);
+    virtual unsigned bytesRawAvailable() override;
+    virtual int  byteReadRaw() override;
+    virtual void byteWriteRaw(uint8_t byte) override;
 
 };
 

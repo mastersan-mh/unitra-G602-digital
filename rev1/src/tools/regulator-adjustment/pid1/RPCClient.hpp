@@ -11,7 +11,10 @@ class RPCClient : public QObject
     Q_OBJECT
 public:
 
-    explicit RPCClient(QObject *parent = 0);
+    explicit RPCClient(QObject *parent = 0)
+        : QObject(parent)
+    {}
+    ~RPCClient() = default;
 
     void timeoutSet(int timeout);
     /**
@@ -45,12 +48,12 @@ private:
 
     class IncomingMsg;
 
-    uint16_t m_ruid_last;
+    uint16_t m_ruid_last = 0;
 
-    int m_timeout; /**< msec */
+    int m_timeout = 1000; /**< msec */
 
     typedef QMap<uint16_t, struct awaiting_request> request_t;
-    request_t m_awaiting_requests; /**< sended requests */
+    request_t m_awaiting_requests{}; /**< sended requests */
 
     int P_encode(
             uint16_t ruid,
@@ -66,17 +69,17 @@ private:
     class IncomingMsg
     {
     public:
-        IncomingMsg();
-        ~IncomingMsg();
+        IncomingMsg() = default;
+        ~IncomingMsg() = default;
 
-        uint8_t type;
+        uint8_t type{};
 
         union
         {
             struct
             {
-                uint8_t error;
-                uint16_t ruid;
+                uint8_t error{};
+                uint16_t ruid{};
             };
             struct
             {
@@ -84,7 +87,7 @@ private:
             };
         };
 
-        QVector<uint16_t> resv;
+        QVector<uint16_t> resv{};
 
     };
 

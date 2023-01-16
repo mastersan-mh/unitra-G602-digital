@@ -46,14 +46,6 @@ static void P_u16_append(uint16_t value, QByteArray & data)
     data.append((char)(value & 0x00ff));
 }
 
-RPCClient::RPCClient(QObject *parent)
-    : QObject(parent)
-    , m_ruid_last(0)
-    , m_timeout(1000)
-    , m_awaiting_requests()
-{
-}
-
 void RPCClient::timeoutSet(int timeout)
 {
     m_timeout = timeout;
@@ -232,14 +224,3 @@ void RPCClient::P_awaiting_request_delete(struct awaiting_request & req)
     delete timer;
 }
 
-RPCClient::IncomingMsg::IncomingMsg()
-    : type()
-    , error()
-    , ruid()
-    , resv()
-{
-}
-
-RPCClient::IncomingMsg::~IncomingMsg()
-{
-}

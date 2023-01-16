@@ -2,17 +2,6 @@
 
 #include <math.h>
 
-CTestMotor::CTestMotor(double braking_strength)
-{
-    m_braking_strength = braking_strength;
-    m_speed = 0.0;
-}
-
-CTestMotor::~CTestMotor()
-{
-
-}
-
 /**
  * @param power = [0; 1]
  * @return speed
