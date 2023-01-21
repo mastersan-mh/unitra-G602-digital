@@ -19,34 +19,39 @@ extern "C"
 
 typedef int32_t fixed32_t;
 
-static FIXEDPOINT_INLINE fixed32_t fixed32_abs(fixed32_t x) FIXEDPOINT_C_NOEXCEPT
+static inline fixed32_t fixed32_abs(fixed32_t x) FIXEDPOINT_C_NOEXCEPT
 {
     return FIXED_ABS(fixed32_t, x);
 }
 
-static FIXEDPOINT_INLINE fixed32_t fixed32_mul(fixed32_t a, fixed32_t b) FIXEDPOINT_C_NOEXCEPT
+static inline fixed32_t fixed32_mul(fixed32_t a, fixed32_t b) FIXEDPOINT_C_NOEXCEPT
 {
     return FIXED_MUL(fixed32_t, FIXED32_FRACBITS, int64_t, a, b);
 }
 
-static FIXEDPOINT_INLINE fixed32_t fixed32_div(fixed32_t a, fixed32_t b) FIXEDPOINT_C_NOEXCEPT
+static inline fixed32_t fixed32_div(fixed32_t a, fixed32_t b) FIXEDPOINT_C_NOEXCEPT
 {
     return FIXED_DIV(fixed32_t, FIXED32_FRACBITS, int64_t, a, b);
 }
 
-static FIXEDPOINT_INLINE fixed32_t int_to_fixed32(int val) FIXEDPOINT_C_NOEXCEPT
+static inline fixed32_t fixed32_from_int(int16_t val) FIXEDPOINT_C_NOEXCEPT
 {
-    return INT_TO_FIXED(fixed32_t, FIXED32_FRACBITS, int64_t, val);
+    return FIXED__FROM_INT(fixed32_t, FIXED32_FRACBITS, val);
 }
 
-static FIXEDPOINT_INLINE fixed32_t double_to_fixed32(double val) FIXEDPOINT_C_NOEXCEPT
+static inline fixed32_t fixed32_from_int_frac(int16_t vint, int16_t vfrac) FIXEDPOINT_C_NOEXCEPT
 {
-    return DOUBLE_TO_FIXED(fixed32_t, FIXED32_FRACBITS, val);
+    return FIXED__FROM_INT_FRAC(fixed32_t, FIXED32_FRACBITS, vint, vfrac);
 }
 
-static FIXEDPOINT_INLINE double fixed32_to_double(fixed32_t val) FIXEDPOINT_C_NOEXCEPT
+static inline fixed32_t fixed32_from_double(double val) FIXEDPOINT_C_NOEXCEPT
 {
-    return FIXED_TO_DOUBLE(fixed32_t, FIXED32_FRACBITS, val);
+    return FIXED__FROM_DOUBLE(fixed32_t, FIXED32_FRACBITS, val);
+}
+
+static inline double fixed32_to_double(fixed32_t val) FIXEDPOINT_C_NOEXCEPT
+{
+    return FIXED__TO_DOUBLE(fixed32_t, FIXED32_FRACBITS, val);
 }
 
 #ifdef __cplusplus
