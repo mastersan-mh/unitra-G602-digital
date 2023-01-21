@@ -189,7 +189,7 @@ private:
 
     /* init vars */
     void (*m_eventFunc)(Event event, const EventData& data, void * args);
-    speed_t m_speed_baselines[CTRL_BASESPEEDMODE__NUM];
+    speed_t m_speed_baselines[CTRL_BASESPEEDMODE__NUM]{};
 
     State m_state = State::INIT; /**< Finite State Machine state */
     unsigned m_state_errors = 0; /**< bitmap of errors */

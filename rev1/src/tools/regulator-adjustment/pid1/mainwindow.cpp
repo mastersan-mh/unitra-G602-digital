@@ -44,14 +44,6 @@ MainWindow::MainWindow(QWidget *parent)
     m_ui->mainMenu.actionConfigure->setEnabled(true);
     m_ui->mainMenu.actionRunMode->setEnabled(true);
 
-#if defined(PID_DISCRETE)
-    pid = new PID(0.0, 0.0, 0.0);
-#elif defined(PID_RECURRENT)
-    pid = new PID_recurrent(0.0, 0.0, 0.0);
-#elif defined(PID_RECURRENT_FIXED32)
-    m_pid = new PID_recurrent_Fixed32(nostd::Fixed32(0.0), nostd::Fixed32(0.0), nostd::Fixed32(0.0));
-#endif
-
     m_sim_processVariable = 0.0;
 
     m_timer = new QTimer();
@@ -604,20 +596,20 @@ void MainWindow::pidK_changed(double Kp, double Ki, double Kd)
 {
 
 #if defined(PID_DISCRETE)
-    pid->KpSet(Kp_);
-    pid->KiSet(Ki_);
-    pid->KdSet(Kd_);
+    m_pid.KpSet(Kp);
+    m_pid.KiSet(Ki);
+    m_pid.KdSet(Kd);
 #elif defined(PID_RECURRENT)
-    pid->KpSet(Kp_);
-    pid->KiSet(Ki_);
-    pid->KdSet(Kd_);
+    m_pid.KpSet(Kp);
+    m_pid.KiSet(Ki);
+    m_pid.KdSet(Kd);
 #elif defined(PID_RECURRENT_FIXED32)
-    m_pid->KpSet(nostd::Fixed32(Kp));
-    m_pid->KiSet(nostd::Fixed32(Ki));
-    m_pid->KdSet(nostd::Fixed32(Kd));
+    m_pid.KpSet(nostd::Fixed32(Kp, nostd::Fixed32::tag_double));
+    m_pid.KiSet(nostd::Fixed32(Ki, nostd::Fixed32::tag_double));
+    m_pid.KdSet(nostd::Fixed32(Kd, nostd::Fixed32::tag_double));
 #endif
 
-    m_pid->reset();
+    m_pid.reset();
 
 }
 
@@ -793,11 +785,14 @@ void MainWindow::P_tickEventSimulation()
         }
 
 #if defined(PID_DISCRETE)
-        double power = pid->calculate(setpoint, processVariable);
+        double power = m_pid.calculate(m_sim_setpoint, m_sim_processVariable);
 #elif defined(PID_RECURRENT)
-        double power = pid->calculate(setpoint, processVariable);
+        double power = m_pid.calculate(m_sim_setpoint, m_sim_processVariable);
 #elif defined(PID_RECURRENT_FIXED32)
-        double power = m_pid->calculate(nostd::Fixed32(m_sim_setpoint), nostd::Fixed32(m_sim_processVariable)).toDouble();
+        double power = m_pid.calculate(
+                    nostd::Fixed32(m_sim_setpoint, nostd::Fixed32::tag_double),
+                    nostd::Fixed32(m_sim_processVariable, nostd::Fixed32::tag_double)
+                    ).toDouble();
 #endif
 
         m_sim_processVariable = m_engine->process(power);

@@ -1,9 +1,3 @@
-#include <util/atomic.h>
-#include <EEPROM.h>
-
-#include <nostd-main.h>
-#include <nostd.h>
-
 #include "config.hpp"
 
 #include "defs.hpp"
@@ -13,6 +7,12 @@
 #include "G602.hpp"
 
 #include "utils.hpp"
+
+#include <nostd-main.h>
+#include <nostd.h>
+
+#include <util/atomic.h>
+#include <EEPROM.h>
 
 DEBUG_INIT_GLOBAL();
 
@@ -57,7 +57,7 @@ DEBUG_INIT_GLOBAL();
 #define BOOL_TO_STR(xval) (xval ? "true" : "false")
 
 //#define rotate_pulse_counter_t unsigned int
-typedef unsigned int rotate_pulse_counter_t;
+using rotate_pulse_counter_t = unsigned int;
 
 static unsigned long time;
 static unsigned long time_prev = 0;

@@ -12,7 +12,6 @@ Ctrl.hpp
 Ctrl.ino
 GTime.hpp
 GObject.hpp
-GObject.ino
 GDInput.hpp
 GDInput.ino
 GDInputDebounced.hpp

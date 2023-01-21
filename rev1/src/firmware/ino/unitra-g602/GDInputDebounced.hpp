@@ -25,27 +25,34 @@ public:
         void * args,
         GTime_t debounceTime
     );
-    virtual ~GDInputDebounced();
+    virtual ~GDInputDebounced() = default;
     /**
      * @param state         input is ON(true) or OFF(false)
      * @param time          time in msec, as returned by millis(). Should be monotonic.
      */
-    virtual void stateSet(bool state, void * args, GTime_t time_current);
+    void stateSet(bool state, void * args, GTime_t time_current);
 
 #ifdef GDInputDebounced_DEBUG
     virtual unsigned int debug_bouncesAmountGet() const;
+    {
+        return m_debug_bounces;
+    }
+
     virtual GTime_t debug_bouncesTimeGet() const;
+    {
+        return m_debug_bouncesTime;
+    }
 #endif
 
 private:
-    GTime_t debounceTime;
-    GTime_t debounceLastTime;
-    bool bouncedStatePrev;
+    GTime_t m_debounceTime;
+    GTime_t m_debounceLastTime = 0;
+    bool m_bouncedStatePrev;
 
 #ifdef GDInputDebounced_DEBUG
-    unsigned int debug_bounces;
-    GTime_t debug_bouncesStartTime;
-    GTime_t debug_bouncesTime;
+    unsigned int m_debug_bounces = 0;
+    GTime_t m_debug_bouncesStartTime = 0;
+    GTime_t m_debug_bouncesTime = 0;
 #endif
 
 };

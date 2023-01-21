@@ -17,7 +17,7 @@
 #include <nostd.h>
 #include <stdint.h>
 
-typedef nostd::SchedulerSoft< G602_SHEDULER_TASKS__NUM, GTime_t > G602Scheduler;
+using G602Scheduler = nostd::SchedulerSoft< G602_SHEDULER_TASKS__NUM, GTime_t >;
 
 class G602
 {
@@ -64,9 +64,9 @@ private:
 
 #define G602_WINDOW_SIZE  (ctrl_window_time / ctrl_handler_period)
 
-    typedef nostd::Fixed32 Fixed;
-    typedef nostd::PidRecurrent<Fixed> PID;
-    typedef nostd::SlidingWindow<unsigned, G602_WINDOW_SIZE> SWindow;
+    using Fixed = nostd::Fixed32;
+    using PID = nostd::PidRecurrent<Fixed>;
+    using SWindow = nostd::SlidingWindow<unsigned, G602_WINDOW_SIZE>;
 
     void (*m_event_config_store)(const uint8_t * conf, size_t size);
     void (*m_event_config_load)(uint8_t * conf, size_t size, bool * empty);
@@ -76,33 +76,33 @@ private:
     void (*m_event_motor_update)(bool state, int output);
     void (*m_event_pulses_get)(unsigned * motor_dpulses, unsigned * table_dpulses);
 
-    unsigned long m_time_now;
-    unsigned long m_time_next;
+    unsigned long m_time_now  = 0;
+    unsigned long m_time_next = 0;
 
-    G602Scheduler m_sched;
-    GBlinker m_blinker;
+    G602Scheduler m_sched{};
+    GBlinker m_blinker{};
     Ctrl m_ctrl;
     GDInputDebounced m_di_gauge_stop;
     GDInputDebounced m_di_btn_speed_mode;
     GDInputDebounced m_di_btn_autostop;
     GDInputDebounced m_di_btn_start;
     GDInputDebounced m_di_btn_stop;
-    GComm m_comm;
+    GComm m_comm{};
     GRPCServer m_rpc;
 
     /* buffer to recieve request */
 #define CAPACITY 32
-    uint8_t m_buf_frame[CAPACITY];
+    uint8_t m_buf_frame[CAPACITY]{};
 
-    bool m_permanent_process_send;
+    bool m_permanent_process_send = false;
 
-    Fixed m_Kp;
-    Fixed m_Ki;
-    Fixed m_Kd;
+    Fixed m_Kp{};
+    Fixed m_Ki{};
+    Fixed m_Kd{};
 
-    PID m_pid;
+    PID m_pid{};
 
-    SWindow m_pulses; /**< Amount of pulses per period <ctrl_handler_period> */
+    SWindow m_pulses{}; /**< Amount of pulses per period <ctrl_handler_period> */
 
     void P_config_store();
     void P_config_load();

@@ -65,12 +65,6 @@ public:
 
     class const_iterator
     {
-    private:
-
-        SlidingWindow * m_window;
-        nostd::size_t m_index;  /* absolete index in array items[] */
-        nostd::size_t m_ring_index;
-
     public:
         enum Wherence
         {
@@ -78,12 +72,8 @@ public:
             END
         };
 
-        const_iterator()
-        {
-            m_window = NULL;
-            m_index = 0;
-            m_ring_index = 0;
-        }
+        const_iterator() = default;
+        ~const_iterator() = default;
 
         const_iterator(const SlidingWindow &w, Wherence wherence)
         {
@@ -161,6 +151,11 @@ public:
         {
             return m_ring_index > other.m_ring_index;
         }
+    private:
+
+        SlidingWindow * m_window = nullptr;
+        nostd::size_t m_index = 0;  /* absolete index in array items[] */
+        nostd::size_t m_ring_index = 0;
     };
 
     class reverse_const_iterator

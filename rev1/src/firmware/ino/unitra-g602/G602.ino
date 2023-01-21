@@ -40,25 +40,13 @@ G602::G602(
 , m_event_lift_down(event_lift_down)
 , m_event_motor_update(event_motor_update)
 , m_event_pulses_get(event_pulses_get)
-, m_time_now(0)
-, m_time_next(0)
-, m_sched()
-, m_blinker()
 , m_ctrl(baselineSpeedLow, baselineSpeedHigh, P_ctrl_event, this)
 , m_di_gauge_stop(false, P_event_stopUnset, P_event_stopSet, this, DI_DEBOUNCE_TIME)
 , m_di_btn_speed_mode(false, P_event_speedMode33,  P_event_speedMode45, this, DI_DEBOUNCE_TIME)
 , m_di_btn_autostop(false, P_event_autostopEnable,  P_event_autostopDisable, this, DI_DEBOUNCE_TIME)
 , m_di_btn_start(false, P_event_start,  nullptr, this, DI_DEBOUNCE_TIME)
 , m_di_btn_stop(false, P_event_stop,  P_event_stop_release, this, DI_DEBOUNCE_TIME)
-, m_comm()
 , m_rpc(P_rpc_send, this)
-, m_buf_frame()
-, m_permanent_process_send(false)
-, m_Kp()
-, m_Ki()
-, m_Kd()
-, m_pid()
-, m_pulses()
 {
     P_config_load();
 
@@ -194,9 +182,9 @@ void G602::P_config_load()
     m_event_config_load(conf, sizeof(conf), &empty);
     if(empty)
     {
-        m_Kp.set(G602_PID_DEFAULT_KP);
-        m_Ki.set(G602_PID_DEFAULT_KI);
-        m_Kd.set(G602_PID_DEFAULT_KD);
+        m_Kp.setDouble(G602_PID_DEFAULT_KP);
+        m_Ki.setDouble(G602_PID_DEFAULT_KI);
+        m_Kd.setDouble(G602_PID_DEFAULT_KD);
     }
     else
     {
@@ -307,7 +295,7 @@ void G602::P_task_ctrl(
         meas.pulses_sum += (*it);
     }
 
-    unsigned window_len = self->m_pulses.length();
+    const unsigned window_len = self->m_pulses.length();
 
     /** @brief Speed: Pulses Per Period to Pulses Per Minute */
 #define SPEED_PPM(pulses, period) \
@@ -345,11 +333,9 @@ void G602::P_task_ctrl(
 
     self->m_ctrl.actualSpeedUpdate(speed_pv_ppm_filtered, self);
 
-    Fixed sp;
-    Fixed pv;
+    const Fixed sp(speed_sp, Fixed::tag_int);
+    const Fixed pv(speed_pv_ppm, Fixed::tag_int);
     Fixed ctrl;
-    sp.set(speed_sp);
-    pv.set(speed_pv_ppm);
 
     ctrl = self->m_pid.calculate(sp, pv);
 
