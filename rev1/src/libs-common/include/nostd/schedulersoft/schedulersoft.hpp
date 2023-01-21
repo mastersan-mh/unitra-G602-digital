@@ -69,9 +69,7 @@ public:
         }
     }
 
-    ~SchedulerSoft() noexcept
-    {
-    }
+    ~SchedulerSoft() noexcept = default;
 
     /**
      * @brief Schedule the task
@@ -244,7 +242,7 @@ private:
     }
 
     /* scheduled tasks */
-    NOSTD_LIST2_LIST(task_s, field_s) m_scheduled;
+    NOSTD_LIST2_LIST(task_s, field_s) m_scheduled{};
     /* pool for the tasks */
     struct task_s m_tasks[scheduledTasksMax];
 

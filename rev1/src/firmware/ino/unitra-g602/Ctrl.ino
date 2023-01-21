@@ -98,18 +98,9 @@ Ctrl::Error Ctrl::P_fsm(Command cmd, const CommandData & data, void * args)
     {
         case State::INIT:
         {
-             m_state_errors = 0;
-             m_state_warnings = 0;
-             m_state_allowed_autostop = false;
-             m_state_autostop_triggered = false;
-             m_speed_SP_manual_delta = 0;
-             m_speed_SP_free = 0;
-             m_speed_baseline_mode = BaselineSpeedMode::MODE_LOW;
-             m_motor_state_cached = false;
-             m_motor_speed_SP_cached = 0;
              P_event_motor_off(args);
              P_event_lift_up(args);
-             Ctrl::speed_t speed = P_speed_baseline_get();
+             const Ctrl::speed_t speed = P_speed_baseline_get();
              P_event_motor_setpoint_update(speed, args);
              next_state = State::NORMAL_STOPPED;
              break;
@@ -927,19 +918,13 @@ Ctrl::Ctrl(
         void (*eventFunc)(Event event, const EventData& data, void * args),
         void * args
 )
+: m_eventFunc(eventFunc)
 {
     /* init vars */
     m_speed_baselines[ARRAY_INDEX(BaselineSpeedMode::MODE_LOW )] = baselineSpeedLow;
     m_speed_baselines[ARRAY_INDEX(BaselineSpeedMode::MODE_HIGH)] = baselineSpeedHigh;
-    m_eventFunc = eventFunc;
 
-    m_state = State::INIT;
     P_fsm(Command::INIT, m_cmdData, args);
-}
-
-Ctrl::~Ctrl()
-{
-    /* nothing to do*/
 }
 
 Ctrl::Error Ctrl::baselineSpeedModeSet(BaselineSpeedMode baselineSpeedMode, void * args)

@@ -72,6 +72,9 @@ public:
 #define CTRL_BASESPEEDMODE__NUM (static_cast<int>(BaselineSpeedMode::MODE_HIGH) + 1)
 
     Ctrl() = delete;
+    Ctrl(const Ctrl&) = delete;
+    Ctrl& operator=(const Ctrl&) = delete;
+
     /**
      * @param baseSpeedLow      Базовая скорость: низкая
      * Gparam baseSpeedHigh     Базовая скорость: высокая
@@ -82,10 +85,7 @@ public:
             void (*eventFunc)(Event event, const EventData& data, void * args),
             void * args
     );
-    Ctrl(const Ctrl&) = delete;
-    Ctrl& operator=(const Ctrl&) = delete;
-
-    virtual ~Ctrl();
+    ~Ctrl() = default;
     /**
      * @brief Выбор базовой скорости
      */
@@ -156,18 +156,22 @@ private:
         GAUGE_STOP_OFF,
     };
 
-    typedef union
+    struct CommandData
     {
-        struct
+        ~CommandData(){};
+        union
         {
-            speed_t speed;
-        } SPEED_MANUAL_UPDATE;
+            struct
+            {
+                speed_t speed;
+            } SPEED_MANUAL_UPDATE;
 
-        struct
-        {
-            speed_t speed;
-        } SPEED_FREE_UPDATE;
-    } CommandData;
+            struct
+            {
+                speed_t speed;
+            } SPEED_FREE_UPDATE;
+        };
+    };
 
     enum class State
     {
@@ -183,6 +187,26 @@ private:
         SERVICE_MODE3_STARTED,
     };
 
+    /* init vars */
+    void (*m_eventFunc)(Event event, const EventData& data, void * args);
+    speed_t m_speed_baselines[CTRL_BASESPEEDMODE__NUM];
+
+    State m_state = State::INIT; /**< Finite State Machine state */
+    unsigned m_state_errors = 0; /**< bitmap of errors */
+    unsigned m_state_warnings = 0; /**< bitmap of warnings */
+    bool m_state_allowed_autostop = false;
+    bool m_state_autostop_triggered = false;
+
+    /* user control variables */
+    speed_t m_speed_SP_manual_delta = 0;
+    speed_t m_speed_SP_free = 0;
+    BaselineSpeedMode m_speed_baseline_mode = BaselineSpeedMode::MODE_LOW;
+    bool m_motor_state_cached = false; /*on/off */
+    speed_t m_motor_speed_SP_cached = 0;
+
+    CommandData m_cmdData{};
+    EventData m_eventData{};
+
     speed_t P_speed_baseline_get() const;
 
     void P_event(Event event, const EventData& data, void * args) const;
@@ -197,26 +221,6 @@ private:
     RunMode P_runModeGet(State state);
 
     Error P_fsm(Command cmd, const CommandData & data, void * args);
-
-    /* init vars */
-    void (*m_eventFunc)(Event event, const EventData& data, void * args);
-    speed_t m_speed_baselines[CTRL_BASESPEEDMODE__NUM];
-
-    State m_state;        /**< Finite State Machine state */
-    unsigned m_state_errors; /**< bitmap of errors */
-    unsigned m_state_warnings; /**< bitmap of warnings */
-    bool m_state_allowed_autostop;
-    bool m_state_autostop_triggered;
-
-    /* user control variables */
-    speed_t m_speed_SP_manual_delta;
-    speed_t m_speed_SP_free;
-    BaselineSpeedMode m_speed_baseline_mode;
-    bool m_motor_state_cached; /*on/off */
-    speed_t m_motor_speed_SP_cached;
-
-    CommandData m_cmdData;
-    EventData m_eventData;
 
 #ifdef CTRL_DEBUG
 public:

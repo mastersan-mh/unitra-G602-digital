@@ -12,7 +12,7 @@ class AverageTinyMemory
 public:
 
     AverageTinyMemory(unsigned char factor);
-    virtual ~AverageTinyMemory();
+    ~AverageTinyMemory() = default;
 /**
  * @param factor    фактор усреднения, [0; 63]
  */
@@ -20,11 +20,11 @@ public:
     void appendValue(int value);
     int averageGet();
 private:
-    int m_mean;
-    int m_value_prev;
+    int m_mean = 0;
+    int m_value_prev = 0;
     unsigned char m_factor;
-    unsigned char m_len;
-    unsigned char m_value_weight;
+    unsigned char m_len = 0;
+    unsigned char m_value_weight = 0;
 };
 
 

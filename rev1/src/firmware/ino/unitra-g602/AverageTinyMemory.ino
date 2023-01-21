@@ -7,14 +7,12 @@
 #include <nostd/fatal>
 
 AverageTinyMemory::AverageTinyMemory(unsigned char factor)
+: m_factor(factor)
 {
-    this->m_mean = 0;
-    factorSet(factor);
-}
-
-AverageTinyMemory::~AverageTinyMemory()
-{
-    /* nothing */
+    if(factor > AverageTinyMemory_FACTOR_MAX)
+    {
+        FATAL(NOSTD_ERR_OUT_OF_RANGE);
+    }
 }
 
 void AverageTinyMemory::factorSet(unsigned char factor)

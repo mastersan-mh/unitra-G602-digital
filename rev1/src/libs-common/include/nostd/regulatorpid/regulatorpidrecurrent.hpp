@@ -11,10 +11,7 @@ template < class value_type >
 class PidRecurrent
 {
 public:
-    PidRecurrent() :
-        m_Kp(value_type()),
-        m_Ki_discr(value_type()),
-        m_Kd_discr(value_type())
+    PidRecurrent()
     {
         reset();
     }
@@ -110,13 +107,13 @@ public:
 
 private:
 
-    value_type m_Kp;
-    value_type m_Ki_discr;
-    value_type m_Kd_discr;
+    value_type m_Kp{};
+    value_type m_Ki_discr{};
+    value_type m_Kd_discr{};
 
-    value_type m_u_prev;
-    value_type m_error_N_minus_1;
-    value_type m_error_N_minus_2;
+    value_type m_u_prev{};
+    value_type m_error_N_minus_1{};
+    value_type m_error_N_minus_2{};
 
 };
 
