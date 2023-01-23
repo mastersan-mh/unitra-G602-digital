@@ -8,10 +8,10 @@ GDInput::GDInput(
             void * args
 )
 : GObject()
+, m_state_prev(!initState)
+, m_onTriggeredOn(onTriggeredOn)
+, m_onTriggeredOff(onTriggeredOff)
 {
-    m_state_prev = !initState;
-    m_onTriggeredOn = onTriggeredOn;
-    m_onTriggeredOff = onTriggeredOff;
     stateSet(initState, args);
 }
 

@@ -2,6 +2,7 @@ list="config.hpp
 defs.hpp
 utils.hpp
 unitra-g602.ino
+Speed.hpp
 G602.hpp
 G602.ino
 GBlinkerPatterned.hpp
@@ -12,7 +13,6 @@ Ctrl.hpp
 Ctrl.ino
 GTime.hpp
 GObject.hpp
-GObject.ino
 GDInput.hpp
 GDInput.ino
 GDInputDebounced.hpp

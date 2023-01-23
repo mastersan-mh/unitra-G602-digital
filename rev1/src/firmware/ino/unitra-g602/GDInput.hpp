@@ -19,9 +19,10 @@ public:
     virtual ~GDInput();
     virtual void stateSet(bool state, void * args);
 private:
+    bool m_state_prev;
+
     void (*m_onTriggeredOn)(void * args);
     void (*m_onTriggeredOff)(void * args);
-    bool m_state_prev;
 };
 
 #endif /* GDINPUT_H_ */

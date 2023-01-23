@@ -300,6 +300,9 @@ private:
 class CSetpointWidget: public QWidget
 {
     Q_OBJECT
+
+    static constexpr double m_conf_slider_coef = 0.00001;
+
 public:
     CSetpointWidget(QWidget * parent = 0)
         : m_layout(this)
@@ -314,54 +317,72 @@ public:
         m_layout.addWidget(&m_slider);
         m_layout.addWidget(&m_spinBox);
 
-        m_spinBox.setMinimum(m_slider.minimum());
-        m_spinBox.setMaximum(m_slider.maximum());
+
+        m_spinBox.setDecimals(3);
+        m_spinBox.setMinimum(P_int_to_dbl(m_slider.minimum()));
+        m_spinBox.setMaximum(P_int_to_dbl(m_slider.maximum()));
 
         setLayout(&m_layout);
 
         QObject::connect(&m_slider, SIGNAL(valueChanged(int)), this, SLOT(P_sliderChangeValue(int)));
-        QObject::connect(&m_spinBox, SIGNAL(valueChanged(int)), this, SLOT(P_spinBoxChangeValue(int)));
+        QObject::connect(&m_spinBox, SIGNAL(valueChanged(double)), this, SLOT(P_spinBoxChangeValue(double)));
     }
-    virtual ~CSetpointWidget()
-    {
+    virtual ~CSetpointWidget() = default;
 
-    }
+    double value()const noexcept
+    { return m_value; }
 
-    void setValue(int value)
+    void setValue(double value)
     {
-        m_slider.setValue(value);
+        m_value = value;
+        m_slider.setValue(P_dbl_to_int(value));
         m_spinBox.setValue(value);
     }
 
-    void setMinimum(int value)
+    void setMinimum(double value)
     {
-        m_slider.setMinimum(value);
+        m_slider.setMinimum(P_dbl_to_int(value));
         m_spinBox.setMinimum(value);
     }
 
-    void setMaximum(int value)
+    void setMaximum(double value)
     {
-        m_slider.setMaximum(value);
+        m_slider.setMaximum(P_dbl_to_int(value));
         m_spinBox.setMaximum(value);
     }
 
 signals:
-    void valueChanged(int);
+    void valueChanged(double);
 private:
     QVBoxLayout m_layout;
     QSlider m_slider;
-    QSpinBox m_spinBox;
+    QDoubleSpinBox m_spinBox;
+    double m_value = 0.0;
 
 private slots:
-    void P_sliderChangeValue(int value)
+
+    int P_dbl_to_int(double x)
     {
-        m_spinBox.setValue(value);
-        emit valueChanged(value);
+        const double res = x / m_conf_slider_coef;
+        return res;
+    }
+    double P_int_to_dbl(int x)
+    {
+        const double res = x * m_conf_slider_coef;
+        return res;
     }
 
-    void P_spinBoxChangeValue(int value)
+    void P_sliderChangeValue(int value)
     {
-        m_slider.setValue(value);
+        m_value = P_int_to_dbl(value);
+        m_spinBox.setValue(m_value);
+        emit valueChanged(m_value);
+    }
+
+    void P_spinBoxChangeValue(double value)
+    {
+        m_value = value;
+        m_slider.setValue(P_dbl_to_int(value));
         emit valueChanged(value);
     }
 
@@ -387,6 +408,7 @@ public:
         QAction *actionClear;
         QAction *actionRunMode; /* режим исполнение: true | false = симуляция | устройство */
         QAction *actionAutoscale;
+        QAction *actionShowPIDOutput;
 
     } mainMenu;
 
@@ -412,14 +434,14 @@ public:
 
         QDoubleSpinBox * leftValue;
         QPushButton * tryLeft;
-        QPushButton * setCenterToLeft;
+        QPushButton * copyCenterToLeft;
 
         QDoubleSpinBox * centerValue;
         QPushButton * tryCenter;
 
         QDoubleSpinBox * rightValue;
         QPushButton * tryRight;
-        QPushButton * setCenterToRight;
+        QPushButton * copyCenterToRight;
 
     } Ktry;
 
@@ -497,6 +519,7 @@ public:
             mainMenu.actionClear = new QAction(MainWindow);
             mainMenu.actionRunMode = new QAction(MainWindow);
             mainMenu.actionAutoscale = new QAction(MainWindow);
+            mainMenu.actionShowPIDOutput = new QAction(MainWindow);
 
             mainMenu.menuBar = new QMenuBar(MainWindow);
             mainMenu.menuCalls = new QMenu(mainMenu.menuBar);
@@ -518,6 +541,7 @@ public:
             mainMenu.menuTools->addAction(mainMenu.actionRunMode);
 
             mainMenu.menuView->addAction(mainMenu.actionAutoscale);
+            mainMenu.menuView->addAction(mainMenu.actionShowPIDOutput);
 
             mainMenu.menuBar->setGeometry(QRect(0, 0, 400, 22));
             mainMenu.menuBar->addAction(mainMenu.menuCalls->menuAction());
@@ -553,6 +577,10 @@ public:
             mainMenu.actionAutoscale->setToolTip(QStringLiteral("Autoscale the plots"));
             mainMenu.actionAutoscale->setShortcut(QStringLiteral("Alt+S"));
             mainMenu.actionAutoscale->setCheckable(true);
+
+            mainMenu.actionShowPIDOutput->setText(QStringLiteral("Show PID output"));
+            mainMenu.actionShowPIDOutput->setToolTip(QStringLiteral("Show PID output on graph"));
+            mainMenu.actionShowPIDOutput->setCheckable(true);
 
         } UI_LEVEL_END(mainMenu);
 
@@ -611,7 +639,7 @@ public:
 
                     Ktry.tryLeft = new QPushButton("Try", Ktry.main);
 
-                    Ktry.setCenterToLeft = new QPushButton("<--- Set", Ktry.main);
+                    Ktry.copyCenterToLeft = new QPushButton("<--- Copy", Ktry.main);
 
                     Ktry.centerValue = new QDoubleSpinBox(Ktry.main);
                     Ktry.centerValue->setMinimum(PIDK_SELECTION_MIN);
@@ -627,7 +655,7 @@ public:
 
                     Ktry.tryRight = new QPushButton("Try", Ktry.main);
 
-                    Ktry.setCenterToRight = new QPushButton("Set --->", Ktry.main);
+                    Ktry.copyCenterToRight = new QPushButton("Copy --->", Ktry.main);
 
                     Ktry.mainLayout->addWidget(Ktry.leftValue       , 0, 0, 1, 2);
                     Ktry.mainLayout->addWidget(Ktry.centerValue     , 0, 2, 1, 2);
@@ -635,8 +663,8 @@ public:
                     Ktry.mainLayout->addWidget(Ktry.tryLeft         , 1, 0, 2, 2);
                     Ktry.mainLayout->addWidget(Ktry.tryCenter       , 1, 2, 2, 2);
                     Ktry.mainLayout->addWidget(Ktry.tryRight        , 1, 4, 2, 2);
-                    Ktry.mainLayout->addWidget(Ktry.setCenterToLeft , 3, 0, 1, 3);
-                    Ktry.mainLayout->addWidget(Ktry.setCenterToRight, 3, 3, 1, 3);
+                    Ktry.mainLayout->addWidget(Ktry.copyCenterToLeft , 3, 0, 1, 3);
+                    Ktry.mainLayout->addWidget(Ktry.copyCenterToRight, 3, 3, 1, 3);
 
                 } UI_LEVEL_END(Ktry);
 
@@ -697,7 +725,7 @@ public:
                 m_sp.setpoint->setMinimum(MANUAL_SETPOINT_MIN);
                 m_sp.setpoint->setMaximum(MANUAL_SETPOINT_MAX);
                 m_sp.set0 = new QPushButton(QStringLiteral("0"), MainWindow);
-                m_sp.set33 = new QPushButton(QStringLiteral("33"), MainWindow);
+                m_sp.set33 = new QPushButton(QStringLiteral("33 1/3"), MainWindow);
                 m_sp.set45 = new QPushButton(QStringLiteral("45"), MainWindow);
 
                 m_sp.layout = new QVBoxLayout();

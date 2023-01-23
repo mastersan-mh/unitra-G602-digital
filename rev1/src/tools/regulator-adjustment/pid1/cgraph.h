@@ -22,12 +22,16 @@ public:
     friend CGraph;
 
 private:
-    explicit CGraphPlot(CGraph * owner_, const QColor &color_, const QList<double> &values_);
-    ~CGraphPlot();
+    explicit CGraphPlot(CGraph * owner, const QColor &color, const QList<double> &values)
+        : m_owner(owner)
+        , m_color(color)
+        , m_values(values)
+    {}
+    ~CGraphPlot() = default;
 
-    CGraph * owner;
-    QColor color;
-    QList<double> values;
+    CGraph * m_owner;
+    QColor m_color;
+    QList<double> m_values;
 };
 
 class CGraph : public QGraphicsView

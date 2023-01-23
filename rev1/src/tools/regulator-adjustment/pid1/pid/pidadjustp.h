@@ -9,7 +9,7 @@ private:
     static constexpr double m_measure_time = 1000.0; /* time, ms */
 public:
     PIDAdjustP(unsigned len_max);
-    ~PIDAdjustP();
+    ~PIDAdjustP() = default;
     void handle(double time, double value);
 private:
     enum class State
@@ -32,10 +32,10 @@ private:
     };
 
     unsigned m_len_max;
-    State m_state;
-    double m_measure_start_time;
-    double m_time;
-    unsigned m_accumulated_values;
+    State m_state = State::INIT;
+    double m_measure_start_time = 0.0;
+    double m_time = 0.0;
+    unsigned m_accumulated_values = 0;
     QVector<double> m_values;
 
     void P_fsm(Command cmd, union Data * data);

@@ -12,18 +12,18 @@
 #if defined(PID_DISCRETE)
 
 #   include <nostd/regulatorpid/regulatorpiddiscrete.hpp>
-typedef nostd::PidDiscrete< double, 50 > PID;
+using PID = nostd::PidDiscrete< double, 50 >;
 
 #elif defined(PID_RECURRENT)
 
 #   include <nostd/regulatorpid/regulatorpidrecurrent.hpp>
-typedef nostd::PidRecurrent< double > PID_recurrent;
+using PID_recurrent = nostd::PidRecurrent< double >;
 
 #elif defined(PID_RECURRENT_FIXED32)
 
 #   include <nostd/fixed/fixed32>
 #   include <nostd/regulatorpid/regulatorpidrecurrent.hpp>
-typedef nostd::PidRecurrent< nostd::Fixed32 > PID_recurrent_Fixed32;
+using PID_recurrent_Fixed32 = nostd::PidRecurrent< nostd::Fixed32 >;
 
 #endif
 

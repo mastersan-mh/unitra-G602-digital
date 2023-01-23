@@ -39,7 +39,7 @@ private slots:
     void pause_unpause(bool);
 
     /* установить значение функции уставки */
-    void P_setpointValueChanged(int value);
+    void P_setpointValueChanged(double value);
 
     void P_setpointSet0(bool);
     void P_setpointSet33(bool);
@@ -87,11 +87,15 @@ private:
 
 
 #if defined(PID_DISCRETE)
-    PID * m_pid;
+    PID m_pid = PID(0.0, 0.0, 0.0);
 #elif defined(PID_RECURRENT)
-    PID_recurrent * m_pid;
+    PID_recurrent * m_pid = PID_recurrent(0.0, 0.0, 0.0);
 #elif defined(PID_RECURRENT_FIXED32)
-    PID_recurrent_Fixed32 * m_pid;
+    PID_recurrent_Fixed32 m_pid = PID_recurrent_Fixed32(
+                nostd::Fixed32(0.0, nostd::Fixed32::tag_double),
+                nostd::Fixed32(0.0, nostd::Fixed32::tag_double),
+                nostd::Fixed32(0.0, nostd::Fixed32::tag_double)
+                );
 #endif
 
     CSlidingWindow m_axis_x;

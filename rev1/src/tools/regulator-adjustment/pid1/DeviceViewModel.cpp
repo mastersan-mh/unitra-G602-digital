@@ -2,20 +2,6 @@
 
 #include <QIcon>
 
-DeviceViewModel::DeviceViewModel(QObject *parent)
-    : QAbstractItemModel(parent)
-    , m_prev_size(0)
-    , m_data()
-    , m_index()
-{
-
-}
-
-DeviceViewModel::~DeviceViewModel()
-{
-
-}
-
 QModelIndex DeviceViewModel::index(int row, int column, const QModelIndex &parent) const
 {
     Q_UNUSED(parent);

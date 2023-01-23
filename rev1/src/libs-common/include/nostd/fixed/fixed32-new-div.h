@@ -15,18 +15,18 @@ extern "C"
 
 typedef int32_t fixed32_t;
 
-FIXEDPOINT_INLINE fixed32_t fixed32_abs(fixed32_t x)
+static inline fixed32_t fixed32_abs(fixed32_t x)
 {
     fixed32_t sign = x >> (FIXED32_BITS - 1);
     return (x ^ sign) - sign;
 }
 
-FIXEDPOINT_INLINE fixed32_t fixed32_mul(fixed32_t a, fixed32_t b)
+static inline fixed32_t fixed32_mul(fixed32_t a, fixed32_t b)
 {
   return (fixed32_t)((int64_t)a * b >> FIXED32_FRACBITS);
 }
 
-FIXEDPOINT_INLINE fixed32_t fixed32_div(fixed32_t a, fixed32_t b)
+static inline fixed32_t fixed32_div(fixed32_t a, fixed32_t b)
 {
   return (fixed32_t)( ((int64_t)a << FIXED32_FRACBITS) / b );
 }
@@ -48,12 +48,13 @@ inline static fixed32_t FixedDiv(fixed32_t a, fixed32_t b, bool * overflow)
             ((a^b)>>31) ^ INT32_MAX :
             (fixed32_t)(((int64_t) a << FIXED32_FRACBITS) / b);
  */
+}
 
-FIXEDPOINT_INLINE fixed32_t fixed32_div_o(fixed32_t a, fixed32_t b, bool * overflow)
+static inline fixed32_t fixed32_div_o(fixed32_t a, fixed32_t b, bool * overflow)
 {
-  int64_t res = ((int64_t)a << FIXED32_FRACBITS) / b;
-  *overflow = (abs(res) > (((int64_t)1 << (FIXED32_BITS + 1)) - 1));
-  return (fixed32_t)( res );
+    int64_t res = ((int64_t)a << FIXED32_FRACBITS) / b;
+    *overflow = (abs(res) > (((int64_t)1 << (FIXED32_BITS + 1)) - 1));
+    return (fixed32_t)( res );
 }
 
 /*
@@ -65,15 +66,15 @@ inline static fixed32_t FixedDiv(fixed32_t a, fixed32_t b)
 }
 */
 
-}
 
 
-FIXEDPOINT_INLINE fixed32_t double_to_fixed32(double val)
+
+static inline fixed32_t double_to_fixed32(double val)
 {
     return (val * FIXED32_FRACUNIT);
 }
 
-FIXEDPOINT_INLINE double fixed32_to_double(fixed32_t val)
+static inline double fixed32_to_double(fixed32_t val)
 {
     return ((double)val / FIXED32_FRACUNIT);
 }

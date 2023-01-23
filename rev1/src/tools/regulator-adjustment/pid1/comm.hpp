@@ -11,8 +11,12 @@ class Comm: public QObject, public GCommBase
 {
     Q_OBJECT
 public:
-    Comm();
-    virtual ~Comm();
+    Comm()
+        : QObject()
+        , GCommBase()
+    {}
+
+    virtual ~Comm() = default;
 public slots:
     void appendInputStream(const QByteArray &data);
     bool readFrame(QByteArray &frame);
@@ -23,13 +27,13 @@ signals:
 
 private:
 
-    virtual unsigned bytesRawAvailable();
-    virtual int  byteReadRaw();
-    virtual void byteWriteRaw(uint8_t byte);
+    QByteArray m_input{};
+    QByteArray m_output{};
+    QVector<QByteArray> m_frames{};
 
-    QByteArray m_input;
-    QByteArray m_output;
-    QVector<QByteArray> m_frames;
+    virtual unsigned bytesRawAvailable() override;
+    virtual int  byteReadRaw() override;
+    virtual void byteWriteRaw(uint8_t byte) override;
 };
 
 #endif // COMM_HPP

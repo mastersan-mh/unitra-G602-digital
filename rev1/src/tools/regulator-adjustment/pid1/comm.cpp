@@ -1,20 +1,6 @@
 
 #include "comm.hpp"
 
-Comm::Comm()
-    : QObject()
-    , GCommBase()
-    , m_input()
-    , m_output()
-    , m_frames()
-{
-
-}
-
-Comm::~Comm()
-{
-}
-
 unsigned Comm::bytesRawAvailable()
 {
     return m_input.size();

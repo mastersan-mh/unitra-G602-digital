@@ -64,8 +64,8 @@ private:
 class Extreme
 {
 public:
-    Extreme();
-    ~Extreme();
+    Extreme() = default;
+    ~Extreme() = default;
     void reset();
     /**
      * @return New value is more exreme, than stored
@@ -78,8 +78,8 @@ public:
     bool get(double &value);
 
 private:
-    bool m_valid;
-    double m_value;
+    bool m_valid = false;
+    double m_value = 0.0;
 };
 
 enum class PointsOrigins
@@ -119,15 +119,17 @@ public:
     };
 
     typedef QMap< size_t, PointDescr > PointsDescr;
-    FuncDescr();
-    ~FuncDescr();
+    FuncDescr()
+        : m_ftype(FuncType::NON_MONOTONIC)
+    {}
+    ~FuncDescr() = default;
 
     FuncType typeGet() const;
     const PointsDescr & pointsDescrGet() const;
 
 private:
     FuncType m_ftype;
-    PointsDescr m_pointDescrs;/** pair = <index, descr>  */
+    PointsDescr m_pointDescrs{};/** pair = <index, descr>  */
 
     friend void functionAnalysis(const QVector<double> &values, FuncDescr &fdescr);
 };

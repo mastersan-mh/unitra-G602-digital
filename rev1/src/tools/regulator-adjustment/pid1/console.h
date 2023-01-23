@@ -46,14 +46,15 @@ signals:
 
 public:
     explicit Console(QWidget *parent = 0);
+    ~Console() = default;
 
     void putData(const QByteArray &data);
 
 protected:
-    virtual void keyPressEvent(QKeyEvent *e);
-    virtual void mousePressEvent(QMouseEvent *e);
-    virtual void mouseDoubleClickEvent(QMouseEvent *e);
-    virtual void contextMenuEvent(QContextMenuEvent *e);
+    virtual void keyPressEvent(QKeyEvent *e) override;
+    virtual void mousePressEvent(QMouseEvent *e) override;
+    virtual void mouseDoubleClickEvent(QMouseEvent *e) override;
+    virtual void contextMenuEvent(QContextMenuEvent *e) override;
 };
 
 #endif // CONSOLE_H

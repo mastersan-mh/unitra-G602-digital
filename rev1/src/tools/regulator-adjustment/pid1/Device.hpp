@@ -76,6 +76,7 @@ public:
         SERVICE_MODE3_STARTED,
     };
     explicit Device(QObject *parent = 0);
+    ~Device() = default;
 
     void requestsStatClearAll();
     /**
@@ -129,16 +130,16 @@ private slots:
     void P_rpc_request_timedout(uint16_t ruid, uint8_t funcId);
 
 private:
-    RPCClient m_rpc;
+    RPCClient m_rpc{};
 
     /** @brief pulses per revolution */
     struct
     {
         bool valid;
         unsigned value;
-    } m_ppr;
+    } m_ppr{};
 
-    RunMode m_mode;
+    RunMode m_mode{};
 
     struct
     {
@@ -146,13 +147,13 @@ private:
         double Kp;
         double Ki;
         double Kd;
-    } m_koef;
+    } m_koef{};
 
-    bool m_prosess_started;
+    bool m_prosess_started = false;
 
-    ReqStatuses m_statuses;
+    ReqStatuses m_statuses{};
 
-    QMap<uint16_t /* ruid */ , uint8_t /* funcId, unused */ > m_autoqueue; /**< Очередь из ожидающих автоматических запросов */
+    QMap<uint16_t /* ruid */ , uint8_t /* funcId, unused */ > m_autoqueue{}; /**< Очередь из ожидающих автоматических запросов */
 
     void P_rpc_request_common(enum FuncId funcId, const QVector<uint16_t> & argv, ReqMode reqmode);
 
@@ -164,7 +165,7 @@ private:
     /**
      * @param speed     speed, pulses/minute
      */
-    void P_rpc_request_05_speed_SP_w(uint16_t speed, ReqMode reqmode);
+    void P_rpc_request_05_speed_SP_w(double speed, ReqMode reqmode);
     void P_rpc_request_06_speed_PV_r(ReqMode reqmode);
     void P_rpc_request_07_process_start(ReqMode reqmode);
     void P_rpc_request_08_process_stop(ReqMode reqmode);

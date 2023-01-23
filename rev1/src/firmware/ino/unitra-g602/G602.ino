@@ -9,6 +9,12 @@
 
 #define TO_BOOL(x) ((x) != 0)
 
+#define SPLIT32_HI(x)  (static_cast<uint16_t>(static_cast<uint32_t>(x) >> 16))
+#define SPLIT32_LO(x) (static_cast<uint16_t>(static_cast<uint32_t>(x) & 0x0000ffff))
+#define BUILD_32(hi, lo)  ((static_cast<uint32_t>(hi) << 16) | static_cast<uint32_t>(lo))
+
+#define IN_RANGE(x, l, r) ((l) <= (x) && (x) <= (r))
+
 static const uint16_t P_run_modes[] =
 {
         [ARRAY_INDEX(Ctrl::RunMode::NORMAL_STOPPED       )] = 0x1000, /* 1.1: stopped */
@@ -23,8 +29,6 @@ static const uint16_t P_run_modes[] =
 };
 
 G602::G602(
-    int baselineSpeedLow,
-    int baselineSpeedHigh,
     void (*event_config_store)(const uint8_t * conf, size_t size),
     void (*event_config_load)(uint8_t * conf, size_t size, bool * empty),
     void (*event_strober)(bool on),
@@ -40,25 +44,13 @@ G602::G602(
 , m_event_lift_down(event_lift_down)
 , m_event_motor_update(event_motor_update)
 , m_event_pulses_get(event_pulses_get)
-, m_time_now(0)
-, m_time_next(0)
-, m_sched()
-, m_blinker()
-, m_ctrl(baselineSpeedLow, baselineSpeedHigh, P_ctrl_event, this)
+, m_ctrl(m_conf_baselineSpeedLow, m_conf_baselineSpeedHigh, P_ctrl_event, this)
 , m_di_gauge_stop(false, P_event_stopUnset, P_event_stopSet, this, DI_DEBOUNCE_TIME)
 , m_di_btn_speed_mode(false, P_event_speedMode33,  P_event_speedMode45, this, DI_DEBOUNCE_TIME)
 , m_di_btn_autostop(false, P_event_autostopEnable,  P_event_autostopDisable, this, DI_DEBOUNCE_TIME)
 , m_di_btn_start(false, P_event_start,  nullptr, this, DI_DEBOUNCE_TIME)
 , m_di_btn_stop(false, P_event_stop,  P_event_stop_release, this, DI_DEBOUNCE_TIME)
-, m_comm()
 , m_rpc(P_rpc_send, this)
-, m_buf_frame()
-, m_permanent_process_send(false)
-, m_Kp()
-, m_Ki()
-, m_Kd()
-, m_pid()
-, m_pulses()
 {
     P_config_load();
 
@@ -140,7 +132,7 @@ void G602::notifyButtonStopSet(bool state)
     m_di_btn_stop.stateSet(state, this, m_time_now);
 }
 
-void G602::manualSpeedSet(int speed)
+void G602::manualSpeedSet(Speed speed)
 {
     m_ctrl.speedManualSet(speed, this);
 }
@@ -156,16 +148,24 @@ void G602::P_rpc_eventModeChanged(Ctrl::RunMode runMode)
     );
 }
 
-void G602::P_rpc_eventSPPV(GTime_t time, uint16_t sp, uint16_t pv, fixed32_t out)
+void G602::P_rpc_eventSPPV(GTime_t time, Speed sp, Speed pv, Speed out)
 {
-    uint8_t resc = 6;
-    uint16_t resv[6];
-    resv[0] = (uint16_t)((uint32_t)time >> 16);
-    resv[1] = (uint16_t)((uint32_t)time & 0x0000ffff);
-    resv[2] = sp;
-    resv[3] = pv;
-    resv[4] = (uint16_t)(out >> 16);
-    resv[5] = (uint16_t)(out & 0x0000ffff);
+    uint8_t resc = 8;
+    uint16_t resv[8];
+    resv[0] = SPLIT32_HI(time);
+    resv[1] = SPLIT32_LO(time);
+
+    const uint32_t sp_raw = sp.toRawFixed();
+    resv[2] = SPLIT32_HI(sp_raw);
+    resv[3] = SPLIT32_LO(sp_raw);
+
+    const uint32_t pv_raw = pv.toRawFixed();
+    resv[4] = SPLIT32_HI(pv_raw);
+    resv[5] = SPLIT32_LO(pv_raw);
+
+    const uint32_t out_raw = out.toRawFixed();
+    resv[6] = SPLIT32_LO(out_raw);
+    resv[7] = SPLIT32_LO(out_raw);
 
     m_rpc.event(
         G602_EVENT_SPPV,
@@ -194,9 +194,9 @@ void G602::P_config_load()
     m_event_config_load(conf, sizeof(conf), &empty);
     if(empty)
     {
-        m_Kp.set(G602_PID_DEFAULT_KP);
-        m_Ki.set(G602_PID_DEFAULT_KI);
-        m_Kd.set(G602_PID_DEFAULT_KD);
+        m_Kp.setDouble(G602_PID_DEFAULT_KP);
+        m_Ki.setDouble(G602_PID_DEFAULT_KI);
+        m_Kd.setDouble(G602_PID_DEFAULT_KD);
     }
     else
     {
@@ -288,83 +288,58 @@ void G602::P_task_ctrl(
 
     self->m_event_pulses_get(&motor_dpulses, &table_dpulses);
 
-    self->m_pulses.append(table_dpulses);
+    self->m_pulses_sum.add(table_dpulses);
+    const unsigned pulses_per_window_raw = self->m_pulses_sum.sum();
+    const Speed pulses_per_window(pulses_per_window_raw, Speed::tag_int);
+    const Speed window_time_ms(ctrl_handler_period * self->m_pulses_sum.size(), Speed::tag_int);
+    const Speed window_time_s = window_time_ms / 1000;
+    const Speed rpm = (pulses_per_window * 60) / (window_time_s * m_conf_table_pulses_per_revolution);
 
-    struct
-    {
-        unsigned pulses_sum;
-        unsigned ppm;
-    } meas;
-
-    meas.pulses_sum = 0;
-
-    for(
-            SWindow::const_iterator it = self->m_pulses.cbegin();
-            it != self->m_pulses.cend();
-            ++it
-    )
-    {
-        meas.pulses_sum += (*it);
-    }
-
-    unsigned window_len = self->m_pulses.length();
-
-    /** @brief Speed: Pulses Per Period to Pulses Per Minute */
-#define SPEED_PPM(pulses, period) \
-        ( \
-                ((unsigned long)(pulses) * 1000UL * 60UL) / \
-                ((unsigned long)(period)) \
-        )
-
-    meas.ppm = (unsigned)SPEED_PPM(meas.pulses_sum, ctrl_handler_period * window_len);
-
-    int speed_pv_ppm = (int)meas.ppm;
+    const Speed speed_PV_raw = rpm;
 
     bool motor_state;
-    Ctrl::speed_t table_setpoint;
+    Speed table_setpoint;
     self->m_ctrl.motorGet(&motor_state, &table_setpoint);
-    Ctrl::speed_t speed_sp = (motor_state ? table_setpoint : 0);
+    const Speed speed_SP = (motor_state ? table_setpoint : Speed());
 
     /* filter */
-    int speed_pv_ppm_filtered;
 #ifdef G602_USE_FILTER
-    if(
-            speed_sp - G602_TABLE_PULSES_PER_REV / 2 <= speed_pv_ppm &&
-            speed_pv_ppm <= speed_sp + G602_TABLE_PULSES_PER_REV / 2
-    )
+
+    Speed speed_PV;
+    if(IN_RANGE(
+            speed_PV_raw,
+            speed_SP - m_const_value1div2,
+            speed_SP + m_const_value1div2
+    ))
     {
-        speed_pv_ppm_filtered = speed_sp;
+        speed_PV = speed_SP;
     }
     else
     {
-        speed_pv_ppm_filtered = speed_pv_ppm;
+        speed_PV = speed_PV_raw;
     }
 #else
-    speed_pv_ppm_filtered = speed_pv_ppm;
+    const Speed speed_PV = speed_PV_raw;
 #endif
 
-    self->m_ctrl.actualSpeedUpdate(speed_pv_ppm_filtered, self);
+    self->m_ctrl.actualSpeedUpdate(speed_PV, self);
 
-    Fixed sp;
-    Fixed pv;
-    Fixed ctrl;
-    sp.set(speed_sp);
-    pv.set(speed_pv_ppm);
-
-    ctrl = self->m_pid.calculate(sp, pv);
+    const Speed ctrl = self->m_pid.calculate(speed_SP, speed_PV_raw);
 
     fixed32_t ctrl_raw = ctrl.toRawFixed();
-    if(ctrl_raw < 0) ctrl_raw = 0;
+    if(ctrl_raw < 0)
+    {
+        ctrl_raw = 0;
+    }
     // DEBUG_PRINT("ctrl_raw = "); DEBUG_PRINTLN(ctrl_raw);
 
+#if 1
     int ctrl_int = (int)(ctrl_raw >> 16); /* cut-off frac */
     // DEBUG_PRINT("ctrl_int = "); DEBUG_PRINTLN(ctrl_int);
-
-#if 1
     int motor_output = constrain(ctrl_int, 0, 255);
 #else
     int motor_output = (int)map(
-            speed_sp,
+            speed_SP,
             G602_SPEED_MIN,
             G602_SPEED_MAX,
             0,
@@ -376,20 +351,23 @@ void G602::P_task_ctrl(
 
     self->m_event_motor_update(motor_state, motor_output);
 
-    if(self->m_permanent_process_send)
+    if(self->m_send_counter < ctrl_send_factor)
     {
-        self->P_rpc_eventSPPV(time, (uint16_t)speed_sp, (uint16_t)speed_pv_ppm, (fixed32_t)ctrl_raw);
+        self->m_send_counter++;
     }
+    else
+    {
+        DEBUG_PRINT("table_dpulses = "); DEBUG_PRINTLN(table_dpulses);
+        DEBUG_PRINT("pulses_per_window_raw = "); DEBUG_PRINTLN(pulses_per_window_raw);
+        DEBUG_PRINT("pulses_per_window = "); DEBUG_PRINTLN(pulses_per_window.toDouble());
+        DEBUG_PRINT("rpm = "); DEBUG_PRINTLN(rpm.toDouble());
 
-#if 0
-    DEBUG_PRINT("[ ");
-    DEBUG_PRINT(now);
-    DEBUG_PRINT(" ]");
-
-    DEBUG_PRINT("\t"); DEBUG_PRINT(table_dpulses);
-    DEBUG_PRINT("\t"); DEBUG_PRINT(meas.ppm);
-    DEBUG_PRINTLN();
-#endif
+        if(self->m_permanent_process_send)
+        {
+            self->P_rpc_eventSPPV(time, speed_SP, speed_PV_raw, ctrl);
+        }
+        self->m_send_counter = 0;
+    }
 
     sched.shedule(
             id,
@@ -407,7 +385,7 @@ void G602::P_ctrl_start()
     m_event_pulses_get(&motor_dpulses, &table_dpulses);
 
     m_pid.reset();
-    m_pulses.reset();
+    m_pulses_sum.reset();
 
     m_sched.shedule(
             shed_task_id_ctrl,
@@ -443,20 +421,20 @@ void G602::P_ctrl_event(Ctrl::Event event, const Ctrl::EventData &data, void * a
 
             if(blink_speed_to_low)
             {
-                self->P_blinker_start(GBlinker::BlinkType::SLOW);
+                //self->P_blinker_start(GBlinker::BlinkType::SLOW);
             }
             else
             {
-                self->P_blinker_stop(GBlinker::BlinkType::SLOW);
+                //self->P_blinker_stop(GBlinker::BlinkType::SLOW);
             }
 
             if(blink_speed_to_high)
             {
-                self->P_blinker_start(GBlinker::BlinkType::FAST);
+                //self->P_blinker_start(GBlinker::BlinkType::FAST);
             }
             else
             {
-                self->P_blinker_stop(GBlinker::BlinkType::FAST);
+                //self->P_blinker_stop(GBlinker::BlinkType::FAST);
             }
 
             break;
@@ -740,16 +718,16 @@ uint8_t G602::P_rpc_func_02_koef_r(
     if(argc != 0) return GRPC_REPLY_ERR_INVALID_ARGUMENTS_AMOUNT;
     (*resc) = 6;
 
-    uint32_t Kp_raw = (uint32_t)self->m_Kp.toRawFixed();
-    uint32_t Ki_raw = (uint32_t)self->m_Ki.toRawFixed();
-    uint32_t Kd_raw = (uint32_t)self->m_Kd.toRawFixed();
+    const fixed32_t Kp_raw = self->m_Kp.toRawFixed();
+    const fixed32_t Ki_raw = self->m_Ki.toRawFixed();
+    const fixed32_t Kd_raw = self->m_Kd.toRawFixed();
 
-    resv[0] = (uint16_t)(Kp_raw >> 16);
-    resv[1] = (uint16_t)(Kp_raw & 0x0000ffff);
-    resv[2] = (uint16_t)(Ki_raw >> 16);
-    resv[3] = (uint16_t)(Ki_raw & 0x0000ffff);
-    resv[4] = (uint16_t)(Kd_raw >> 16);
-    resv[5] = (uint16_t)(Kd_raw & 0x0000ffff);
+    resv[0] = SPLIT32_HI(Kp_raw);
+    resv[1] = SPLIT32_LO(Kp_raw);
+    resv[2] = SPLIT32_HI(Ki_raw);
+    resv[3] = SPLIT32_LO(Ki_raw);
+    resv[4] = SPLIT32_HI(Kd_raw);
+    resv[5] = SPLIT32_LO(Kd_raw);
     return GRPC_REPLY_ERR_OK;
 }
 
@@ -782,24 +760,15 @@ uint8_t G602::P_rpc_func_03_koef_w(
 
     if(argc != 6) return GRPC_REPLY_ERR_INVALID_ARGUMENTS_AMOUNT;
 
-    fixed32_t Kp_raw;
-    fixed32_t Ki_raw;
-    fixed32_t Kd_raw;
-#define BUILD_32(hi, lo) (((uint32_t)(hi) << 16) | (uint32_t)(lo))
-
-    Kp_raw = (fixed32_t)BUILD_32(argv[0], argv[1]);
-    Ki_raw = (fixed32_t)BUILD_32(argv[2], argv[3]);
-    Kd_raw = (fixed32_t)BUILD_32(argv[4], argv[5]);
-
-    self->m_Kp.setRawFixed(Kp_raw);
-    self->m_Ki.setRawFixed(Ki_raw);
-    self->m_Kd.setRawFixed(Kd_raw);
+    self->m_Kp.setRawFixed(BUILD_32(argv[0], argv[1]));
+    self->m_Ki.setRawFixed(BUILD_32(argv[2], argv[3]));
+    self->m_Kd.setRawFixed(BUILD_32(argv[4], argv[5]));
 
     self->m_pid.KpSet(self->m_Kp);
     self->m_pid.KiSet(self->m_Ki);
     self->m_pid.KdSet(self->m_Kd);
     self->m_pid.reset();
-    self->m_pulses.reset();
+    self->m_pulses_sum.reset();
 
     return GRPC_REPLY_ERR_OK;
 }
@@ -815,12 +784,14 @@ uint8_t G602::P_rpc_func_04_speed_SP_r(
         void * args
 )
 {
-    G602_DEFINE_SELF();
     if(argc != 0) return GRPC_REPLY_ERR_INVALID_ARGUMENTS_AMOUNT;
+    G602_DEFINE_SELF();
 
-    Ctrl::speed_t speed = self->m_ctrl.speedFreeGet();
-    (*resc) = 1;
-    resv[0] = (uint16_t)speed;
+    const fixed32_t speed = self->m_ctrl.speedFreeGet().toRawFixed();
+
+    (*resc) = 2;
+    resv[0] = SPLIT32_HI(speed);
+    resv[1] = SPLIT32_LO(speed);
 
     return GRPC_REPLY_ERR_OK;
 }
@@ -837,8 +808,10 @@ uint8_t G602::P_rpc_func_05_speed_SP_w(
         void * args
 )
 {
+    if(argc != 2) return GRPC_REPLY_ERR_INVALID_ARGUMENTS_AMOUNT;
+
     G602_DEFINE_SELF();
-    Ctrl::RunMode runMode = self->m_ctrl.runModeGet();
+    const Ctrl::RunMode runMode = self->m_ctrl.runModeGet();
     if(!(
             runMode == Ctrl::RunMode::SERVICE_MODE3_STOPPED ||
             runMode == Ctrl::RunMode::SERVICE_MODE3_STARTED
@@ -846,10 +819,12 @@ uint8_t G602::P_rpc_func_05_speed_SP_w(
     {
         return GRPC_REPLY_ERR_INVALID_MODE;
     }
-    if(argc != 1) return GRPC_REPLY_ERR_INVALID_ARGUMENTS_AMOUNT;
 
-    unsigned speed = argv[0];
-    if(speed > G602_SPEED_MAX)
+    const fixed32_t speed_raw = BUILD_32(argv[0], argv[1]);
+
+    Speed speed(speed_raw, Speed::tag_raw);
+
+    if(speed > Speed(G602_SPEED_MAX * 1.0, Speed::tag_double))
     {
         return GRPC_REPLY_ERR_OUT_OF_RANGE;
     }
@@ -866,11 +841,14 @@ uint8_t G602::P_rpc_func_06_speed_PV_r(
         UNUSED void * args
 )
 {
-    //G602_DEFINE_SELF();
     if(argc != 0) return GRPC_REPLY_ERR_INVALID_ARGUMENTS_AMOUNT;
 
-    (*resc) = 1;
-    resv[0] = 666;
+    G602_DEFINE_SELF();
+    const fixed32_t pv_raw = self->m_ctrl.actualSpeed().toRawFixed();
+
+    (*resc) = 2;
+    resv[0] = SPLIT32_HI(pv_raw);
+    resv[1] = SPLIT32_LO(pv_raw);
 
     return GRPC_REPLY_ERR_OK;
 }

@@ -9,68 +9,41 @@ GDInputDebounced::GDInputDebounced(
         GTime_t debounceTime
 )
 : GDInput(initState, onTriggeredOn, onTriggeredOff, args)
-{
-    this->bouncedStatePrev = initState;
-    this->debounceTime = debounceTime;
-    this->debounceLastTime = 0;
-
-#ifdef GDInputDebounced_DEBUG
-    this->debug_bounces = 0;
-    this->debug_bouncesStartTime = 0;
-    this->debug_bouncesTime = 0;
-#endif
-}
-
-GDInputDebounced::~GDInputDebounced()
-{
-    /* nothing */
-}
+, m_debounceTime(debounceTime)
+, m_bouncedStatePrev(initState)
+{}
 
 void GDInputDebounced::stateSet(bool state, void * args, GTime_t time_current)
 {
 
-    if(state != bouncedStatePrev)
+    if(state != m_bouncedStatePrev)
     {
 #ifdef GDInputDebounced_DEBUG
-        if(debug_bounces == 0)
+        if(m_debug_bounces == 0)
         {
-            debug_bouncesStartTime = time_current;
+            m_debug_bouncesStartTime = time_current;
         }
-        ++debug_bounces;
+        ++m_debug_bounces;
 #endif
-        debounceLastTime = time_current;
-        bouncedStatePrev = state;
+        m_debounceLastTime = time_current;
+        m_bouncedStatePrev = state;
         return;
     }
 
-    long dt = time_current - debounceLastTime;
+    long dt = time_current - m_debounceLastTime;
     if(dt < 0)
     {
         dt = ((unsigned long) - 1L) - (unsigned long)dt + 1;
     }
 
-    if(dt > (long)debounceTime)
+    if(dt > (long)m_debounceTime)
     {
 #ifdef GDInputDebounced_DEBUG
-        debug_bouncesTime = time_current - debug_bouncesStartTime;
+        m_debug_bouncesTime = time_current - m_debug_bouncesStartTime;
 #endif
         GDInput::stateSet(state, args);
 #ifdef GDInputDebounced_DEBUG
-        debug_bounces = 0;
+        m_debug_bounces = 0;
 #endif
     }
 }
-
-#ifdef GDInputDebounced_DEBUG
-
-unsigned int GDInputDebounced::debug_bouncesAmountGet() const
-{
-    return debug_bounces;
-}
-
-GTime_t GDInputDebounced::debug_bouncesTimeGet() const
-{
-    return debug_bouncesTime;
-}
-
-#endif

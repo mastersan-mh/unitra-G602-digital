@@ -44,14 +44,6 @@ MainWindow::MainWindow(QWidget *parent)
     m_ui->mainMenu.actionConfigure->setEnabled(true);
     m_ui->mainMenu.actionRunMode->setEnabled(true);
 
-#if defined(PID_DISCRETE)
-    pid = new PID(0.0, 0.0, 0.0);
-#elif defined(PID_RECURRENT)
-    pid = new PID_recurrent(0.0, 0.0, 0.0);
-#elif defined(PID_RECURRENT_FIXED32)
-    m_pid = new PID_recurrent_Fixed32(nostd::Fixed32(0.0), nostd::Fixed32(0.0), nostd::Fixed32(0.0));
-#endif
-
     m_sim_processVariable = 0.0;
 
     m_timer = new QTimer();
@@ -147,7 +139,7 @@ MainWindow::MainWindow(QWidget *parent)
                 );
 
     QObject::connect(
-                m_ui->Ktry.setCenterToLeft, SIGNAL(clicked(bool)),
+                m_ui->Ktry.copyCenterToLeft, SIGNAL(clicked(bool)),
                 this, SLOT(selection_setCenterToLeft_clicked(bool))
                 );
 
@@ -167,7 +159,7 @@ MainWindow::MainWindow(QWidget *parent)
                 );
 
     QObject::connect(
-                m_ui->Ktry.setCenterToRight, SIGNAL(clicked(bool)),
+                m_ui->Ktry.copyCenterToRight, SIGNAL(clicked(bool)),
                 this, SLOT(selection_setCenterToRight_clicked(bool))
                 );
 
@@ -247,8 +239,8 @@ MainWindow::MainWindow(QWidget *parent)
                 );
 
     QObject::connect(
-                m_ui->m_sp.setpoint, SIGNAL(valueChanged(int)),
-                this, SLOT(P_setpointValueChanged(int))
+                m_ui->m_sp.setpoint, SIGNAL(valueChanged(double)),
+                this, SLOT(P_setpointValueChanged(double))
                 );
 
     QObject::connect(
@@ -269,6 +261,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_ui->mainMenu.actionRunMode->setChecked(true); /* to able to emit signal */
     m_ui->mainMenu.actionRunMode->setChecked(false);
     m_ui->mainMenu.actionAutoscale->setChecked(false);
+    m_ui->mainMenu.actionShowPIDOutput->setChecked(true);
 
     P_device_status_update(Device::RunMode::UNKNOWN);
 
@@ -439,8 +432,8 @@ void MainWindow::P_dev_ready_runModeChanged(Device::RunMode mode)
 void MainWindow::P_dev_ready_SPPV(unsigned long time_ms, double sp, double pv, double out)
 {
 
-    m_ui->indication.PID_power->setText(QString("PID output = %1").arg(out));
-    m_ui->m_sp.setpoint_actual->setText(QString("%1").arg(sp));
+    m_ui->indication.PID_power->setText(QString("PID output = %1").arg(out, 0, 'g', 5));
+    m_ui->m_sp.setpoint_actual->setText(QString("%1").arg(sp, 0, 'g', 5));
 
     m_axis_x.append((double)time_ms / 1000.0);
     m_valuesSetpoint.append(sp);
@@ -551,16 +544,7 @@ void MainWindow::P_button_rpc_request_4_speed_SP_r(bool)
 
 void MainWindow::P_button_rpc_request_5_speed_SP_w(bool)
 {
-    try
-    {
-        m_device->speedSetpointWrite(33.0);
-    }
-    catch(...)
-    {
-        QMessageBox::critical(this, tr("Error"), QString("Device info not ready"));
-        m_ui->statusBar->showMessage(tr("Device info not ready"));
-    }
-
+    P_setpointValueChanged(m_ui->m_sp.setpoint->value());
     P_device_reqstats_update();
 }
 
@@ -604,20 +588,20 @@ void MainWindow::pidK_changed(double Kp, double Ki, double Kd)
 {
 
 #if defined(PID_DISCRETE)
-    pid->KpSet(Kp_);
-    pid->KiSet(Ki_);
-    pid->KdSet(Kd_);
+    m_pid.KpSet(Kp);
+    m_pid.KiSet(Ki);
+    m_pid.KdSet(Kd);
 #elif defined(PID_RECURRENT)
-    pid->KpSet(Kp_);
-    pid->KiSet(Ki_);
-    pid->KdSet(Kd_);
+    m_pid.KpSet(Kp);
+    m_pid.KiSet(Ki);
+    m_pid.KdSet(Kd);
 #elif defined(PID_RECURRENT_FIXED32)
-    m_pid->KpSet(nostd::Fixed32(Kp));
-    m_pid->KiSet(nostd::Fixed32(Ki));
-    m_pid->KdSet(nostd::Fixed32(Kd));
+    m_pid.KpSet(nostd::Fixed32(Kp, nostd::Fixed32::tag_double));
+    m_pid.KiSet(nostd::Fixed32(Ki, nostd::Fixed32::tag_double));
+    m_pid.KdSet(nostd::Fixed32(Kd, nostd::Fixed32::tag_double));
 #endif
 
-    m_pid->reset();
+    m_pid.reset();
 
 }
 
@@ -638,7 +622,7 @@ void MainWindow::setpoint_valueSet(int value)
     m_ui->m_sp.setpoint->setValue(value);
 }
 
-void MainWindow::P_setpointValueChanged(int value)
+void MainWindow::P_setpointValueChanged(double value)
 {
     switch(m_runMode)
     {
@@ -664,17 +648,17 @@ void MainWindow::P_setpointValueChanged(int value)
 
 void MainWindow::P_setpointSet0(bool)
 {
-    m_ui->m_sp.setpoint->setValue(0);
+    m_ui->m_sp.setpoint->setValue(0.0);
 }
 
 void MainWindow::P_setpointSet33(bool)
 {
-    m_ui->m_sp.setpoint->setValue(33);
+    m_ui->m_sp.setpoint->setValue(33.0 + 1.0/3.0);
 }
 
 void MainWindow::P_setpointSet45(bool)
 {
-    m_ui->m_sp.setpoint->setValue(45);
+    m_ui->m_sp.setpoint->setValue(45.0);
 }
 
 void MainWindow::P_setpointFuncSetValue(int value)
@@ -793,11 +777,14 @@ void MainWindow::P_tickEventSimulation()
         }
 
 #if defined(PID_DISCRETE)
-        double power = pid->calculate(setpoint, processVariable);
+        double power = m_pid.calculate(m_sim_setpoint, m_sim_processVariable);
 #elif defined(PID_RECURRENT)
-        double power = pid->calculate(setpoint, processVariable);
+        double power = m_pid.calculate(m_sim_setpoint, m_sim_processVariable);
 #elif defined(PID_RECURRENT_FIXED32)
-        double power = m_pid->calculate(nostd::Fixed32(m_sim_setpoint), nostd::Fixed32(m_sim_processVariable)).toDouble();
+        double power = m_pid.calculate(
+                    nostd::Fixed32(m_sim_setpoint, nostd::Fixed32::tag_double),
+                    nostd::Fixed32(m_sim_processVariable, nostd::Fixed32::tag_double)
+                    ).toDouble();
 #endif
 
         m_sim_processVariable = m_engine->process(power);
@@ -849,11 +836,11 @@ void MainWindow::P_tickEventCommon()
 
 void MainWindow::P_indication_update(double setpoint, double processVariable, double PV_amplitude)
 {
-    double sp_pv_diff = (double)((double)setpoint - processVariable);
-    double sp_pv_diff_abs = fabs(sp_pv_diff);
+    const double sp_pv_diff = setpoint - processVariable;
+    const double sp_pv_diff_abs = fabs(sp_pv_diff);
 
-    m_ui->indication.processVariable->setText(QString("PV = %1").arg(processVariable));
-    m_ui->indication.PV_amplitude->setText(QString("PV amplitude = %1").arg(PV_amplitude));
+    m_ui->indication.processVariable->setText(QString("PV = %1").arg(processVariable, 0, 'g', 5));
+    m_ui->indication.PV_amplitude->setText(QString("PV amplitude = %1").arg(PV_amplitude, 0, 'g', 5));
     m_ui->indication.diff_SP_PV->setText(QString("SP - PV = %1 (%2% SP) (SP %3 PV)")
                                          .arg(sp_pv_diff_abs, 0, 'g', 9)
                                          .arg(100.0 * (sp_pv_diff_abs / (double)setpoint) , 0, 'g', 2)
@@ -871,13 +858,24 @@ void MainWindow::P_replot(
         const QVector<double> &vOut
         )
 {
+    const QVector<double> empty;
+
     /* fill the axis-X values */
     m_ui->plotSetpoint->setData(axis_x, vSetpoint);
     m_ui->plotPV->setData(axis_x, vPV);
-    m_ui->plotOut->setData(axis_x, vOut);
+
+    const bool showPid = (m_ui->mainMenu.actionShowPIDOutput->isChecked());
+    if(showPid)
+    {
+        m_ui->plotOut->setData(axis_x, vOut);
+    }
+    else
+    {
+        m_ui->plotOut->setData(axis_x, empty);
+    }
 
     /* scale setup */
-    bool autoScale = (m_ui->mainMenu.actionAutoscale->isChecked());
+    const bool autoScale = (m_ui->mainMenu.actionAutoscale->isChecked());
     if(autoScale)
     {
         QVector<double> mins =

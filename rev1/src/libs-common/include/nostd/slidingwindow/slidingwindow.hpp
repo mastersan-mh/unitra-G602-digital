@@ -18,10 +18,8 @@ class SlidingWindow
 {
 public:
 
-    SlidingWindow()
-    {
-        reset();
-    }
+    SlidingWindow() = default;
+    ~SlidingWindow() = default;
 
     void append(value_type x)
     {
@@ -43,7 +41,6 @@ public:
             ++m_length;
         }
 
-
     }
 
     void reset()
@@ -52,7 +49,7 @@ public:
         m_last = 0;
     }
 
-    inline nostd::size_t size()
+    inline nostd::size_t capacity()
     {
         return window_size;
     }
@@ -68,12 +65,6 @@ public:
 
     class const_iterator
     {
-    private:
-
-        SlidingWindow * m_window;
-        nostd::size_t m_index;  /* absolete index in array items[] */
-        nostd::size_t m_ring_index;
-
     public:
         enum Wherence
         {
@@ -81,12 +72,8 @@ public:
             END
         };
 
-        const_iterator()
-        {
-            m_window = NULL;
-            m_index = 0;
-            m_ring_index = 0;
-        }
+        const_iterator() = default;
+        ~const_iterator() = default;
 
         const_iterator(const SlidingWindow &w, Wherence wherence)
         {
@@ -164,6 +151,11 @@ public:
         {
             return m_ring_index > other.m_ring_index;
         }
+    private:
+
+        SlidingWindow * m_window = nullptr;
+        nostd::size_t m_index = 0;  /* absolete index in array items[] */
+        nostd::size_t m_ring_index = 0;
     };
 
     class reverse_const_iterator
@@ -171,8 +163,8 @@ public:
     private:
 
         SlidingWindow * m_window;
-        nostd::size_t m_index;  /* absolete index in array items[] */
-        nostd::size_t m_ring_index;
+        nostd::size_t m_index = 0;  /* absolete index in array items[] */
+        nostd::size_t m_ring_index = 0;
 
     public:
         enum Wherence
@@ -232,7 +224,6 @@ public:
             {
                 return nullptr;
             }
-
 
             value_type * tmp = &m_window->m_items[m_index];
 
@@ -325,9 +316,9 @@ private:
         return m_last;
     }
 
-    nostd::size_t m_length;
-    nostd::size_t m_last;
-    value_type m_items[window_size];
+    nostd::size_t m_length = 0;
+    nostd::size_t m_last = 0;
+    value_type m_items[window_size]{};
 };
 
 

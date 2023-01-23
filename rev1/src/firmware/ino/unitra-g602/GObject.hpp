@@ -8,8 +8,8 @@
 class GObject
 {
 public:
-    GObject() NOEXCEPT;
-    virtual ~GObject() NOEXCEPT;
+    GObject() NOEXCEPT = default;
+    virtual ~GObject() NOEXCEPT = default;
 };
 
 #endif /* GOBJECT_H_ */

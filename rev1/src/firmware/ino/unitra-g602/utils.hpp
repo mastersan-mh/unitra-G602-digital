@@ -8,4 +8,6 @@
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 
+#define ARG_UNUSED  __attribute__((unused))
+
 #endif /* GCOMM_HPP_INCLUDED_ */
